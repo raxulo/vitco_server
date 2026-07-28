@@ -1,0 +1,43 @@
+fastapi
+starlette
+uvicorn[standard]
+uvloop
+httptools
+
+SQLAlchemy
+# asyncpg
+aiosqlite
+
+aiortc
+aioice
+
+# Non-blocking file reads/writes
+aiofiles
+
+# Serialization & Json Control
+msgspec
+orjson
+
+pydantic
+pydantic-settings
+
+# Binary Protocol
+memoryview
+struct
+mmap
+bytearray
+
+# Encryption
+cryptography
+python-multipart
+
+zeroconf
+
+httpx
+
+# Frontend
+Jinja2
+HTMX
+AlpineJS
+
+dishka

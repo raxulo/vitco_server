@@ -1,0 +1,10 @@
+{
+  "diffEditor.renderSideBySide": false,
+  "diffEditor.ignoreTrimWhitespace": false,
+  "diffEditor.useInlineViewWhenSpaceIsLimited": true,
+  "editor.inlineSuggest.enabled": true,
+  "scm.diffDecorations": "all",
+  "scm.diffDecorationsGutterWidth": 3,
+  "git.decorations.enabled": true,
+  "git.openRepositoryInParentFolders": "always"
+}
