@@ -1,0 +1,869 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}MCC Profile - {{ mcc.name }}{% endblock %}
+
+{% block content %}
+<div class="mcc-container animate-fadeIn">
+
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+    <div class="mcc-header">
+        <div class="mcc-header-title">
+            <a href="/mcc" class="back-link">
+                <i class="fa-solid fa-arrow-left-long"></i>
+            </a>
+            <div>
+                <h2>{{ mcc.name }}</h2>
+                <p>Complete profile information and system settings</p>
+            </div>
+        </div>
+        <div class="mcc-header-actions" style="display: flex; gap: 8px; align-items: center;">
+            {% if mcc.can_modify and mcc.is_active %}
+            <button
+                type="button"
+                class="btn-action delete"
+                style="background-color: #ef4444; color: white; border: none; cursor: pointer; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; height: 38px;"
+                hx-post="/mcc/delete/{{ mcc.id }}?redirect=/mcc"
+                hx-confirm="Are you sure you want to delete this MCC center?"
+            >
+                <i class="fa-solid fa-trash-can"></i> Delete Center
+            </button>
+            {% endif %}
+            <a href="/mcc/edit/{{ mcc.id }}" class="btn-action edit">
+                <i class="fa-solid fa-pen-to-square"></i> Edit Profile
+            </a>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         TWO BOX SECTION LAYOUT
+    ========================================================== -->
+    <div class="mcc-two-box-grid">
+        
+        <!-- =====================================================
+             BOX 1: PROFILE, CONTACT & BILLING (LEFT SECTION)
+        ====================================================== -->
+        <div class="box-section">
+            
+            <!-- Center Profile & General Info -->
+            <div class="glass-card">
+                <div class="card-header border-blue">
+                    <div class="header-icon primary"><i class="fa-solid fa-circle-user"></i></div>
+                    <h4>Center Profile & Identity</h4>
+                </div>
+
+                <div class="profile-summary-header" style="display: flex; gap: 20px; align-items: center; margin-bottom: 24px;">
+                    <div class="profile-avatar-circle" style="width: 110px; height: 110px; border-radius: 50%; background: var(--bg-soft); border: 3px solid var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 42px; color: var(--primary); overflow: hidden; flex-shrink: 0;">
+                        {% if user.profile_image %}
+                            <img src="{{ user.profile_image }}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                        {% else %}
+                            <i class="fa-solid fa-industry"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: var(--text-dark);">{{ mcc.name }}</h3>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <span class="badge-code">Code: {{ mcc.code }}</span>
+                            <span class="badge-type" style="background-color: {{ mcc.mcc_type.color }}12; color: {{ mcc.mcc_type.color }}; border: 1px solid {{ mcc.mcc_type.color }}20; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase;">
+                                {{ mcc.mcc_type.label }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-grid">
+                    <div class="grid-cell">
+                        <span class="lbl">Account Status</span>
+                        {% if mcc.is_active %}
+                            <span class="status-badge active"><span class="dot"></span> Active</span>
+                        {% else %}
+                            <span class="status-badge inactive"><span class="dot"></span> Inactive</span>
+                        {% endif %}
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Sample Range</span>
+                        <strong class="val font-mono">{{ mcc.sample_start or 0 }} - {{ mcc.sample_end or 0 }}</strong>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Registered By</span>
+                        <strong class="val">{{ mcc.created_by_name or 'System Administrator' }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Primary Contact Details -->
+            <div class="glass-card">
+                <div class="card-header border-green">
+                    <div class="header-icon success"><i class="fa-solid fa-address-card"></i></div>
+                    <h4>Authorized Contact Details</h4>
+                </div>
+                <div class="details-list">
+                    <div class="detail-item">
+                        <span class="lbl">Contact Representative</span>
+                        <span class="val">{{ user.name or '—' }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="lbl">Registered Mobile</span>
+                        <span class="val font-mono"><i class="fa-solid fa-phone" style="font-size: 11px; margin-right: 6px; color: var(--text-faint);"></i>{{ user.mobile or '—' }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="lbl">Registered Email</span>
+                        <span class="val"><i class="fa-solid fa-envelope" style="font-size: 11px; margin-right: 6px; color: var(--text-faint);"></i>{{ user.email or '—' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settlement Bank Account -->
+            <div class="glass-card">
+                <div class="card-header border-purple">
+                    <div class="header-icon indigo"><i class="fa-solid fa-building-columns"></i></div>
+                    <h4>Settlement Bank Details</h4>
+                </div>
+                {% if bank_account %}
+                <div class="details-grid">
+                    <div class="grid-cell">
+                        <span class="lbl">Account Holder</span>
+                        <span class="val">{{ bank_account.account_holder or '—' }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Bank Name</span>
+                        <span class="val">{{ bank_account.bank_name or '—' }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Account Number</span>
+                        <span class="val font-mono">{{ bank_account.account_number or '—' }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">IFSC / UPI ID</span>
+                        <span class="val font-mono">{{ bank_account.ifsc_code or '—' }} / {{ bank_account.upi_id or '—' }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <p>No settlement bank details registered</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Address Location -->
+            <div class="glass-card">
+                <div class="card-header border-cyan">
+                    <div class="header-icon info"><i class="fa-solid fa-map-location-dot"></i></div>
+                    <h4>Registered Address</h4>
+                </div>
+                {% if address %}
+                <div class="details-grid">
+                    <div class="grid-cell" style="grid-column: span 2;">
+                        <span class="lbl">Street Address (Line)</span>
+                        <span class="val">{{ address.line or '—' }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">City</span>
+                        <span class="val">{{ address.city or '—' }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">State</span>
+                        <span class="val">{{ address.state or '—' }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Pincode</span>
+                        <span class="val font-mono">{{ address.pincode or '—' }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <p>No address details registered</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Assigned Rate Charts -->
+            <div class="glass-card">
+                <div class="card-header border-blue">
+                    <div class="header-icon primary"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                    <h4>Assigned Rate Charts</h4>
+                </div>
+                {% if rate_charts %}
+                <div class="details-list">
+                    {% for chart in rate_charts %}
+                    <div class="detail-item" style="{% if not loop.last %}border-bottom: 1px dashed var(--border-soft); padding-bottom: 12px;{% endif %}">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="val">{{ chart.chart_name }}</span>
+                            {% if chart.is_default %}
+                            <span class="status-badge active"><span class="dot"></span> Default</span>
+                            {% endif %}
+                        </div>
+                        <div style="display: flex; gap: 12px; margin-top: 4px;">
+                            <span class="lbl">Type: {{ chart.chart_type.name }}</span>
+                            <span class="lbl">Milk: {{ chart.milk_type.name }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                    <p>No rate charts assigned to this center</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- =====================================================
+             BOX 2: HARDWARE, SHIFTS & QUALITY (RIGHT SECTION)
+        ====================================================== -->
+        <div class="box-section">
+            
+            <!-- Hardware & Device Settings -->
+            <div class="glass-card">
+                <div class="card-header border-orange">
+                    <div class="header-icon warning"><i class="fa-solid fa-microchip"></i></div>
+                    <h4>Hardware & Device Configurations</h4>
+                </div>
+                {% if setting %}
+                <div class="details-grid">
+                    <div class="grid-cell">
+                        <span class="lbl">Analyzer Type</span>
+                        <span class="val">{{ setting.analyzer_type.name }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Analyzer Mode</span>
+                        <span class="val">{{ setting.analyzer_collection_mode.name }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Measurement Unit</span>
+                        <span class="val">{{ setting.weight_unit.name }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Weight Mode</span>
+                        <span class="val">{{ setting.weight_collection_mode.name }}</span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Auto Tare Feature</span>
+                        <span class="val badge-tag {{ 'enabled' if setting.auto_tare_enabled else 'disabled' }}">
+                            {{ 'Enabled' if setting.auto_tare_enabled else 'Disabled' }}
+                        </span>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Receipt Size</span>
+                        <span class="val">{{ setting.receipt_size.name }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <p>Hardware configs are currently unassigned</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Operations, Shifts & Limits -->
+            <div class="glass-card">
+                <div class="card-header border-indigo">
+                    <div class="header-icon indigo"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                    <h4>Operations & Access Limits</h4>
+                </div>
+                {% if setting %}
+                <div class="details-list">
+                    <!-- Morning Shift -->
+                    <div class="shift-row">
+                        <div class="shift-meta"><i class="fa-solid fa-cloud-sun"></i> Morning Shift</div>
+                        <span class="shift-time">{{ setting.morning_collection_start }} - {{ setting.morning_collection_end }}</span>
+                    </div>
+                    <!-- Evening Shift -->
+                    <div class="shift-row">
+                        <div class="shift-meta"><i class="fa-solid fa-cloud-moon"></i> Evening Shift</div>
+                        <span class="shift-time">{{ setting.evening_collection_start }} - {{ setting.evening_collection_end }}</span>
+                    </div>
+                    
+                    <hr style="border: none; border-top: 1px dashed var(--border-soft); margin: 16px 0;">
+                    
+                    <!-- Access Permissions -->
+                    <div style="display: flex; gap: 15px; justify-content: space-between; flex-wrap: wrap;">
+                        <div>
+                            <span class="lbl" style="font-size: 11px; color: var(--text-faint);">Edit Settings</span>
+                            <span class="permission-tag {{ 'allowed' if setting.settings_edit_enabled else 'locked' }}">
+                                {{ 'Allowed' if setting.settings_edit_enabled else 'Locked' }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="lbl" style="font-size: 11px; color: var(--text-faint);">Edit Rate Charts</span>
+                            <span class="permission-tag {{ 'allowed' if setting.rate_chart_edit_enabled else 'locked' }}">
+                                {{ 'Allowed' if setting.rate_chart_edit_enabled else 'Locked' }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="lbl" style="font-size: 11px; color: var(--text-faint);">Item & Unit Masters</span>
+                            <span class="permission-tag {{ 'allowed' if setting.master_enabled else 'locked' }}">
+                                {{ 'Allowed' if setting.master_enabled else 'Locked' }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="lbl" style="font-size: 11px; color: var(--text-faint);">Max Charts Allowed</span>
+                            <span class="val" style="font-size: 13px; font-weight: 800; color: var(--text-dark); display: block; margin-top: 4px;">{{ setting.max_rate_chart_count }}</span>
+                        </div>
+                        <div>
+                            <span class="lbl" style="font-size: 11px; color: var(--text-faint);">Cattle Type</span>
+                            <span class="val" style="font-size: 13px; font-weight: 800; color: var(--text-dark); display: block; margin-top: 4px;">{{ setting.cattle_type.name }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <p>Operational configs are currently unassigned</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Quality / Fixed Rate Threshold Standards -->
+            {% if mcc.mcc_type.name == 'FIXED_RATE' or mcc.mcc_type|int == 3 %}
+            <div class="glass-card">
+                <div class="card-header border-red">
+                    <div class="header-icon danger"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                    <h4>Fixed Rate Configuration</h4>
+                </div>
+                {% if fixed_rate_config %}
+                <div class="details-grid" style="margin-bottom: 24px;">
+                    <div class="grid-cell">
+                        <span class="lbl">Base Rate</span>
+                        <strong class="val" style="color: var(--primary); font-size: 16px;">₹ {{ fixed_rate_config.fixed_rate }} / Ltr</strong>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">Less Detection</span>
+                        <strong class="val">{{ fixed_rate_config.less_detection }}</strong>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">High Detection</span>
+                        <strong class="val">{{ fixed_rate_config.high_detection }}</strong>
+                    </div>
+                </div>
+                <div class="quality-grid">
+                    <!-- Standard Limits -->
+                    <div class="quality-card cow" style="grid-column: span 2;">
+                        <div class="quality-header">
+                            <i class="fa-solid fa-vial"></i>
+                            <span>FAT / SNF Limits</span>
+                        </div>
+                        <div class="quality-body">
+                            <div class="quality-stat">
+                                <span class="quality-label">Fat Range</span>
+                                <strong class="quality-val">{{ fixed_rate_config.min_fat }}% - {{ fixed_rate_config.max_fat }}%</strong>
+                            </div>
+                            <div class="quality-stat">
+                                <span class="quality-label">SNF Range</span>
+                                <strong class="quality-val">{{ fixed_rate_config.min_snf }}% - {{ fixed_rate_config.max_snf }}%</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 40px 0;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 28px;"></i>
+                    <p style="margin-top: 10px;">Fixed Rate Configuration is not assigned for this MCC.</p>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="glass-card">
+                <div class="card-header border-red">
+                    <div class="header-icon danger"><i class="fa-solid fa-vial-circle-check"></i></div>
+                    <h4>Acceptable Quality Thresholds</h4>
+                </div>
+                {% if milk_quality_config %}
+                <div class="quality-grid">
+                    
+                    <!-- Cow Standard -->
+                    <div class="quality-card cow">
+                        <div class="quality-header">
+                            <i class="fa-solid fa-cow"></i>
+                            <span>Cow Milk Limits</span>
+                        </div>
+                        <div class="quality-body">
+                            <div class="quality-stat">
+                                <span class="quality-label">Fat Range</span>
+                                <strong class="quality-val">{{ milk_quality_config.cow_min_fat }}% - {{ milk_quality_config.cow_max_fat }}%</strong>
+                            </div>
+                            <div class="quality-stat">
+                                <span class="quality-label">SNF Range</span>
+                                <strong class="quality-val">{{ milk_quality_config.cow_min_snf }}% - {{ milk_quality_config.cow_max_snf }}%</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buffalo Standard -->
+                    <div class="quality-card buffalo">
+                        <div class="quality-header">
+                            <i class="fa-solid fa-cow"></i>
+                            <span>Buffalo Limits</span>
+                        </div>
+                        <div class="quality-body">
+                            <div class="quality-stat">
+                                <span class="quality-label">Fat Range</span>
+                                <strong class="quality-val">{{ milk_quality_config.buffalo_min_fat }}% - {{ milk_quality_config.buffalo_max_fat }}%</strong>
+                            </div>
+                            <div class="quality-stat">
+                                <span class="quality-label">SNF Range</span>
+                                <strong class="quality-val">{{ milk_quality_config.buffalo_min_snf }}% - {{ milk_quality_config.buffalo_max_snf }}%</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 40px 0;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 28px;"></i>
+                    <p style="margin-top: 10px;">Milk Quality Configs are not configured for this MCC.</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Device App Versions -->
+            <div class="glass-card">
+                <div class="card-header border-purple">
+                    <div class="header-icon primary"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                    <h4>Items Version</h4>
+                </div>
+                {% if device_item_versions %}
+                <div class="details-list" style="display: flex; flex-direction: column; gap: 2px;">
+                    {% for version in device_item_versions %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--border-soft); font-size: 13px;">
+                        <span style="color: var(--text-dark); font-weight: 600;">{{ version.item_name }}</span>
+                        <span class="badge-code" style="font-size: 11.5px; padding: 3px 8px; border-radius: 4px; font-weight: 700; background: var(--bg-soft); color: var(--primary); font-family: monospace;">
+                            v{{ version.version }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                    <p>No device item versions registered for this center</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =========================================================
+     MODERN COMPONENT STYLES
+========================================================== -->
+<style>
+:root {
+    --primary-gradient: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    --card-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: 1px solid rgba(229, 231, 235, 0.6);
+    --transition-standard: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mcc-container {
+    padding: 10px;
+}
+
+/* Page Header */
+.mcc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    padding: 20px 24px;
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--card-shadow);
+}
+.header-icon-box {
+    width: 44px;
+    height: 44px;
+    background: rgba(59,130,246,0.1);
+    color: var(--primary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+.mcc-header-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.mcc-header-title h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+.mcc-header-title p {
+    margin: 4px 0 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.mcc-header-actions {
+    display: flex;
+    gap: 12px;
+}
+.btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: var(--transition-standard);
+}
+.btn-action.edit {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.2);
+}
+.btn-action.edit:hover {
+    box-shadow: 0 6px 20px rgba(37,99,235,0.35);
+    transform: translateY(-1px);
+}
+.btn-action.back {
+    background: white;
+    color: var(--text-muted);
+    border: 1px solid var(--border-soft);
+}
+.btn-action.back:hover {
+    background: var(--bg-soft);
+    color: var(--text-dark);
+}
+
+/* Two Box Section Layout Grid */
+.mcc-two-box-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+    align-items: start;
+}
+.box-section {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+/* Cards */
+.glass-card {
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: var(--card-shadow);
+    backdrop-filter: blur(12px);
+    transition: var(--transition-standard);
+}
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px -10px rgba(0,0,0,0.08);
+}
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--bg-soft);
+}
+.card-header.border-blue { border-bottom-color: rgba(59,130,246,0.2); }
+.card-header.border-green { border-bottom-color: rgba(16,185,129,0.2); }
+.card-header.border-purple { border-bottom-color: rgba(139,92,246,0.2); }
+.card-header.border-orange { border-bottom-color: rgba(245,158,11,0.2); }
+.card-header.border-indigo { border-bottom-color: rgba(99,102,241,0.2); }
+.card-header.border-red { border-bottom-color: rgba(239,68,68,0.2); }
+.card-header.border-cyan { border-bottom-color: rgba(6,182,212,0.2); }
+
+.header-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+}
+.header-icon.primary { background: rgba(59,130,246,0.1); color: var(--primary); }
+.header-icon.success { background: rgba(16,185,129,0.1); color: var(--success); }
+.header-icon.warning { background: rgba(245,158,11,0.1); color: var(--warning); }
+.header-icon.danger { background: rgba(239,68,68,0.1); color: var(--danger); }
+.header-icon.indigo { background: rgba(99,102,241,0.1); color: #6366f1; }
+.header-icon.info { background: rgba(6,182,212,0.1); color: #06b6d4; }
+
+.card-header h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+/* Header Profile Details */
+.badge-code {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--primary);
+    background: rgba(59,130,246,0.08);
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(59,130,246,0.15);
+}
+
+/* Details List & Grid */
+.details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.lbl {
+    font-size: 10px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.val {
+    font-size: 14px;
+    color: var(--text-dark);
+    font-weight: 700;
+}
+.details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px 16px;
+}
+.grid-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    width: fit-content;
+    text-transform: uppercase;
+}
+.status-badge.active { color: var(--success); background: rgba(16,185,129,0.08); }
+.status-badge.inactive { color: var(--danger); background: rgba(239,68,68,0.08); }
+.status-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+.badge-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    width: fit-content;
+}
+.badge-tag.enabled { background: rgba(16,185,129,0.1); color: var(--success); }
+.badge-tag.disabled { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+.permission-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+.permission-tag.allowed { background: rgba(16,185,129,0.1); color: var(--success); }
+.permission-tag.locked { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+/* Shift timings */
+.shift-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-soft);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-soft);
+}
+.shift-meta {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.shift-meta i {
+    font-size: 14px;
+}
+.shift-row:first-child i { color: #f59e0b; }
+.shift-row:nth-child(2) i { color: #6366f1; }
+.shift-time {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+/* Quality Config Grid */
+.quality-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.quality-card {
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid var(--border-soft);
+}
+.quality-card.cow {
+    background: rgba(59,130,246,0.02);
+    border-left: 4px solid var(--primary);
+}
+.quality-card.cow .quality-header i { color: var(--primary); }
+.quality-card.buffalo {
+    background: rgba(99,102,241,0.02);
+    border-left: 4px solid #6366f1;
+}
+.quality-card.buffalo .quality-header i { color: #6366f1; }
+
+.quality-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+.quality-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.quality-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.quality-label {
+    font-size: 10px;
+    color: var(--text-faint);
+}
+.quality-val {
+    font-size: 14px;
+    color: var(--text-dark);
+    font-weight: 800;
+}
+
+/* Address details */
+.address-display {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    background: var(--bg-soft);
+    padding: 14px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--border-soft);
+}
+.address-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #06b6d4;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+}
+.address-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.address-line {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+.address-city-state {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 0;
+    color: var(--text-faint);
+    text-align: center;
+}
+.empty-state i {
+    font-size: 20px;
+    margin-bottom: 6px;
+}
+.empty-state p {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .mcc-two-box-grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+}
+@media (max-width: 768px) {
+    .mcc-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+    }
+    .mcc-header-actions {
+        justify-content: flex-start;
+    }
+}
+@media (max-width: 480px) {
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+    .quality-grid {
+        grid-template-columns: 1fr;
+    }
+    .mcc-header-actions {
+        flex-direction: column;
+    }
+    .btn-action {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}

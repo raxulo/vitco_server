@@ -1,0 +1,684 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}{% if collection %}Edit{% else %}New{% endif %} VLCC Farmer Collection - VITCO{% endblock %}
+
+{% block content %}
+<style>
+    .content-body {
+        position: relative !important;
+    }
+    .grid-equal-height {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 24px;
+        align-items: stretch;
+    }
+    .premium-card {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        border: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+    }
+    .premium-summary-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%);
+        border: 2px solid #dbeafe;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.05);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 24px;
+    }
+    .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    @media (max-width: 992px) {
+        .grid-equal-height {
+            grid-template-columns: 1fr;
+            align-items: initial;
+        }
+    }
+</style>
+<div class="animate-fadeIn" style="max-width: 1250px; margin: 0 auto; padding: 12px 0;">
+    <!-- Page Header -->
+    <div class="page-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+        <div class="page-title">
+            <h2 style="font-size:24px; font-weight:800; color:#0f172a; margin:0; letter-spacing:-0.5px;">
+                {% if collection %}Edit{% else %}New{% endif %} Collection
+            </h2>
+            <p style="color:#64748b; font-size:14px; margin:4px 0 0 0; font-weight: 500;">Record milk collections supplied by farmers at the VLCC shop</p>
+        </div>
+        <a href="/vlcc-collections" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom:24px; background:#fef2f2; color:#ef4444; border:1px solid #fee2e2; padding:14px 20px; border-radius:12px; font-weight: 500; display:flex; align-items:center; gap:10px;">
+        <i class="fa-solid fa-circle-exclamation" style="font-size:16px;"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="grid-equal-height">
+        <!-- Form Column -->
+        <div class="premium-card">
+            <div class="card-toolbar" style="padding:20px 24px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:10px; background: #fafcff;">
+                <div style="background: #eff6ff; color: #3b82f6; width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-file-pen" style="font-size:16px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0; font-size:16px; font-weight:700; color:#1e293b;">Entry Details</h3>
+                    <p style="margin:2px 0 0 0; font-size:12px; color:#94a3b8; font-weight: 500;">Fill in center and quality details</p>
+                </div>
+            </div>
+            <div id="form-feedback" style="padding: 0 24px;"></div>
+            {% include "pages/vlcc_collection/collection_form.html" %}
+        </div>
+
+        <!-- Summary Column -->
+        <div class="premium-summary-card">
+            <div style="text-align:center; display: flex; flex-direction: column; height: 100%;">
+                <div style="font-size:12px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; margin-bottom: 4px;">Est. Total Payout</div>
+                <div style="font-size:42px; font-weight:900; color:#2563eb; margin:8px 0; letter-spacing: -1px; display: flex; align-items: center; justify-content: center; gap: 2px;">
+                    <span style="font-size: 28px; font-weight: 700; color:#3b82f6; align-self: flex-start; margin-top: 4px;">₹</span>
+                    <span id="cf-total-display">0.00</span>
+                </div>
+                
+                <div style="height:1px; background:#e2e8f0; margin:16px 0;"></div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; text-align:left;">
+                    <div style="background: white; padding: 14px 16px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+                        <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">UNIT RATE</div>
+                        <div style="font-weight:800; color:#1e293b; font-size:18px;">₹<span id="lbl-rate">45.00</span></div>
+                    </div>
+                    <div style="background: white; padding: 14px 16px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
+                        <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">TOTAL WEIGHT</div>
+                        <div style="font-weight:800; color:#1e293b; font-size:18px;"><span id="lbl-qty">0.00</span> Ltr</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:24px; text-align:left; display: flex; flex-direction: column; flex-grow: 1;">
+                    <h4 style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:12px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-list-check" style="color:#2563eb;"></i> Recent Session Entries
+                    </h4>
+                    <div id="recent-list" class="custom-scroll" style="flex-grow: 1; max-height:320px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:12px; background:#fff; box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);">
+                        <div id="empty-list-msg" style="padding:40px 20px; text-align:center; color:#94a3b8; font-size:13px; font-weight: 500; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                            <i class="fa-solid fa-folder-open" style="font-size: 24px; color: #cbd5e1;"></i>
+                            No entries added yet in this session.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Preview Modal (Placed outside main grid container for full-screen layout coverage) -->
+<div id="receiptPreviewModal" class="modal-overlay"
+    style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background:rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-container"
+        style="background:white; width:95%; max-width:440px; border-radius:18px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); border: 1px solid rgba(255, 255, 255, 0.2);">
+        <div class="modal-header"
+            style="padding:16px 20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background: #fafcff;">
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a; font-family: inherit;">Farmer Receipt Preview</h3>
+            <button type="button" onclick="closeReceiptPreviewModal()"
+                style="border:none; background:none; font-size:24px; cursor:pointer; line-height:1; color:#94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+        </div>
+        <div class="modal-body" id="receipt-preview-content"
+            style="padding:20px; background:#ffffff; overflow-y:auto; max-height:540px; border-bottom:1px solid #f1f5f9; display: flex; justify-content: center; align-items: center;">
+            <!-- Content will be injected here -->
+        </div>
+        <div class="modal-footer" style="padding:14px 20px; border-top:1px solid #f1f5f9; display:flex; gap:12px; background: #fafcff; justify-content: flex-end; align-items: center;">
+            <button type="button" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onclick="closeReceiptPreviewModal()">Cancel</button>
+            <button type="button" class="btn" style="border: 1px solid #0284c7; background: #0284c7; color: white; padding: 8px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);" onclick="printReceiptSlip()" title="Print receipt slip">
+                <i class="fa-solid fa-print"></i> Print
+            </button>
+            <button type="button" class="btn btn-primary" style="background:#10b981; color:white; border:none; padding:8px 18px; border-radius:8px; font-size:13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);" onclick="confirmSaveCollection()">
+                <i class="fa-solid fa-circle-check"></i> Save & Record
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const getRateInput = () => document.getElementById("cf-rate");
+
+    const calculateRate = () => {
+        const chart = document.getElementById("cf-ratechart")?.value?.trim();
+        const fat = document.getElementById("cf-fat")?.value?.trim();
+        const snf = document.getElementById("cf-snf")?.value?.trim();
+
+        // Required values missing → no request
+        if (!chart || !fat || !snf) return;
+
+        const rateInput = getRateInput();
+        if (rateInput) {
+            htmx.trigger(rateInput, "rate:calculate");
+        }
+    };
+
+    document.addEventListener("change", (event) => {
+        if (event.target.matches("#cf-ratechart, #cf-type")) {
+            calculateRate();
+        }
+    });
+
+    document.addEventListener("input", (event) => {
+        if (event.target.matches("#cf-fat, #cf-snf")) {
+            calculateRate();
+        }
+    });
+
+
+    let isSelectingFarmer = false;
+
+    function selectFarmer(id, name, code, assignedRateChartId, mobile = '') {
+        isSelectingFarmer = true;
+        
+        const searchInput = document.getElementById('cf-farmer-search');
+        const hiddenIdInput = document.getElementById('cf-farmer-id-hidden');
+        const hiddenCodeInput = document.getElementById('cf-farmer-code');
+        const hiddenNameInput = document.getElementById('cf-farmer-name');
+        const hiddenMobileInput = document.getElementById('cf-farmer-mobile');
+        
+        if (searchInput) searchInput.value = name + ' (' + code + ')';
+        if (hiddenIdInput) hiddenIdInput.value = id;
+        if (hiddenCodeInput) hiddenCodeInput.value = code;
+        if (hiddenNameInput) hiddenNameInput.value = name;
+        if (hiddenMobileInput) hiddenMobileInput.value = mobile || '';
+        
+        if (assignedRateChartId) {
+            const rateChartSelect = document.getElementById('cf-ratechart');
+            if (rateChartSelect) {
+                for (let i = 0; i < rateChartSelect.options.length; i++) {
+                    if (rateChartSelect.options[i].value === assignedRateChartId) {
+                        rateChartSelect.value = assignedRateChartId;
+                        rateChartSelect.dispatchEvent(new Event('change'));
+                        break;
+                    }
+                }
+            }
+        }
+        
+        const results = document.getElementById('farmer-search-results');
+        if (results) results.innerHTML = '';
+        
+        const infoDiv = document.getElementById('selected-farmer-info');
+        const displayName = document.getElementById('display-farmer-name');
+        if (infoDiv && displayName) {
+            displayName.textContent = name + ' (' + code + ')';
+            infoDiv.style.display = 'block';
+        }
+
+        updatePreviewSaveBtnState();
+
+        setTimeout(() => {
+            isSelectingFarmer = false;
+            if (results) results.innerHTML = '';
+            updatePreviewSaveBtnState();
+        }, 300);
+    }
+
+    // Intercept and prevent HTMX from sending search requests if a farmer is selected or being selected
+    const handleFarmerSearchHtmxGuard = function(evt) {
+        const isFarmerSearchInput = evt.detail.elt && evt.detail.elt.id === 'cf-farmer-search';
+        const isFarmerSearchPath = evt.detail.path && evt.detail.path.includes('search-farmers');
+        
+        if (isFarmerSearchInput || isFarmerSearchPath) {
+            const farmerId = document.getElementById('cf-farmer-id-hidden')?.value;
+            if (isSelectingFarmer || (farmerId && farmerId.trim().length > 0)) {
+                evt.preventDefault();
+            }
+        }
+    };
+
+    document.body.addEventListener('htmx:configRequest', handleFarmerSearchHtmxGuard);
+    document.body.addEventListener('htmx:beforeRequest', handleFarmerSearchHtmxGuard);
+
+    // Clear hidden farmer ID if user edits search input
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.id === 'cf-farmer-search') {
+            if (!isSelectingFarmer) {
+                const farmerId = document.getElementById('cf-farmer-id-hidden');
+                if (farmerId && !e.target.value.includes('(')) {
+                    farmerId.value = '';
+                }
+            }
+            updatePreviewSaveBtnState();
+        }
+    });
+
+    // Tab key selection for farmer search results
+    document.addEventListener('keydown', function(event) {
+        const searchInput = document.getElementById('cf-farmer-search');
+        if (event.target === searchInput) {
+            if (event.key === 'Tab') {
+                const resultsContainer = document.getElementById('farmer-search-results');
+                const firstItem = resultsContainer ? resultsContainer.querySelector('.search-result-item') : null;
+                if (firstItem) {
+                    event.preventDefault(); // Stop default tab navigation
+                    firstItem.click(); // Select first item
+                    
+                    // Move focus to next input field (cf-date)
+                    const dateInput = document.getElementById('cf-date');
+                    if (dateInput) {
+                        dateInput.focus();
+                    }
+                }
+            }
+        }
+    });
+
+    // Close farmer dropdown on clicking outside or on item selection
+    document.addEventListener('click', function(event) {
+        const container = document.getElementById('farmer-search-results');
+        const searchInput = document.getElementById('cf-farmer-search');
+        if (container) {
+            if ((event.target !== searchInput && !container.contains(event.target)) || event.target.closest('.search-result-item')) {
+                container.innerHTML = '';
+            }
+        }
+    });
+
+    function getSavedSessionTotals() {
+        let totalPayout = 0;
+        let totalWeight = 0;
+        const items = document.querySelectorAll('#recent-list [data-total]');
+        items.forEach(el => {
+            totalPayout += parseFloat(el.getAttribute('data-total')) || 0;
+            totalWeight += parseFloat(el.getAttribute('data-qty')) || 0;
+        });
+        return { totalPayout, totalWeight };
+    }
+
+    function calcTotal() {
+        const qty = parseFloat(document.getElementById('cf-qty')?.value) || 0;
+        const rate = parseFloat(document.getElementById('cf-rate')?.value) || 0;
+        const currentTotal = qty * rate;
+        
+        const savedTotals = getSavedSessionTotals();
+        const grandTotalPayout = savedTotals.totalPayout + currentTotal;
+        const grandTotalWeight = savedTotals.totalWeight + qty;
+
+        const totalDisplay = document.getElementById('cf-total-display');
+        const lblQty = document.getElementById('lbl-qty');
+        const lblRate = document.getElementById('lbl-rate');
+        const totalHidden = document.getElementById('cf-total-hidden');
+        
+        if (totalDisplay) totalDisplay.innerText = grandTotalPayout.toFixed(2);
+        if (lblQty) lblQty.innerText = grandTotalWeight.toFixed(2);
+        if (lblRate && rate > 0) lblRate.innerText = rate.toFixed(2);
+        if (totalHidden) totalHidden.value = currentTotal.toFixed(2);
+
+        updatePreviewSaveBtnState();
+    }
+
+    function updatePreviewSaveBtnState() {
+        const btn = document.getElementById('ff-preview-save-collection');
+        if (!btn) return;
+
+        const farmerId = document.getElementById('cf-farmer-id-hidden')?.value?.trim();
+        const rate = parseFloat(document.getElementById('cf-rate')?.value) || 0;
+
+        const isFarmerSelected = Boolean(farmerId && farmerId.length > 0);
+        const isRateValid = !isNaN(rate) && rate > 0;
+
+        if (isFarmerSelected && isRateValid) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.title = 'Preview receipt and save collection';
+        } else {
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            if (!isFarmerSelected && !isRateValid) {
+                btn.title = 'Please select a farmer and calculate rate';
+            } else if (!isFarmerSelected) {
+                btn.title = 'Please select a farmer';
+            } else {
+                btn.title = 'Rate must be greater than 0';
+            }
+        }
+    }
+
+    document.addEventListener("input", (event) => {
+        if (event.target.matches("#cf-qty, #cf-rate")) {
+            calcTotal();
+            updatePreviewSaveBtnState();
+        }
+    });
+
+    // Trigger initial calculation and button state
+    calcTotal();
+    updatePreviewSaveBtnState();
+
+    // Recalculate total when HTMX updates the rate field or swaps form
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+        const targetId = evt.detail.target ? evt.detail.target.id : '';
+        if (targetId === 'cf-rate' || targetId === 'group-rate' || targetId === 'form-collection' || (evt.detail.target.querySelector && evt.detail.target.querySelector('#cf-rate'))) {
+            calcTotal();
+            updatePreviewSaveBtnState();
+        }
+    });
+
+    // Modal Actions
+    function openReceiptPreview() {
+        const farmerId = document.getElementById('cf-farmer-id-hidden')?.value?.trim();
+        const rate = parseFloat(document.getElementById('cf-rate')?.value) || 0;
+        if (!farmerId || isNaN(rate) || rate <= 0) {
+            updatePreviewSaveBtnState();
+            return;
+        }
+
+        const form = document.getElementById("form-collection");
+        if (form && !form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const vlccSelect = document.getElementById('cf-vlccid');
+        const selectedVlccOption = (vlccSelect && vlccSelect.selectedIndex >= 0) ? vlccSelect.options[vlccSelect.selectedIndex] : null;
+        const vlccName = (selectedVlccOption && selectedVlccOption.value) ? selectedVlccOption.text.trim() : 'VLCC 2';
+        const vlccUicCode = (selectedVlccOption && selectedVlccOption.getAttribute('data-uic')) ? selectedVlccOption.getAttribute('data-uic').trim() : ((selectedVlccOption && selectedVlccOption.getAttribute('data-code')) ? selectedVlccOption.getAttribute('data-code').trim() : 'UIC001');
+        const vlccCity = (selectedVlccOption && selectedVlccOption.getAttribute('data-city')) ? selectedVlccOption.getAttribute('data-city').trim() : '';
+        const vlccRoute = (selectedVlccOption && selectedVlccOption.getAttribute('data-route')) ? selectedVlccOption.getAttribute('data-route').trim() : '';
+        const vlccUic = vlccUicCode ? ('UIC - ' + vlccUicCode) : 'UIC - N/A';
+
+        const farmerCodeInput = document.getElementById('cf-farmer-code')?.value?.trim();
+        const farmerSearchInput = document.getElementById('cf-farmer-search')?.value?.trim() || '';
+        const farmerNameInput = document.getElementById('cf-farmer-name')?.value?.trim();
+        const farmerMobileInput = document.getElementById('cf-farmer-mobile')?.value?.trim();
+        const farmerMobile = farmerMobileInput || 'N/A';
+
+        let farmerCode = farmerCodeInput || '1';
+        let farmerName = farmerNameInput || '';
+
+        if (!farmerName) {
+            if (farmerSearchInput.includes('(')) {
+                farmerName = farmerSearchInput.substring(0, farmerSearchInput.lastIndexOf('(')).trim();
+                if (!farmerCodeInput) {
+                    const match = farmerSearchInput.match(/\(([^)]+)\)/);
+                    if (match) farmerCode = match[1].trim();
+                }
+            } else {
+                farmerName = farmerSearchInput || 'FM 1';
+            }
+        }
+
+        const dateInput = document.getElementById('cf-date')?.value;
+        let dateFormatted = '19/10/2026';
+        let timeFormatted = '00:09:20';
+
+        if (dateInput) {
+            const d = new Date(dateInput);
+            if (!isNaN(d.getTime())) {
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                dateFormatted = `${dd}/${mm}/${yyyy}`;
+
+                const hh = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                const ss = String(d.getSeconds()).padStart(2, '0');
+                timeFormatted = `${hh}:${min}:${ss}`;
+            }
+        } else {
+            const now = new Date();
+            const dd = String(now.getDate()).padStart(2, '0');
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const yyyy = now.getFullYear();
+            dateFormatted = `${dd}/${mm}/${yyyy}`;
+
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            timeFormatted = `${hh}:${min}:${ss}`;
+        }
+
+        const typeSelect = document.getElementById('cf-type');
+        const milkType = (typeSelect && typeSelect.selectedIndex >= 0) ? typeSelect.options[typeSelect.selectedIndex].text.toLowerCase() : 'cow';
+
+        const qtyVal = parseFloat(document.getElementById('cf-qty')?.value) || 0;
+        const fatVal = parseFloat(document.getElementById('cf-fat')?.value) || 0;
+        const snfVal = parseFloat(document.getElementById('cf-snf')?.value) || 0;
+
+        const qtyFormatted = `${qtyVal.toFixed(2)} Ltr`;
+        const fatFormatted = `${fatVal.toFixed(2)}%`;
+        const snfFormatted = `${snfVal.toFixed(2)}%`;
+        const rateFormatted = rate.toFixed(2);
+        const totalFormatted = (qtyVal * rate).toFixed(2);
+
+        const shiftSelect = document.getElementById('cf-shift');
+        let shiftText = 'M';
+        if (shiftSelect && shiftSelect.selectedIndex >= 0) {
+            const val = String(shiftSelect.value);
+            const txt = shiftSelect.options[shiftSelect.selectedIndex].text.toLowerCase();
+            if (val === '1' || txt.includes('even')) {
+                shiftText = 'E';
+            } else {
+                shiftText = 'M';
+            }
+        }
+
+        const html = `
+            <div style="width: 100%; max-width: 330px; font-family: 'Courier New', Courier, monospace; color: #000000; box-sizing: border-box; margin: 0 auto; background: transparent;">
+                
+                <!-- Asterisks Divider -->
+                <div style="text-align: center; color: #000000; font-size: 13px; letter-spacing: 2px; line-height: 1; user-select: none; margin-bottom: 6px;">
+                    *********************************
+                </div>
+
+                <!-- Header Details -->
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <div style="font-size: 20px; font-weight: 800; color: #000000; letter-spacing: 2px; line-height: 1.15;">VITCO</div>
+                    <div style="font-size: 13px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">Provisional Acknowledgement Slip</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #000000; margin-top: 5px; line-height: 1.15;">${vlccName}</div>
+                    <div style="font-size: 12.5px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">${vlccUic}</div>
+                    ${vlccCity ? `<div style="font-size: 12px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">${vlccCity}</div>` : ''}
+                </div>
+
+                <!-- Data Content Rows -->
+                <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.25;">
+                    <!-- DATE & TIME -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div><span style="color: #475569; font-weight: 500;">DATE:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${dateFormatted}</span></div>
+                        <div><span style="color: #475569; font-weight: 500;">TIME:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${timeFormatted}</span></div>
+                    </div>
+
+                    <!-- Code -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Code:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${farmerCode}</span>
+                    </div>
+
+                    <!-- Name -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Name:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${farmerName}</span>
+                    </div>
+
+                    <!-- Mobile No -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Mobile No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${farmerMobile}</span>
+                    </div>
+
+                    <!-- Route No -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Route No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${vlccRoute || 'N/A'}</span>
+                    </div>
+
+                    <!-- Milk Type & Qty -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div><span style="color: #475569; font-weight: 500;">Milk Type:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${milkType}</span></div>
+                        <div><span style="color: #475569; font-weight: 500;">Qty:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${qtyFormatted}</span></div>
+                    </div>
+
+                    <!-- FAT & SNF -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div><span style="color: #475569; font-weight: 500;">FAT:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${fatFormatted}</span></div>
+                        <div><span style="color: #475569; font-weight: 500;">SNF:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${snfFormatted}</span></div>
+                    </div>
+
+                    <!-- Rate -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Rate (Rs./Ltr):</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${rateFormatted}</span>
+                    </div>
+
+                    <!-- Total Amount -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Total Amount:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${totalFormatted}</span>
+                    </div>
+
+                    <!-- Shift & CLR -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                        <div><span style="color: #475569; font-weight: 500;">Shift:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${shiftText}</span></div>
+                        <div><span style="color: #475569; font-weight: 500;">CLR:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">0.00</span></div>
+                    </div>
+
+                    <!-- Bottom Asterisks Divider -->
+                    <div style="text-align: center; color: #000000; font-size: 13px; letter-spacing: 2px; line-height: 1; user-select: none; margin-top: 10px;">
+                        *********************************
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('receipt-preview-content').innerHTML = html;
+        document.getElementById('receiptPreviewModal').style.display = 'flex';
+    }
+
+    function closeReceiptPreviewModal() {
+        document.getElementById('receiptPreviewModal').style.display = 'none';
+    }
+
+    function printReceiptSlip() {
+        const previewEl = document.getElementById('receipt-preview-content');
+        if (!previewEl || !previewEl.innerHTML.trim()) {
+            window.print();
+            return;
+        }
+
+        let printFrame = document.getElementById('receipt-print-iframe');
+        if (!printFrame) {
+            printFrame = document.createElement('iframe');
+            printFrame.id = 'receipt-print-iframe';
+            printFrame.style.position = 'fixed';
+            printFrame.style.right = '0';
+            printFrame.style.bottom = '0';
+            printFrame.style.width = '0';
+            printFrame.style.height = '0';
+            printFrame.style.border = '0';
+            document.body.appendChild(printFrame);
+        }
+
+        const doc = printFrame.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Receipt Slip</title>
+                <style>
+                    @page {
+                        size: 80mm auto;
+                        margin: 2mm;
+                    }
+                    @media print {
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                    }
+                    body {
+                        margin: 0;
+                        padding: 4px;
+                        display: flex;
+                        justify-content: center;
+                        font-family: 'Courier New', Courier, monospace;
+                        background: #ffffff;
+                    }
+                    .slip-box {
+                        width: 100%;
+                        max-width: 340px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="slip-box">
+                    ${previewEl.innerHTML}
+                </div>
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (err) {
+                console.error('Iframe print failed, falling back to window.print():', err);
+                window.print();
+            }
+        }, 200);
+    }
+
+    function confirmSaveCollection() {
+        closeReceiptPreviewModal();
+        const form = document.getElementById('form-collection');
+        if (form) {
+            if (window.htmx) {
+                htmx.trigger(form, 'submit');
+            } else {
+                form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            }
+        }
+    }
+
+    // Listen for the custom collection-saved event sent by the server to clear form inputs
+    document.body.addEventListener('collection-saved', function() {
+        const qtyInput = document.getElementById('cf-qty');
+        const fatInput = document.getElementById('cf-fat');
+        const snfInput = document.getElementById('cf-snf');
+        const rateInput = document.getElementById('cf-rate');
+        const cansInput = document.getElementById('cf-cans');
+        const farmerSearchInput = document.getElementById('cf-farmer-search');
+        const farmerIdInput = document.getElementById('cf-farmer-id-hidden');
+        const farmerCodeInput = document.getElementById('cf-farmer-code');
+        const selectedText = document.getElementById('selectedText');
+
+        if (qtyInput) qtyInput.value = '';
+        if (fatInput) fatInput.value = '';
+        if (snfInput) snfInput.value = '';
+        if (rateInput) rateInput.value = '';
+        if (cansInput) cansInput.value = '';
+        if (farmerSearchInput) farmerSearchInput.value = '';
+        if (farmerIdInput) farmerIdInput.value = '';
+        if (farmerCodeInput) farmerCodeInput.value = '';
+        if (selectedText) selectedText.textContent = 'Select a farmer...';
+        
+        // Reset summary card displays and button state
+        calcTotal();
+        updatePreviewSaveBtnState();
+    });
+</script>
+{% endblock %}

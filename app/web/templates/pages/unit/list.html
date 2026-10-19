@@ -1,0 +1,225 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Unit Master - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn subadmin-container" style="width: 100%; box-sizing: border-box; padding: 20px;">
+    <!-- Page Header -->
+    <div class="page-header" style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div class="page-title">
+            <h2 style="margin:0; font-size: 22px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-scale-balanced" style="color: #2563eb;"></i> Unit Master List
+            </h2>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">View and manage units of measurement linked to inventory items</p>
+        </div>
+        <div class="page-actions">
+            <button onclick="openUnitModal()" class="btn btn-primary" style="background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; transition: background 0.2s;">
+                <i class="fa-solid fa-plus"></i> NEW UNIT MASTER
+            </button>
+        </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="card" style="padding: 18px 24px; margin-bottom: 24px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <form method="GET" style="display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+            <div class="input-icon-wrapper" style="flex: 1; min-width: 240px; position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                <input type="text" name="search" class="form-control" placeholder="Search by unit name..."
+                    value="{{ search }}" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;">
+            </div>
+            <button type="submit" class="btn btn-secondary" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 0 20px; height: 42px; border-radius: 8px; font-weight: 600; cursor: pointer;">Filter Results</button>
+            {% if search %}
+            <a href="/units/" class="btn btn-ghost" style="color: #64748b; font-size: 14px; text-decoration: none; padding: 8px 12px;">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom: 25px; padding: 15px 20px; border-radius: 8px; background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; display: flex; align-items: center; gap: 10px; font-size: 14px;">
+        <i class="fa-solid fa-circle-exclamation"></i> <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Data Table -->
+    <div class="card" style="padding: 0; overflow: hidden; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div class="table-container" style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
+            <table class="data-table" style="width: 100%; min-width: 600px; border-collapse: collapse; text-align: left; font-size: 14px; white-space: nowrap;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: 600;">
+                        <th style="width: 80px; text-align: center; padding: 16px;">#</th>
+                        <th style="padding: 16px;">UNIT NAME</th>
+                        <th style="width: 150px; padding: 16px;">CREATED BY</th>
+                        <th style="width: 150px; text-align: center; padding: 16px;">STATUS</th>
+                        <th style="width: 150px; text-align: center; padding: 16px;">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for unit in items %}
+                    <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;">
+                        <td style="text-align: center; font-weight: 800; color: #2563eb; padding: 16px;">
+                            {{ loop.index + (page - 1) * 10 }}
+                        </td>
+                        <td style="padding: 16px;">
+                            <span style="font-weight: 700; font-size: 15px; color: #1e293b;">
+                                {{ unit.name }}
+                            </span>
+                        </td>
+                        <td style="padding: 16px; color: #475569; font-weight: 600;">
+                            {{ unit.owner_name or 'System' }}
+                        </td>
+                        <td style="text-align: center; padding: 16px;">
+                            <span class="status-badge {{ 'status-active' if unit.is_active else 'status-inactive' }}" style="padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; display: inline-block;">
+                                {{ 'Active' if unit.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td style="padding: 16px;">
+                            <div style="display: flex; justify-content: center; gap: 10px;">
+                                {% if unit.can_modify %}
+                                <button onclick="editUnit('{{ unit.id }}', '{{ unit.name|escape }}', {{ 'true' if unit.is_active else 'false' }})" class="btn btn-ghost btn-icon-sm" style="border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 6px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="Edit Unit">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteUnit('{{ unit.id }}', '{{ unit.name|escape }}')" class="btn btn-ghost btn-icon-sm hover-danger" style="border: 1px solid #cbd5e1; background: white; color: #64748b; border-radius: 6px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="Delete Unit">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                                {% else %}
+                                <button class="btn btn-ghost btn-icon-sm" style="border: 1px solid #e2e8f0; background: #f8fafc; color: #a8b3c1; border-radius: 6px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: not-allowed; opacity: 0.6;" title="Edit Disabled" disabled>
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button class="btn btn-ghost btn-icon-sm" style="border: 1px solid #e2e8f0; background: #f8fafc; color: #b1b9c3; border-radius: 6px; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; cursor: not-allowed; opacity: 0.6;" title="Delete Disabled" disabled>
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 48px; color: #94a3b8;">
+                            <i class="fa-solid fa-scale-balanced" style="font-size: 36px; margin-bottom: 12px; display: block; color: #cbd5e1;"></i>
+                            No units found. Click "NEW UNIT MASTER" to create one.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; margin-top: 20px; background: white; padding: 16px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <span style="font-size: 13px; color: #64748b; font-weight: 500;">Showing page {{ page }} of {{ total_pages }} ({{ total }} total units)</span>
+        <div style="display: flex; gap: 8px;">
+            {% if page > 1 %}
+            <a href="?page={{ page-1 }}&search={{ search }}" class="btn btn-secondary btn-sm" style="background: white; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; display: inline-block;">Previous</a>
+            {% endif %}
+            {% if page < total_pages %}
+            <a href="?page={{ page+1 }}&search={{ search }}" class="btn btn-secondary btn-sm" style="background: white; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; display: inline-block;">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Unit Dialog Modal -->
+<div id="unitModal" class="modal-overlay">
+    <div class="modal-content animate-slideUp" style="max-width: 500px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);">
+        <div class="modal-header" style="background: #f8fafc; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+            <h3 id="modalTitle" style="margin:0; font-size: 16px; font-weight: 700; color: #1e293b;">Create New Unit Master</h3>
+            <button onclick="closeUnitModal()" class="btn btn-ghost btn-icon-sm" style="border:none; background:none; cursor:pointer; color: #64748b; font-size:16px;"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <form id="unitForm" method="POST" action="/units/add">
+            <div style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+                <!-- Unit Name -->
+                <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Unit Name <span style="color: #ef4444;">*</span></label>
+                    <div class="input-icon-wrapper" style="position: relative;">
+                        <i class="fa-solid fa-scale-balanced" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input id="unit-name" name="name" type="text" class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="e.g. Kg, Litre" required autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Status Selector (Only shown on Edit) -->
+                <div class="form-group" id="status-group" style="display:none; flex-direction:column; gap:8px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Status</label>
+                    <select id="unit-status" name="is_active" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px; background: white;">
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #f8fafc; padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" onclick="closeUnitModal()" class="btn btn-ghost" style="background: white; border: 1px solid #cbd5e1; color: #475569; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="btn-save-unit" style="background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">Create Unit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px); z-index: 999; justify-content: center; align-items: center; }
+    .modal-content { background: white; border-radius: 12px; width: 90%; }
+    .status-active { background: #d1fae5; color: #065f46; }
+    .status-inactive { background: #fee2e2; color: #991b1b; }
+    .btn-ghost:hover { background: #f8fafc; }
+    .hover-danger:hover { background: #fee2e2 !important; color: #ef4444 !important; border-color: #fca5a5 !important; }
+    @media (max-width: 768px) {
+        .subadmin-container { padding: 12px !important; }
+        .page-header { flex-direction: column; align-items: flex-start !important; }
+        .page-actions { width: 100%; }
+        .page-actions .btn { width: 100%; justify-content: center; }
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openUnitModal() {
+        document.getElementById('modalTitle').innerText = "Create New Unit Master";
+        document.getElementById('unitForm').action = "/units/add";
+        document.getElementById('unitForm').reset();
+        
+        document.getElementById('status-group').style.display = 'none';
+        document.getElementById('btn-save-unit').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Create Unit';
+        document.getElementById('unitModal').style.display = 'flex';
+    }
+
+    function closeUnitModal() {
+        document.getElementById('unitModal').style.display = 'none';
+    }
+
+    function editUnit(id, name, isActive) {
+        document.getElementById('modalTitle').innerText = "Edit Unit Master";
+        document.getElementById('unitForm').action = `/units/edit/${id}`;
+        
+        document.getElementById('unit-name').value = name;
+        document.getElementById('unit-status').value = isActive ? "true" : "false";
+        
+        document.getElementById('status-group').style.display = 'flex';
+        document.getElementById('btn-save-unit').innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Changes';
+        document.getElementById('unitModal').style.display = 'flex';
+    }
+
+    function deleteUnit(id, name) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: `Confirm you want to delete unit: ${name}?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Yes, delete unit!',
+            customClass: { popup: 'glass-card' }
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/units/delete/${id}`;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+</script>
+{% endblock %}

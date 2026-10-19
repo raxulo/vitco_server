@@ -10,7 +10,9 @@ Python 3.13+
 from __future__ import annotations
 
 from sqlalchemy import event
+
 from app.core.config import config
+from app.core.database.base import Base
 from app.core.database.drivers.base import BaseDatabaseDriver
 from app.core.database.engine import (
     EngineFactory,
@@ -34,6 +36,18 @@ class SQLiteDriver(BaseDatabaseDriver):
         if self.connected:
             return
 
+        # Ensure parent directory exists for SQLite
+        from pathlib import Path
+        url = config.database.url
+        if url.startswith("sqlite+aiosqlite:///"):
+            db_path = url.replace("sqlite+aiosqlite:///", "")
+            if not db_path.startswith(":memory:") and db_path != "":
+                path = Path(db_path)
+                if not path.is_absolute():
+                    from app.config.settings import BASE_DIR
+                    path = BASE_DIR / path
+                path.parent.mkdir(parents=True, exist_ok=True)
+
         options = EngineOptions(
             url=config.database.url,
             echo=config.database.echo,
@@ -42,7 +56,26 @@ class SQLiteDriver(BaseDatabaseDriver):
         self._engine = EngineFactory.create(options)
         self._install_events()
         self._session_manager = SessionManager(self.engine)
-        self._start_telemetry()
+
+        # Create tables & auto-migrate columns (development only)
+        async with self.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            def _sync_alter(raw_conn):
+                try:
+                    cur = raw_conn.cursor()
+                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='animals';")
+                    if cur.fetchone():
+                        cur.execute("PRAGMA table_info(animals);")
+                        cols = [c[1] for c in cur.fetchall()]
+                        if "image_url" not in cols:
+                            cur.execute("ALTER TABLE animals ADD COLUMN image_url VARCHAR(500);")
+                        if "images" not in cols:
+                            cur.execute("ALTER TABLE animals ADD COLUMN images JSON;")
+                    cur.close()
+                except Exception:
+                    pass
+            await conn.run_sync(lambda raw_conn: _sync_alter(raw_conn.connection))
+            
         self._connected = True
 
     async def disconnect(self) -> None:

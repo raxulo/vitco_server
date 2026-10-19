@@ -1,15 +1,12 @@
 fastapi
 starlette
 uvicorn[standard]
-uvloop
+uvloop; sys_platform != "win32"
 httptools
 
 SQLAlchemy
-# asyncpg
 aiosqlite
-
-aiortc
-aioice
+tzdata
 
 # Non-blocking file reads/writes
 aiofiles
@@ -20,24 +17,16 @@ orjson
 
 pydantic
 pydantic-settings
+email-validator
 
-# Binary Protocol
-memoryview
-struct
-mmap
-bytearray
-
-# Encryption
+# Encryption and Hashing
 cryptography
+python-jose
 python-multipart
+argon2-cffi
 
 zeroconf
-
 httpx
 
-# Frontend
+# Frontend templates
 Jinja2
-HTMX
-AlpineJS
-
-dishka

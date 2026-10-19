@@ -1,0 +1,392 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Pair Ledger Statement - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn subadmin-container" style="width: 100%; box-sizing: border-box; padding: 20px;">
+    <!-- Page Header -->
+    <div class="page-header" style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div class="page-title">
+            <h2 style="margin:0; font-size: 22px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-people-arrows" style="color: #2563eb;"></i> Pair Ledger Statement
+            </h2>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">Side-by-side dual audit trail between From User and To User</p>
+        </div>
+        {% if selected_counterparty %}
+        <a href="/payments/pair-statement" class="btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 10px 16px; border-radius: 8px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;">
+            <i class="fa-solid fa-arrows-spin"></i> Change User
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Unified Search and Filter Panel (Always Present) -->
+    <div style="background: white; border-radius: 20px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01);">
+        <form method="GET" action="/payments/pair-statement" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: end;">
+            
+            <!-- 1. Search From User (Defaults to Logged-in User) -->
+            <div style="position: relative;" id="searchable-from-user-container">
+                <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">From User</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-circle-user" style="position: absolute; left: 16px; top: 14px; color: #2563eb; font-size: 15px; z-index: 2;"></i>
+                    <input type="text" id="from-user-search-input" value="{% if from_user %}{{ from_user.name }} ({% if from_user.mobile %}{{ from_user.mobile }}{% endif %}){% endif %}" placeholder="Search From User..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 44px; padding: 0 16px 0 42px; font-size: 14px; color: #1e293b; outline: none; background: #f8fafc; transition: all 0.2s;" onfocus="showFromDropdown(); this.style.borderColor='#2563eb'; this.style.background='white';" onblur="setTimeout(hideFromDropdown, 200); this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';" oninput="filterFromUsers()" autocomplete="off">
+                    
+                    <!-- Hidden input to hold the actual selected from_user ID -->
+                    <input type="hidden" id="from_user_id" name="from_user_id" value="{% if from_user %}{{ from_user.id }}{% endif %}" required>
+
+                    <!-- Dropdown list -->
+                    <div id="from-user-dropdown-list" style="position: absolute; left: 0; right: 0; top: 48px; max-height: 220px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); z-index: 10; display: none;">
+                        <div id="no-from-users-found" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 13px; display: none;">
+                            No users found
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Search Counterparty User (To User) -->
+            <div style="position: relative;" id="searchable-user-container">
+                <label style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">To User</label>
+                <div style="position: relative;">
+                    <i class="fa-solid fa-user-tag" style="position: absolute; left: 16px; top: 14px; color: #dc2626; font-size: 15px; z-index: 2;"></i>
+                    <input type="text" id="user-search-input" value="{% if selected_counterparty %}{{ selected_counterparty.name }} ({% if selected_counterparty.mobile %}{{ selected_counterparty.mobile }}{% endif %}){% endif %}" placeholder="Search To User..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 44px; padding: 0 16px 0 42px; font-size: 14px; color: #1e293b; outline: none; background: #f8fafc; transition: all 0.2s;" onfocus="showDropdown(); this.style.borderColor='#2563eb'; this.style.background='white';" onblur="setTimeout(hideDropdown, 200); this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';" oninput="filterUsers()" autocomplete="off">
+                    
+                    <!-- Hidden input to hold the actual selected user ID -->
+                    <input type="hidden" id="counterparty_id" name="counterparty_id" value="{% if selected_counterparty %}{{ selected_counterparty.id }}{% endif %}" required>
+
+                    <!-- Dropdown list -->
+                    <div id="user-dropdown-list" style="position: absolute; left: 0; right: 0; top: 48px; max-height: 220px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); z-index: 10; display: none;">
+                        <div id="no-users-found" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 13px; display: none;">
+                            No users found
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. From Date -->
+            <div>
+                <label for="start_date" style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">From Date</label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date }}" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 44px; padding: 0 16px; font-size: 14px; color: #1e293b; outline: none; background: #f8fafc; transition: all 0.2s;" onfocus="this.style.borderColor='#2563eb'; this.style.background='white';" onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';">
+            </div>
+
+            <!-- 4. To Date -->
+            <div>
+                <label for="end_date" style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">To Date</label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date }}" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 44px; padding: 0 16px; font-size: 14px; color: #1e293b; outline: none; background: #f8fafc; transition: all 0.2s;" onfocus="this.style.borderColor='#2563eb'; this.style.background='white';" onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';">
+            </div>
+
+            <!-- 5. Action Buttons -->
+            <div style="display: flex; gap: 8px; height: 44px;">
+                <button type="submit" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; padding: 0 20px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; transition: all 0.2s;" onmouseover="this.style.opacity='0.95'" onmouseout="this.style.opacity='1'">
+                    <i class="fa-solid fa-filter"></i> Apply
+                </button>
+                <a href="/payments/pair-statement" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 0 16px; border-radius: 12px; font-weight: 700; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+                </a>
+            </div>
+
+        </form>
+    </div>
+
+    {% if not selected_counterparty %}
+    <!-- Empty Guide Card when no user is selected -->
+    <div style="background: white; border-radius: 20px; border: 1px solid #e2e8f0; padding: 60px 24px; text-align: center; color: #64748b; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);">
+        <div style="font-size: 56px; color: #cbd5e1; margin-bottom: 20px; display: inline-flex; align-items: center; justify-content: center; width: 96px; height: 96px; border-radius: 50%; background: #f8fafc;">
+            <i class="fa-solid fa-people-arrows" style="color: #94a3b8;"></i>
+        </div>
+        <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: #475569;">Generate Pair Ledger Statement</h3>
+        <p style="margin: 0; font-size: 14px; color: #94a3b8; max-width: 480px; margin: 0 auto; line-height: 1.5;">Select From User &amp; To User in the panel above to generate a side-by-side transaction audit trail.</p>
+    </div>
+    {% else %}
+    <!-- Active Pair Statement Timeline View -->
+    <div style="background: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0; padding: 24px; margin-bottom: 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0;">
+                    {{ from_user.name[0]|upper if from_user else 'U' }}
+                </div>
+                <div style="font-size: 18px; font-weight: 800; color: #cbd5e1;"><i class="fa-solid fa-left-right"></i></div>
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: #fef2f2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0;">
+                    {{ selected_counterparty.name[0]|upper }}
+                </div>
+            </div>
+            <div>
+                <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b;">Statement: {{ from_user.name if from_user else 'User' }} &amp; {{ selected_counterparty.name }}</h4>
+                <p style="margin: 2px 0 0 0; color: #64748b; font-size: 13px;">From Mobile: {{ from_user.mobile if from_user and from_user.mobile else 'N/A' }} | To Mobile: {{ selected_counterparty.mobile if selected_counterparty.mobile else 'N/A' }}</p>
+            </div>
+        </div>
+        <div style="background: white; border: 1px solid #e2e8f0; padding: 10px 16px; border-radius: 10px; text-align: right;">
+            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">Statement Limit</div>
+            <div style="font-size: 14px; font-weight: 700; color: #1e293b;">Last 100 Transactions</div>
+        </div>
+    </div>
+
+    <!-- Double-Sided Ledger Board -->
+    <div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); overflow: hidden;">
+        <div class="table-container" style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
+            <div style="min-width: 650px;">
+                <!-- Double Headers -->
+                <div style="display: grid; grid-template-columns: 1fr 160px 1fr; background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                    <div style="padding: 16px; font-weight: 800; color: #2563eb; border-right: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(37, 99, 235, 0.02);">
+                        <i class="fa-solid fa-circle-user"></i> From User ({% if from_user %}{{ from_user.name }}{% else %}You{% endif %})
+                    </div>
+                    <div style="padding: 16px; font-weight: 700; color: #475569; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">
+                        Transaction
+                    </div>
+                    <div style="padding: 16px; font-weight: 800; color: #dc2626; border-left: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(220, 38, 38, 0.02);">
+                        <i class="fa-solid fa-user-tag"></i> To User ({{ selected_counterparty.name }})
+                    </div>
+                </div>
+
+                <!-- Statement Rows -->
+                {% if pair_history %}
+                <div style="display: flex; flex-direction: column;">
+                    {% for item in pair_history %}
+                    <div style="display: grid; grid-template-columns: 1fr 160px 1fr; border-bottom: 1px solid #f1f5f9; min-height: 80px; align-items: center; text-align: center;">
+                        
+                        <!-- Left Side: From User Account State -->
+                        <div style="padding: 16px; border-right: 1px solid #e2e8f0; text-align: right; display: flex; justify-content: flex-end; gap: 16px; align-items: center; background: rgba(37, 99, 235, 0.01);">
+                            <div style="font-size: 12px; color: #64748b;">
+                                <div>Before: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.user_before) }}</span></div>
+                                <div style="margin-top: 2px;">After: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.user_after) }}</span></div>
+                            </div>
+                            <div>
+                                {% if item.user_entry_type == 1 %} <!-- DEBIT -->
+                                <span style="font-weight: 800; color: #ef4444; font-size: 15px; display: block;">- ₹{{ "{:,.2f}".format(item.amount) }}</span>
+                                <span style="font-size: 10px; font-weight: 700; color: #b91c1c; background: #fee2e2; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Debit</span>
+                                {% else %} <!-- CREDIT -->
+                                <span style="font-weight: 800; color: #10b981; font-size: 15px; display: block;">+ ₹{{ "{:,.2f}".format(item.amount) }}</span>
+                                <span style="font-size: 10px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Credit</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Center: Transaction Meta -->
+                        <div style="padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;">
+                            <div style="font-size: 11px; font-weight: 700; color: #475569;">
+                                {{ item.created_at.strftime('%d-%b-%Y') if item.created_at else 'N/A' }}
+                            </div>
+                            <div style="font-size: 10px; color: #94a3b8; font-weight: 500;">
+                                {{ item.created_at.strftime('%I:%M %p') if item.created_at else '' }}
+                            </div>
+                        </div>
+
+                        <!-- Right Side: Counterparty Account State -->
+                        <div style="padding: 16px; border-left: 1px solid #e2e8f0; text-align: left; display: flex; justify-content: flex-start; gap: 16px; align-items: center; background: rgba(220, 38, 38, 0.01);">
+                            <div>
+                                {% if item.user_entry_type == 1 %} <!-- Logged-in user is DEBIT => Counterparty is CREDIT -->
+                                <span style="font-weight: 800; color: #10b981; font-size: 15px; display: block;">+ ₹{{ "{:,.2f}".format(item.amount) }}</span>
+                                <span style="font-size: 10px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Credit</span>
+                                {% else %} <!-- Logged-in user is CREDIT => Counterparty is DEBIT -->
+                                <span style="font-weight: 800; color: #ef4444; font-size: 15px; display: block;">- ₹{{ "{:,.2f}".format(item.amount) }}</span>
+                                <span style="font-size: 10px; font-weight: 700; color: #b91c1c; background: #fee2e2; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Debit</span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 12px; color: #64748b;">
+                                <div>Before: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.counterparty_before) }}</span></div>
+                                <div style="margin-top: 2px;">After: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.counterparty_after) }}</span></div>
+                            </div>
+                        </div>
+
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- Empty Ledger State -->
+                <div style="padding: 60px 24px; text-align: center; color: #64748b;">
+                    <div style="font-size: 48px; color: #cbd5e1; margin-bottom: 16px;">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </div>
+                    <h4 style="margin: 0 0 8px 0; font-size: 16px; font-weight: 700; color: #475569;">No transaction history found</h4>
+                    <p style="margin: 0; font-size: 14px; color: #94a3b8;">There are no ledger transfers recorded between {{ from_user.name if from_user else 'From User' }} and {{ selected_counterparty.name }}.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    let searchDebounceTimeout = null;
+    let fromSearchDebounceTimeout = null;
+
+    // --- FROM USER SEARCH ---
+    async function filterFromUsers() {
+        const input = document.getElementById('from-user-search-input');
+        const filter = input.value.trim();
+        
+        clearTimeout(fromSearchDebounceTimeout);
+        fromSearchDebounceTimeout = setTimeout(async () => {
+            await fetchAndPopulateFromUsers(filter);
+        }, 300);
+    }
+
+    async function fetchAndPopulateFromUsers(query = "") {
+        const dropdownList = document.getElementById('from-user-dropdown-list');
+        const noUsers = document.getElementById('no-from-users-found');
+        
+        if (query.trim().length < 3) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/payments/api/users?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            const users = data.users || [];
+            
+            const options = dropdownList.querySelectorAll('.user-option');
+            options.forEach(opt => opt.remove());
+            
+            if (users.length === 0) {
+                noUsers.style.display = 'block';
+            } else {
+                noUsers.style.display = 'none';
+                users.forEach(u => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'user-option';
+                    optionDiv.style.padding = '12px 16px';
+                    optionDiv.style.cursor = 'pointer';
+                    optionDiv.style.fontSize = '14px';
+                    optionDiv.style.borderBottom = '1px solid #f1f5f9';
+                    optionDiv.style.transition = 'background 0.2s';
+                    optionDiv.setAttribute('onmousedown', `selectFromUser('${u.id}', '${u.name} (${u.mobile})')`);
+                    
+                    optionDiv.innerHTML = `
+                        <div style="font-weight: 700; color: #1e293b;">${u.name}</div>
+                        <div style="font-size: 12px; color: #64748b;">${u.mobile}</div>
+                    `;
+                    
+                    optionDiv.addEventListener('mouseover', () => {
+                        optionDiv.style.backgroundColor = '#f1f5f9';
+                    });
+                    optionDiv.addEventListener('mouseout', () => {
+                        optionDiv.style.backgroundColor = 'transparent';
+                    });
+
+                    dropdownList.appendChild(optionDiv);
+                });
+            }
+        } catch (err) {
+            console.error("Failed to fetch from users", err);
+        }
+    }
+
+    async function showFromDropdown() {
+        const dropdownList = document.getElementById('from-user-dropdown-list');
+        dropdownList.style.display = 'block';
+        
+        const input = document.getElementById('from-user-search-input');
+        if (input.value.trim().length >= 3) {
+            await fetchAndPopulateFromUsers(input.value.trim());
+        }
+    }
+
+    function hideFromDropdown() {
+        document.getElementById('from-user-dropdown-list').style.display = 'none';
+    }
+
+    function selectFromUser(id, text) {
+        document.getElementById('from_user_id').value = id;
+        document.getElementById('from-user-search-input').value = text;
+        hideFromDropdown();
+    }
+
+
+    // --- TO USER SEARCH ---
+    async function filterUsers() {
+        const input = document.getElementById('user-search-input');
+        const filter = input.value.trim();
+        
+        clearTimeout(searchDebounceTimeout);
+        searchDebounceTimeout = setTimeout(async () => {
+            await fetchAndPopulateUsers(filter);
+        }, 300);
+    }
+
+    async function fetchAndPopulateUsers(query = "") {
+        const dropdownList = document.getElementById('user-dropdown-list');
+        const noUsers = document.getElementById('no-users-found');
+        
+        if (query.trim().length < 3) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/payments/api/users?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            const users = data.users || [];
+            
+            const options = dropdownList.querySelectorAll('.user-option');
+            options.forEach(opt => opt.remove());
+            
+            if (users.length === 0) {
+                noUsers.style.display = 'block';
+            } else {
+                noUsers.style.display = 'none';
+                users.forEach(u => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'user-option';
+                    optionDiv.style.padding = '12px 16px';
+                    optionDiv.style.cursor = 'pointer';
+                    optionDiv.style.fontSize = '14px';
+                    optionDiv.style.borderBottom = '1px solid #f1f5f9';
+                    optionDiv.style.transition = 'background 0.2s';
+                    optionDiv.setAttribute('onmousedown', `selectUser('${u.id}', '${u.name} (${u.mobile})')`);
+                    
+                    optionDiv.innerHTML = `
+                        <div style="font-weight: 700; color: #1e293b;">${u.name}</div>
+                        <div style="font-size: 12px; color: #64748b;">${u.mobile}</div>
+                    `;
+                    
+                    optionDiv.addEventListener('mouseover', () => {
+                        optionDiv.style.backgroundColor = '#f1f5f9';
+                    });
+                    optionDiv.addEventListener('mouseout', () => {
+                        optionDiv.style.backgroundColor = 'transparent';
+                    });
+
+                    dropdownList.appendChild(optionDiv);
+                });
+            }
+        } catch (err) {
+            console.error("Failed to fetch users", err);
+        }
+    }
+
+    async function showDropdown() {
+        const dropdownList = document.getElementById('user-dropdown-list');
+        dropdownList.style.display = 'block';
+        
+        const input = document.getElementById('user-search-input');
+        if (input.value.trim().length >= 3) {
+            await fetchAndPopulateUsers(input.value.trim());
+        }
+    }
+
+    function hideDropdown() {
+        document.getElementById('user-dropdown-list').style.display = 'none';
+    }
+
+    function selectUser(id, text) {
+        document.getElementById('counterparty_id').value = id;
+        document.getElementById('user-search-input').value = text;
+        hideDropdown();
+    }
+</script>
+
+<style>
+    .user-option:hover {
+        background-color: #f1f5f9 !important;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+        animation: fadeIn 0.4s ease-out forwards;
+    }
+    @media (max-width: 768px) {
+        .subadmin-container { padding: 12px !important; }
+        .page-header { flex-direction: column; align-items: flex-start !important; }
+    }
+</style>
+{% endblock %}

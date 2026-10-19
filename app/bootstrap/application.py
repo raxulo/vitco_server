@@ -1,62 +1,64 @@
+# """
+# RealTimeTransfer
+# ================
+
+# Bootstrap Module: Application Entrypoint
+
+# Triggers the AppBuilder pipeline.
+
+# Python 3.13+
+# """
+
+# from __future__ import annotations
+
+# from fastapi import FastAPI
+# from app.bootstrap.builder import AppBuilder
+
+
+# def create_application() -> FastAPI:
+#     """
+#     Application entry point resolving sequential Fluent Builder stages.
+#     """
+#     return (
+#         AppBuilder()
+#         .setup_openapi()
+#         .discover_services()
+#         .setup_middleware()
+#         .setup_routers()
+#         .setup_exceptions()
+#         .setup_health()
+#         .build()
+#     )
+
+
 """
 RealTimeTransfer
 ================
 
 Application Factory
 
-Creates and configures the FastAPI application.
+Public application entry point.
 
-Python : 3.13
+Python 3.13+
 """
 
 from __future__ import annotations
 
 from fastapi import FastAPI
-from fastapi.responses import ORJSONResponse
 
-from app.core.config import config
+from app.bootstrap.builder import ApplicationBuilder
 
 
-class ApplicationFactory:
-    """
-    Enterprise FastAPI Application Factory.
-
-    Responsibilities
-    ----------------
-    • Create FastAPI instance
-    • Configure OpenAPI
-    • Configure JSON serialization
-    • Configure Documentation
-    • Prepare application metadata
-
-    NOTE:
-    Middleware, Routers, Lifespan and DI are registered
-    outside this class to keep responsibilities separated.
-    """
-
-    @staticmethod
-    def create() -> FastAPI:
-
-        app = FastAPI(
-            title=config.settings.APP_NAME,
-            version=config.settings.APP_VERSION,
-            debug=config.settings.DEBUG,
-            default_response_class=ORJSONResponse,
-            docs_url="/docs",
-            redoc_url="/redoc",
-            openapi_url="/openapi.json",
-        )
-
-        return app
+__all__ = (
+    "create_application",
+)
 
 
 def create_application() -> FastAPI:
     """
-    Application entry point.
+    Create and configure the FastAPI application.
 
-    Returns
-    -------
-    FastAPI
-        Configured FastAPI application.
+    This is the only public bootstrap API.
     """
-    return ApplicationFactory.create()
+
+    return ApplicationBuilder().build()

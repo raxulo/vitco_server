@@ -13,6 +13,9 @@ from datetime import UTC, datetime
 
 @dataclass(slots=True)
 class Event:
+    """
+    Base class for all domain events.
+    """
 
     event_id: str = field(
         default_factory=lambda: uuid.uuid4().hex

@@ -1,0 +1,30 @@
+<div class="form-group">
+    <label id="username-label">Email / Mobile</label>
+    <div class="input-wrapper">
+        <i class="fa-solid fa-user"></i>
+        <input name="email" type="text" id="email" placeholder="Enter email address or mobile number" required>
+    </div>
+</div>
+<div class="form-group">
+    <label>Password</label>
+    <div class="input-wrapper">
+        <i class="fa-solid fa-lock"></i>
+        <input name="password" type="password" id="password" placeholder="Enter Password" required>
+    </div>
+</div>
+<button
+    class="btn btn-primary w-100"
+    hx-indicator="#login-spinner">
+    <span
+        id="login-spinner"
+        class="spinner-border spinner-border-sm htmx-indicator">
+    </span>
+
+    Login
+
+</button>
+{% if error %}
+<div id="error-msg" style="display: flex;">
+    <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+</div>
+{% endif %}

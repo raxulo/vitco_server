@@ -1,0 +1,348 @@
+<form hx-post="/mcc-collections/create" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection">
+
+    <div class="grid-forms" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 24px;">
+
+        <div class="form-group">
+
+            <label>MCC *</label>
+
+            <select name="mcc_id" id="cf-mccid" class="form-control" required hx-get="/mcc-collections/load-form"
+
+                hx-trigger="change" hx-target="#form-collection" hx-swap="outerHTML">
+
+                <option value=""> -- Select MCC -- </option>
+
+                {% for m in mccs %}
+
+                <option value="{{ m.id }}" {{ 'selected' if (mcc_id and mcc_id|string==m.id|string) or (collection and
+
+                    collection.mcc_id|string==m.id|string) else '' }} data-mcc-type="{{ m.mcc_type }}"
+
+                    data-code="{{ m.code or '' }}"
+
+                    data-name="{{ m.name }}"
+
+                    data-city="{{ m.city or '' }}"
+
+                    data-route="{{ m.route_code or '' }}"
+
+                    data-weight-collection-type="{{  setting.weight_collection_mode.value if setting else 0 }}"
+
+                    data-analyzer-collection-type="{{ setting.analyzer_collection_mode.value if setting else 0 }}"
+
+                    data-fixed-rate="{{ m.fixed_rate or 0.0 }}" data-less-detection="{{ m.less_detection or 0.0 }}"
+
+                    data-high-detection="{{ m.high_detection or 0.0 }}" data-min-fat="{{ m.min_fat or 0.0 }}"
+
+                    data-max-fat="{{ m.max_fat or 0.0 }}" data-min-snf="{{ m.min_snf or 0.0 }}"
+
+                    data-max-snf="{{ m.max_snf or 0.0 }}" data-cow-min-fat="{{ m.cow_min_fat or 0.0 }}"
+
+                    data-cow-max-fat="{{ m.cow_max_fat or 0.0 }}" data-buffalo-min-fat="{{ m.buffalo_min_fat or 0.0 }}"
+
+                    data-buffalo-max-fat="{{ m.buffalo_max_fat or 0.0 }}">{{ m.name }}</option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Supplying VLCC *</label>
+
+            <select name="vlcc_id" id="cf-shopid" class="form-control" required {% if not vlccs %}readonly{% endif %} {%
+
+                if mcc and mcc.mcc_type|int==1 %}
+
+                style="pointer-events: none; background-color: #f1f5f9; cursor: not-allowed;" tabindex="-1" {% endif %}>
+
+                <option value=""> Select VLCC </option>
+
+                {% for vlcc in vlccs %}
+
+                <option value="{{ vlcc.id or vlcc.vlcc_id }}" 
+                    data-assigned-chart-rank="{{ vlcc.assigned_chart_rank or 1 }}"
+                    data-code="{{ vlcc.uic or vlcc.vlcc_code or vlcc.uic_code or '' }}"
+                    data-route="{{ vlcc.route_code or '' }}"
+                    data-mobile="{{ vlcc.mobile or vlcc.contact_person_mobile or '' }}"
+                    data-name="{{ vlcc.name or vlcc.vlcc_name or '' }}"
+                    {{ 'selected' if (collection and
+
+                    (collection.vlcc_id|string==vlcc.id|string or collection.vlcc_id|string==vlcc.vlcc_id|string)) or
+
+                    (vlcc_id and vlcc_id|string==vlcc.vlcc_id|string) else '' }}>
+
+                    {{ vlcc.name or vlcc.vlcc_name }} (UIC: {{ vlcc.uic or vlcc.vlcc_code or vlcc.uic_code }})
+
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        {% if mcc and mcc.mcc_type|int != 2 %}
+
+        <div class="form-group">
+
+            <label>Rate Chart <span style="font-size:10px; color:var(--text-muted);">(Optional)</span></label>
+
+            <select name="chart_id" id="cf-ratechart" class="form-control">
+
+                {% if rate_charts %}
+
+                {% for chart in rate_charts %}
+
+                <option value="{{ chart.id }}" {% if collection and collection.rate_chart_id|string==chart.id|string %}
+
+                    selected {% endif %}>
+
+                    {{ chart.chart_name }}
+
+                </option>
+
+                {% endfor %}
+
+                {% else %}
+
+                <option value="">-- Select Rate Chart --</option>
+
+                {% endif %}
+
+            </select>
+
+        </div>
+
+        {% endif %}
+
+        <div class="form-group">
+
+            <label>Entry Date *</label>
+
+            <input type="datetime-local" name="collection_date" id="cf-date" class="form-control" required
+
+                value="{{ default_date }}">
+
+        </div>
+
+        <div class="form-group">
+
+            <label>Shift *</label>
+
+            <select name="shift" id="cf-shift" class="form-control">
+
+                <option value="0">Morning</option>
+
+                <option value="1">Evening</option>
+
+            </select>
+
+        </div>
+
+        {% if mcc and mcc.mcc_type|int != 2 %}
+
+        <div class="form-group" id="group-milk-type">
+
+            <label>Milk Type *</label>
+
+            <select name="milk_type" id="cf-type" class="form-control"
+
+                style="pointer-events: none; background-color: #f1f5f9; cursor: not-allowed;"
+
+                hx-get="/mcc-collections/api/calculate-rate" hx-trigger="change"
+
+                hx-include="#cf-ratechart, #cf-fat, #cf-snf, #cf-type" hx-target="#cf-rate" hx-swap="outerHTML">
+
+                <option value="0">Cow</option>
+
+                <option value="1">Buffalo</option>
+
+                <option value="2">Mixed</option>
+
+            </select>
+
+        </div>
+
+        {% endif %}
+
+        <div class="form-group">
+
+            <label>Weight (Ltr/Kg) *</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-weight-hanging"></i>
+
+                <input type="number" step="0.01" name="quantity" id="cf-qty" class="form-control" placeholder="0.00"
+
+                    required {% if setting and setting.weight_collection_mode|int==1 %}readonly{% endif %}>
+
+            </div>
+
+        </div>
+
+        {% if mcc and mcc.mcc_type|int != 2 %}
+
+        <div class="form-group" id="group-fat-snf" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+
+            <div>
+
+                <label>FAT % *</label>
+
+                <input type="number" step="0.1" name="fat_percent" id="cf-fat" class="form-control" placeholder="0.0" required
+
+                    {% if setting and setting.analyzer_collection_mode|int==1 %}readonly{% endif %}>
+
+            </div>
+
+            <div>
+
+                <label>SNF % *</label>
+
+                <input type="number" step="0.1" name="snf_percent" id="cf-snf" class="form-control" placeholder="0.0" required
+
+                    {% if setting and setting.analyzer_collection_mode|int==1 %}readonly{% endif %}>
+
+            </div>
+
+        </div>
+
+        <div class="form-group" id="group-rate">
+
+            <label>Rate (₹/Unit) *</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+
+                <input readonly type="number" step="0.01" name="rate_per_unit" id="cf-rate" class="form-control"
+
+                    required hx-get="/ratecharts/get-rate" hx-trigger="rate:calculate"
+
+                    hx-include="#cf-ratechart, #cf-fat, #cf-snf, #cf-type" hx-target="#group-rate" hx-swap="outerHTML">
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+        {% if mcc and mcc.mcc_type|int != 0 %}
+
+        <div class="form-group" id="group-samples">
+
+            <label>Samples</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-flask"></i>
+
+                <input value="{{ next_sample_number or ''}}" type="number" name="sample_number" id="cf-samples"
+
+                    class="form-control" placeholder="0" {% if mcc and mcc.mcc_type|int==2 %}readonly{% endif %}
+
+                    hx-get="/mcc-collections/get-sample-result" hx-trigger="change, keyup changed delay:500ms"
+
+                    hx-include="#cf-mccid, #cf-shift, #cf-date" hx-swap="none">
+
+            </div>
+
+            <div id="cf-sample-error"
+
+                style="color: #ef4444; font-size: 11px; margin-top: 4px; display: none; font-weight: 600;">
+
+                <i class="fa-solid fa-circle-exclamation"></i> This sample collection already exists
+
+            </div>
+
+        </div>
+
+        <div class="form-group" id="group-cans">
+
+            <label>Cans</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-bucket"></i>
+
+                <input type="number" name="can_count" id="cf-cans" class="form-control" placeholder="0" value="" {% if
+
+                    mcc and mcc.mcc_type|int !=2 %}readonly{% endif %}>
+
+            </div>
+
+        </div>
+
+        {% endif %}
+
+        {% if mcc and mcc.mcc_type|int != 2 %}
+
+        <div class="form-group" id="group-payment">
+
+            <label>Payment Status *</label>
+
+            <select name="status" id="cf-payment" class="form-control">
+
+                <option value="0">Unpaid</option>
+
+                <option value="1">Paid</option>
+
+            </select>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+    <input type="hidden" name="rank" value="1">
+    <input type="hidden" name="mcc_type" id="cf-mcctype-hidden" value="{{ mcc.mcc_type|int if mcc else 0 }}">
+    <input type="hidden" name="analyzer_collection_mode" id="cf-analyzer-collection-mode-hidden"
+        value="{{ setting.analyzer_collection_mode|int if setting else 1 }}">
+
+    <input type="hidden" name="weight_collection_mode" id="cf-weight-collection-mode-hidden"
+        value="{{ setting.weight_collection_mode|int if setting else 1 }}">
+    
+    <input type="hidden" name="total_amount" id="cf-total-hidden"
+        value="{{ collection.total_amount if collection else '0.00' }}">
+
+    <div
+        style="padding:18px 24px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:flex-end; gap:12px; align-items:center;">
+        <a href="/mcc-collections" class="btn btn-ghost"
+            style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">Cancel</a>
+        <button type="button" class="btn btn-primary" id="ff-preview-save-collection"
+            style="background: #2563eb; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; cursor: pointer;"
+            onclick="openReceiptPreview()"
+            title="Preview receipt and save collection">
+            <i class="fa-solid fa-eye"></i> Preview & Save
+        </button>
+    </div>
+    
+</form>
+
+{% if new_item %}
+
+<div hx-swap-oob="delete:#empty-list-msg"></div>
+
+<div hx-swap-oob="afterbegin:#recent-list">
+
+    <div data-qty="{{ new_item.qty }}" data-total="{{ new_item.total }}" style="padding: 12px 16px; border-bottom: 1px solid var(--border-soft); font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+
+        <div>
+
+            <div style="font-weight: 600; color: var(--text-dark);">{{ new_item.vlcc_name }}</div>
+
+            <div style="font-size: 11px; color: var(--text-muted);">{{"%02d"|format(new_item.date.split()[0].split('/')[0]|int)}}/{{"%02d"|format(new_item.date.split()[0].split('/')[1]|int)}} {{new_item.date.split()[1]}} • {{ "%.2f"|format(new_item.qty) }} Ltr/Kg • FAT {{ "%.1f"|format(new_item.fat) }}%</div>
+
+        </div>
+
+        <div style="font-weight: 700; color: var(--primary);">₹{{ "%.2f"|format(new_item.total) }}</div>
+
+    </div>
+
+</div>
+
+{% endif %}

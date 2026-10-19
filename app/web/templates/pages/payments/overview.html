@@ -1,0 +1,173 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Payments Overview - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn subadmin-container" style="width: 100%; box-sizing: border-box; padding: 20px;">
+    <!-- Page Header -->
+    <div class="page-header" style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div class="page-title">
+            <h2 style="margin:0; font-size: 22px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-wallet" style="color: #2563eb;"></i> Payments Dashboard Overview
+            </h2>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">Summary of your ledger balances, outstanding pairs, and recent transaction history.</p>
+        </div>
+    </div>
+
+    <!-- Key Stats Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 24px;">
+        <!-- Account Balance Card -->
+        <div style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 24px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); position: relative; overflow: hidden;">
+            <div style="position: absolute; right: -20px; bottom: -20px; font-size: 120px; opacity: 0.1; transform: rotate(-15deg); pointer-events: none;">
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+            </div>
+            <p style="margin: 0; font-size: 14px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; opacity: 0.9;">Current Account Balance</p>
+            <h1 style="margin: 8px 0; font-size: 34px; font-weight: bold; color: #cbd5e1;">₹{{ "%.2f"|format(balance) }}</h1>
+            <p style="margin: 0; font-size: 13px; opacity: 0.8; display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-circle-check"></i>ledger verified
+            </p>
+        </div>
+
+        <!-- Total To Collect Card -->
+        <div style="background: white; border: 1px solid #e2e8f0; padding: 24px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <p style="margin: 0; font-size: 13px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">To Collect</p>
+                <h2 style="margin: 6px 0 0 0; font-size: 26px; font-weight: 800; color: #16a34a;">₹{{ "%.2f"|format(total_to_collect) }}</h2>
+            </div>
+            <div style="width: 50px; height: 50px; border-radius: 50px; background: #dcfce7; display: flex; align-items: center; justify-content: center; color: #16a34a; font-size: 18px; flex-shrink: 0;">
+                <i class="fa-solid fa-arrow-down-left"></i>
+            </div>
+        </div>
+
+        <!-- Total To Pay Card -->
+        <div style="background: white; border: 1px solid #e2e8f0; padding: 24px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between;">
+            <div>
+                <p style="margin: 0; font-size: 13px; text-transform: uppercase; font-weight: 700; color: #64748b; letter-spacing: 0.05em;">To Pay</p>
+                <h2 style="margin: 6px 0 0 0; font-size: 26px; font-weight: 800; color: #dc2626;">₹{{ "%.2f"|format(total_to_pay) }}</h2>
+            </div>
+            <div style="width: 50px; height: 50px; border-radius: 50px; background: #fee2e2; display: flex; align-items: center; justify-content: center; color: #dc2626; font-size: 18px; flex-shrink: 0;">
+                <i class="fa-solid fa-arrow-up-right"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Navigation Actions -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <a href="/payments/user-to" style="text-decoration: none; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)'">
+            <span style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; background: #eff6ff; color: #2563eb; font-size: 18px; flex-shrink: 0;"><i class="fa-solid fa-user-tag"></i></span>
+            <div>
+                <h4 style="margin:0; font-size:14px; font-weight:700; color:#1e293b;">Give / Receive</h4>
+                <p style="margin:2px 0 0 0; font-size:11px; color:#64748b;">Transfers</p>
+            </div>
+        </a>
+        <a href="/payments/outstanding" style="text-decoration: none; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)'">
+            <span style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; background: #fffbeb; color: #d97706; font-size: 18px; flex-shrink: 0;"><i class="fa-solid fa-hand-holding-hand"></i></span>
+            <div>
+                <h4 style="margin:0; font-size:14px; font-weight:700; color:#1e293b;">Outstanding</h4>
+                <p style="margin:2px 0 0 0; font-size:11px; color:#64748b;">View balances</p>
+            </div>
+        </a>
+        <a href="/payments/history" style="text-decoration: none; background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 1px 2px rgba(0,0,0,0.05)'">
+            <span style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; background: #f0fdf4; color: #16a34a; font-size: 18px; flex-shrink: 0;"><i class="fa-solid fa-clock-rotate-left"></i></span>
+            <div>
+                <h4 style="margin:0; font-size:14px; font-weight:700; color:#1e293b;">History Logs</h4>
+                <p style="margin:2px 0 0 0; font-size:11px; color:#64748b;">Full ledger logs</p>
+            </div>
+        </a>
+    </div>
+
+    <!-- Outstanding & Recent Activity Grid -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Recent Transactions -->
+        <div class="card" style="padding: 20px; background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #1e293b;">Recent Transactions</h3>
+                <a href="/payments/history" style="font-size: 13px; font-weight: 600; color: #2563eb; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                    View All <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="table-container" style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
+                <table style="width: 100%; min-width: 600px; border-collapse: collapse; text-align: left; font-size: 13px; white-space: nowrap;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: 600;">
+                            <th style="padding: 12px 8px;">DATE</th>
+                            <th style="padding: 12px 8px;">TO USER</th>
+                            <th style="padding: 12px 8px; text-align: center;">TYPE</th>
+                            <th style="padding: 12px 8px; text-align: right;">AMOUNT</th>
+                            <th style="padding: 12px 8px; text-align: right;">NEW BALANCE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in recent_entries %}
+                        <tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 12px 8px; color: #64748b;">{{ entry.created_at }}</td>
+                            <td style="padding: 12px 8px; font-weight: 600; color: #1e293b;">{{ entry.counterparty_name }}</td>
+                            <td style="padding: 12px 8px; text-align: center;">
+                                {% if entry.entry_type == "Credit" %}
+                                <span style="padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; background: #dcfce7; color: #15803d;">CREDIT</span>
+                                {% else %}
+                                <span style="padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c;">DEBIT</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 12px 8px; text-align: right; font-weight: 700; {% if entry.entry_type == 'Credit' %}color: #16a34a;{% else %}color: #dc2626;{% endif %}">
+                                {% if entry.entry_type == 'Credit' %}+{% else %}-{% endif %}₹{{ "%.2f"|format(entry.amount) }}
+                            </td>
+                            <td style="padding: 12px 8px; text-align: right; color: #1e293b; font-weight: 600;">₹{{ "%.2f"|format(entry.balance_after) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 24px; color: #94a3b8;">No recent transactions found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px;">
+            <!-- Outstanding To Collect -->
+            <div class="card" style="padding: 20px; background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-circle-up" style="color: #16a34a;"></i> Top Credits
+                </h3>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    {% for item in to_collect[:5] %}
+                    <li style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                        <span style="font-weight: 600; color: #475569;">{{ item.counterparty_name }}</span>
+                        <span style="font-weight: 700; color: #16a34a;">₹{{ "%.2f"|format(item.balance) }}</span>
+                    </li>
+                    {% else %}
+                    <li style="padding: 16px 0; text-align: center; color: #94a3b8; font-size: 13px;">No outstanding collection.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Outstanding To Pay -->
+            <div class="card" style="padding: 20px; background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <h3 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-circle-down" style="color: #dc2626;"></i> Top Debits
+                </h3>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    {% for item in to_pay[:5] %}
+                    <li style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9;">
+                        <span style="font-weight: 600; color: #475569;">{{ item.counterparty_name }}</span>
+                        <span style="font-weight: 700; color: #dc2626;">₹{{ "%.2f"|format(item.balance) }}</span>
+                    </li>
+                    {% else %}
+                    <li style="padding: 16px 0; text-align: center; color: #94a3b8; font-size: 13px;">No outstanding payments.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    @media (max-width: 768px) {
+        .subadmin-container { padding: 12px !important; }
+        .page-header { flex-direction: column; align-items: flex-start !important; }
+    }
+</style>
+{% endblock %}

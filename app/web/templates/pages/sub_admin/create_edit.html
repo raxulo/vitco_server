@@ -1,0 +1,302 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}{% if is_edit %}Edit Administrator Account{% else %}Create Administrator Account{% endif %} - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn subadmin-container" style="width: 100%; box-sizing: border-box; padding: 20px;">
+    <!-- Page Header -->
+    <div class="page-header responsive-header" style="margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div>
+                <h2 class="page-title" style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; font-weight: 700; color: #1e293b;">
+                    <i class="fa-solid fa-user-gear" style="color: #2563eb;"></i> {% if is_edit %}Edit Admin Account{% else %}Create Admin Account{% endif %}
+                </h2>
+                <p class="page-subtitle" style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">{% if is_edit %}Update details for an existing admin or sub-admin user{% else %}Register a new admin or sub-admin user with complete details{% endif %}</p>
+            </div>
+        </div>
+        <a href="/sub-admins" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Managed Admins
+        </a>
+    </div>
+
+    <!-- Form Navigation Tabs -->
+    <div style="display: flex; gap: 10px; border-bottom: 2px solid #e2e8f0; margin-bottom: 24px; flex-wrap: wrap; overflow-x: auto;">
+        <button type="button" onclick="switchTab('personal-tab', 'personal-pane')" id="personal-tab" class="tab-btn active-tab" style="padding: 12px 20px; font-weight: 700; font-size: 14px; color: #2563eb; background: none; border: none; border-bottom: 3px solid #2563eb; cursor: pointer; transition: all 0.2s;">
+            <i class="fa-solid fa-user" style="margin-right: 6px;"></i> Personal Details
+        </button>
+        <button type="button" onclick="switchTab('address-tab', 'address-pane')" id="address-tab" class="tab-btn" style="padding: 12px 20px; font-weight: 600; font-size: 14px; color: #64748b; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;">
+            <i class="fa-solid fa-location-dot" style="margin-right: 6px;"></i> Address Details
+        </button>
+        <button type="button" onclick="switchTab('bank-tab', 'bank-pane')" id="bank-tab" class="tab-btn" style="padding: 12px 20px; font-weight: 600; font-size: 14px; color: #64748b; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;">
+            <i class="fa-solid fa-wallet" style="margin-right: 6px;"></i> Bank Details
+        </button>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card form-card-body" style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 28px; width: 100%; box-sizing: border-box;">
+        <form method="POST" action="{% if is_edit %}/sub-admins/edit/{{ user.id }}{% else %}/sub-admins/create{% endif %}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+            
+            <!-- 1. PERSONAL DETAILS PANEL -->
+            <div id="personal-pane" class="tab-pane active-pane" style="display: flex; flex-direction: column; gap: 20px; width: 100%;">
+                <div class="form-grid-3">
+                    <!-- Name -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Full Name <span style="color: #ef4444;">*</span></label>
+                        <div class="input-icon-wrapper" style="position: relative;">
+                            <i class="fa-solid fa-user" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                            <input name="name" type="text" class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="Enter full name" value="{{ user.name if user else '' }}" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <!-- Role Selector -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Role <span style="color: #ef4444;">*</span></label>
+                        {% if user and (request.state.user.id == user.id) %}
+                        <select name="role" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px; background: white;" required>
+                            <option value="{{ user.role.value }}" selected>{{ user.role.name }}</option>
+                        </select>
+                        {% else %}
+                        <select name="role" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px; background: white;" required>
+                            {% for r in allowed_roles %}
+                            <option value="{{ r.value }}" {% if user and r.value == user.role.value %}selected{% endif %}>{{ r.label }}</option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
+                    </div>
+
+                    <!-- Profile Image -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Profile Image</label>
+                        <div class="input-icon-wrapper" style="position: relative;">
+                            <i class="fa-solid fa-image" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                            <input name="profile_image" type="file" accept="image/*" class="form-control" style="padding-left: 45px; padding-top: 8px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; background: white;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <!-- Email -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Email Address <span style="color: #ef4444;">*</span></label>
+                        <div class="input-icon-wrapper" style="position: relative;">
+                            <i class="fa-solid fa-envelope" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                            <input name="email" type="email" {% if not is_edit %}hx-get="/sub-admins/validate-email" hx-trigger="keyup changed delay:400ms" hx-target="#email-error"{% endif %} class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="Enter email address" value="{{ user.email if user else '' }}" required autocomplete="off">
+                        </div>
+                        <div id="email-error" style="font-size: 12px; margin-top: 2px;"></div>
+                    </div>
+
+                    <!-- Mobile -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Mobile Number</label>
+                        <div class="input-icon-wrapper" style="position: relative;">
+                            <i class="fa-solid fa-phone" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                            <input name="mobile" type="text" class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="Enter mobile number" value="{{ user.mobile if user and user.mobile else '' }}" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Password {% if not is_edit %}<span style="color: #ef4444;">*</span>{% endif %}</label>
+                    <div class="password-wrapper" style="position: relative;">
+                        <i class="fa-solid fa-lock" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input id="admin-password" name="password" type="password" class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="{% if is_edit %}Leave blank to keep current password{% else %}Create secure password{% endif %}" {% if not is_edit %}required{% endif %}>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('admin-password', this)" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #94a3b8;">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. ADDRESS DETAILS PANEL -->
+            <div id="address-pane" class="tab-pane" style="display: none; flex-direction: column; gap: 20px; width: 100%;">
+                <!-- Line -->
+                <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Address Line</label>
+                    <div class="input-icon-wrapper" style="position: relative;">
+                        <i class="fa-solid fa-map-location-dot" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input name="address_line" type="text" class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="Enter address line" value="{{ address.line if address else '' }}" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <!-- City -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">City</label>
+                        <input name="city" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="Enter city" value="{{ address.city if address else '' }}" autocomplete="off">
+                    </div>
+                    <!-- State -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">State</label>
+                        <input name="state" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="Enter state" value="{{ address.state if address else '' }}" autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- Pincode -->
+                <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Pincode</label>
+                    <input name="pincode" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="Enter 6-digit pincode" value="{{ address.pincode if address else '' }}" autocomplete="off">
+                </div>
+            </div>
+
+            <!-- 3. BANK DETAILS PANEL -->
+            <div id="bank-pane" class="tab-pane" style="display: none; flex-direction: column; gap: 20px; width: 100%;">
+                <div class="form-grid-2">
+                    <!-- Bank Name -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Bank Name</label>
+                        <input name="bank_name" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="e.g. State Bank of India" value="{{ bank.bank_name if bank else '' }}" autocomplete="off">
+                    </div>
+
+                    <!-- Account Holder -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Account Holder Name</label>
+                        <input name="account_holder" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="Holder's name" value="{{ bank.account_holder if bank else '' }}" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="form-grid-2">
+                    <!-- Account Number -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Account Number</label>
+                        <input name="account_number" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="Bank account number" value="{{ bank.account_number if bank else '' }}" autocomplete="off">
+                    </div>
+
+                    <!-- IFSC Code -->
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">IFSC Code</label>
+                        <input name="ifsc_code" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="e.g. SBIN0001234" value="{{ bank.ifsc_code if bank else '' }}" autocomplete="off">
+                    </div>
+                </div>
+
+                <!-- UPI ID -->
+                <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">UPI ID</label>
+                    <input name="upi_id" type="text" class="form-control" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; padding: 0 12px;" placeholder="e.g. username@upi" value="{{ bank.upi_id if bank and bank.upi_id else '' }}" autocomplete="off">
+                </div>
+            </div>
+
+            <!-- Submit Buttons -->
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 20px; flex-wrap: wrap;">
+                <a href="/sub-admins" class="btn btn-ghost" style="background: white; border: 1px solid #cbd5e1; color: #475569; padding: 10px 20px; border-radius: 8px; font-weight: 600; text-decoration: none; font-size: 13px; text-align: center;">Cancel</a>
+                <button type="submit" id="submit-btn" class="btn btn-primary" style="background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">{% if is_edit %}Save Changes{% else %}Create Account{% endif %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .form-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+    }
+    .form-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    @media (max-width: 992px) {
+        .form-grid-3 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 768px) {
+        .subadmin-container {
+            padding: 12px !important;
+        }
+        .responsive-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+            padding: 16px !important;
+        }
+        .responsive-header a {
+            width: 100% !important;
+            justify-content: center !important;
+        }
+        .form-card-body {
+            padding: 18px !important;
+        }
+        .form-grid-3, .form-grid-2 {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+
+<script>
+    function switchTab(activeTabId, activePaneId) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.style.color = '#64748b';
+            btn.style.fontWeight = '600';
+            btn.style.borderBottomColor = 'transparent';
+        });
+        
+        // Hide all panes
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.style.display = 'none';
+        });
+
+        // Set active style for selected tab
+        const activeTab = document.getElementById(activeTabId);
+        activeTab.style.color = '#2563eb';
+        activeTab.style.fontWeight = '700';
+        activeTab.style.borderBottomColor = '#2563eb';
+
+        // Show active pane
+        document.getElementById(activePaneId).style.display = 'flex';
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const submitBtn = document.getElementById('submit-btn');
+        const requiredInputs = [
+            document.querySelector('input[name="name"]'),
+            document.querySelector('input[name="email"]'),
+            {% if not is_edit %}
+            document.querySelector('input[name="password"]'),
+            {% endif %}
+            document.querySelector('select[name="role"]')
+        ].filter(Boolean);
+
+        function validatePersonalDetails() {
+            const allFilled = requiredInputs.every(input => input && input.value.trim() !== "");
+            if (allFilled) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.style.background = '#2563eb';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.6';
+                submitBtn.style.cursor = 'not-allowed';
+                submitBtn.style.background = '#94a3b8';
+            }
+        }
+
+        requiredInputs.forEach(input => {
+            if (input) {
+                input.addEventListener('input', validatePersonalDetails);
+                input.addEventListener('change', validatePersonalDetails);
+            }
+        });
+
+        // Initialize state
+        validatePersonalDetails();
+    });
+
+    window.togglePasswordVisibility = function (fieldId, button) {
+        const input = document.getElementById(fieldId);
+        const icon = button.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    };
+</script>
+{% endblock %}
+

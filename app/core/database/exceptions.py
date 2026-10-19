@@ -97,3 +97,14 @@ class DatabaseHealthCheckError(DatabaseError):
     """
 
     default_message = "Database health check failed."
+
+
+# Registry exceptions
+class DriverAlreadyRegisteredError(DatabaseError):
+    """Database driver is already registered."""
+    default_message = "Database driver is already registered."
+
+
+class RegistryFrozenError(DatabaseError):
+    """Registry has been frozen and cannot accept modifications."""
+    default_message = "Registry is frozen."

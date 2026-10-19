@@ -1,0 +1,617 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}New MCC Entry - VITCO{% endblock %}
+
+{% block content %}
+<style>
+    .content-body {
+        position: relative !important;
+    }
+</style>
+<div class="animate-fadeIn">
+    <div class="page-header">
+        <div class="page-title">
+            <h2>New MCC Milk Entry</h2>
+            <p>Create a new MCC collection record manually</p>
+        </div>
+        <a href="/mcc-collections" class="btn btn-ghost">
+            <i class="fa-solid fa-arrow-left"></i> Back to List
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom:24px;">
+        <i class="fa-solid fa-circle-exclamation"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="grid-2-1" style="display:grid; grid-template-columns: 2fr 1fr; gap:24px;">
+        <!-- Form Column -->
+        <div class="card" style="padding:0;">
+            <div class="card-toolbar">
+                <h3><i class="fa-solid fa-file-pen" style="color:var(--primary); margin-right:8px; font-size:14px;"></i>
+                    Entry Details</h3>
+            </div>
+            <div id="form-feedback" style="padding: 0 24px;"></div>
+            {% include "pages/mcc_collection/collection_form.html" %}
+        </div>
+
+        <!-- Summary Column -->
+        <div class="card"
+            style="height:fit-content; border:2px solid var(--primary-light); background: linear-gradient(135deg, #fff 0%, #f8faff 100%);">
+            <div style="padding:20px; text-align:center;">
+                <div
+                    style="font-size:12px; color:var(--text-faint); font-weight:700; text-transform:uppercase; letter-spacing:1px;">
+                    Est. Total Payout</div>
+                <div style="font-size:36px; font-weight:900; color:var(--primary); margin:12px 0;">₹<span
+                        id="cf-total-display">0.00</span></div>
+                <div style="height:1px; background:var(--border-soft); margin:20px 0;"></div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; text-align:left;">
+                    <div>
+                        <div style="font-size:10px; color:var(--text-faint); font-weight:600;">UNIT RATE</div>
+                        <div style="font-weight:700; color:var(--text-dark);">₹<span id="lbl-rate">0.00</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size:10px; color:var(--text-faint); font-weight:600;">TOTAL WEIGHT</div>
+                        <div style="font-weight:700; color:var(--text-dark);"><span id="lbl-qty">0.00</span> Units</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:24px; text-align:left;">
+                    <h4 style="font-size:14px; font-weight:700; color:var(--text-dark); margin-bottom:12px;">
+                        <i class="fa-solid fa-list-check" style="color:var(--primary); margin-right:6px;"></i> Recent
+                        Session Entries
+                    </h4>
+                    <div id="recent-list"
+                        style="max-height:300px; overflow-y:auto; border:1px solid var(--border-soft); border-radius:8px; background:#fff;">
+                        <div id="empty-list-msg"
+                            style="padding:20px; text-align:center; color:var(--text-muted); font-size:13px;">No entries
+                            added yet in this session.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Preview Modal (Placed outside main grid container for full-screen layout coverage) -->
+<div id="receiptPreviewModal" class="modal-overlay"
+    style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background:rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); z-index:999999; align-items:center; justify-content:center;">
+    <div class="modal-container"
+        style="background:white; width:95%; max-width:400px; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); border: 1px solid rgba(255, 255, 255, 0.2);">
+        <div class="modal-header"
+            style="padding:16px 20px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; background: #fafcff;">
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a; font-family: inherit;">MCC Collection Slip Preview</h3>
+            <button type="button" onclick="closeReceiptPreviewModal()"
+                style="border:none; background:none; font-size:24px; cursor:pointer; line-height:1; color:#94a3b8; transition: color 0.2s;" onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#94a3b8'">&times;</button>
+        </div>
+        <div class="modal-body" id="receipt-preview-content"
+            style="padding:20px; background:#ffffff; overflow-y:auto; max-height:450px; border-bottom:1px solid #f1f5f9; display: flex; justify-content: center;">
+            <!-- Content will be injected here -->
+        </div>
+        <div class="modal-footer" style="padding:14px 20px; border-top:1px solid #f1f5f9; display:flex; gap:12px; background: #fafcff; justify-content: flex-end; align-items: center;">
+            <button type="button" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onclick="closeReceiptPreviewModal()">Cancel</button>
+            <button type="button" class="btn" style="border: 1px solid #0284c7; background: #0284c7; color: white; padding: 8px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);" onclick="printReceiptSlip()" title="Print receipt slip">
+                <i class="fa-solid fa-print"></i> Print
+            </button>
+            <button type="button" class="btn btn-primary" style="background:#10b981; color:white; border:none; padding:8px 18px; border-radius:8px; font-size:13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);" onclick="confirmSaveCollection()">
+                <i class="fa-solid fa-circle-check"></i> Save & Record
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const getRateInput = () => document.getElementById("cf-rate");
+    const calculateRate = () => {
+        const chart = document.getElementById("cf-ratechart")?.value?.trim();
+        const fat = document.getElementById("cf-fat")?.value?.trim();
+        const snf = document.getElementById("cf-snf")?.value?.trim();
+
+        if (!chart || !fat || !snf) {
+            return;
+        }
+        console.log("calculating rate");
+
+        const rateInput = getRateInput();
+        if (rateInput) {
+            htmx.trigger(rateInput, "rate:calculate");
+        }
+    };
+
+    function selectRateChartByRank(rank) {
+        const rateChartSelect = document.getElementById("cf-ratechart");
+        if (rateChartSelect && rateChartSelect.options.length > 0) {
+            const targetIndex = parseInt(rank) - 1;
+            if (targetIndex >= 0 && targetIndex < rateChartSelect.options.length) {
+                rateChartSelect.selectedIndex = targetIndex;
+            } else {
+                rateChartSelect.selectedIndex = 0;
+            }
+            rateChartSelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    document.addEventListener("change", (event) => {
+        if (event.target.matches("#cf-ratechart")) {
+            calculateRate();
+        }
+        if (event.target.matches("#cf-shopid")) {
+            const selectedOption = event.target.options[event.target.selectedIndex];
+            if (selectedOption) {
+                const rank = selectedOption.getAttribute("data-assigned-chart-rank") || 1;
+                selectRateChartByRank(rank);
+            }
+        }
+    });
+
+    document.addEventListener("input", (event) => {
+        if (event.target.matches("#cf-fat, #cf-snf")) {
+            calculateRate();
+        }
+    });
+
+    // Listen for populate-fields from HTMX response headers
+    document.body.addEventListener('populate-fields', function (evt) {
+        const data = typeof evt.detail === 'string'
+            ? JSON.parse(evt.detail)
+            : evt.detail;
+        const qtyInput = document.getElementById('cf-qty');
+        const cansInput = document.getElementById('cf-cans');
+        const shopSelect = document.getElementById('cf-shopid');
+
+        if (qtyInput) {
+            qtyInput.value = data.quantity;
+            qtyInput.dispatchEvent(new Event('input'));
+            qtyInput.dispatchEvent(new Event('change'));
+        }
+        if (cansInput) {
+            cansInput.value = data.can_count;
+            cansInput.dispatchEvent(new Event('input'));
+            cansInput.dispatchEvent(new Event('change'));
+        }
+        if (shopSelect && data.vlcc_id) {
+            let optionExists = false;
+            let existingOpt = null;
+            for (let i = 0; i < shopSelect.options.length; i++) {
+                if (shopSelect.options[i].value === data.vlcc_id) {
+                    optionExists = true;
+                    existingOpt = shopSelect.options[i];
+                    break;
+                }
+            }
+            if (!optionExists) {
+                const opt = document.createElement('option');
+                opt.value = data.vlcc_id;
+                opt.textContent = data.vlcc_name || 'Supplying VLCC';
+                if (data.assigned_chart_rank) opt.setAttribute('data-assigned-chart-rank', data.assigned_chart_rank);
+                if (data.vlcc_code) opt.setAttribute('data-code', data.vlcc_code);
+                if (data.route_code) opt.setAttribute('data-route', data.route_code);
+                if (data.mobile) opt.setAttribute('data-mobile', data.mobile);
+                if (data.vlcc_name) opt.setAttribute('data-name', data.vlcc_name);
+                shopSelect.appendChild(opt);
+            } else if (existingOpt) {
+                if (data.assigned_chart_rank) existingOpt.setAttribute('data-assigned-chart-rank', data.assigned_chart_rank);
+                if (data.vlcc_code) existingOpt.setAttribute('data-code', data.vlcc_code);
+                if (data.route_code) existingOpt.setAttribute('data-route', data.route_code);
+                if (data.mobile) existingOpt.setAttribute('data-mobile', data.mobile);
+                if (data.vlcc_name) existingOpt.setAttribute('data-name', data.vlcc_name);
+            }
+            shopSelect.value = data.vlcc_id;
+            if (data.assigned_chart_rank) {
+                selectRateChartByRank(data.assigned_chart_rank);
+            }
+            shopSelect.dispatchEvent(new Event('change'));
+        }
+    });
+
+    function getSavedSessionTotals() {
+        let totalPayout = 0;
+        let totalWeight = 0;
+        const items = document.querySelectorAll('#recent-list [data-total]');
+        items.forEach(el => {
+            totalPayout += parseFloat(el.getAttribute('data-total')) || 0;
+            totalWeight += parseFloat(el.getAttribute('data-qty')) || 0;
+        });
+        return { totalPayout, totalWeight };
+    }
+
+    function calcTotal() {
+        const qty = parseFloat(document.getElementById('cf-qty')?.value) || 0;
+        const rate = parseFloat(document.getElementById('cf-rate')?.value) || 0;
+        const currentTotal = qty * rate;
+        
+        const savedTotals = getSavedSessionTotals();
+        const grandTotalPayout = savedTotals.totalPayout + currentTotal;
+        const grandTotalWeight = savedTotals.totalWeight + qty;
+
+        const totalDisplay = document.getElementById('cf-total-display');
+        const lblQty = document.getElementById('lbl-qty');
+        const lblRate = document.getElementById('lbl-rate');
+        const totalHidden = document.getElementById('cf-total-hidden');
+        
+        if (totalDisplay) totalDisplay.innerText = grandTotalPayout.toFixed(2);
+        if (lblQty) lblQty.innerText = grandTotalWeight.toFixed(2);
+        if (lblRate && rate > 0) lblRate.innerText = rate.toFixed(2);
+        if (totalHidden) totalHidden.value = currentTotal.toFixed(2);
+    }
+
+    function openReceiptPreview() {
+        const form = document.getElementById("form-collection");
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const mccSelect = document.getElementById('cf-mccid');
+        const selectedMccOpt = mccSelect && mccSelect.selectedIndex >= 0 ? mccSelect.options[mccSelect.selectedIndex] : null;
+        const mccName = selectedMccOpt ? (selectedMccOpt.getAttribute('data-name') || selectedMccOpt.text.trim()) : '';
+        const mccCode = selectedMccOpt ? selectedMccOpt.getAttribute('data-code') || '' : '';
+        const mccCity = selectedMccOpt ? selectedMccOpt.getAttribute('data-city') || '' : '';
+        const mccRoute = selectedMccOpt ? selectedMccOpt.getAttribute('data-route') || '' : '';
+        const mccType = selectedMccOpt ? String(selectedMccOpt.getAttribute('data-mcc-type') || '0') : (document.getElementById('cf-mcctype-hidden')?.value || '0');
+
+        const shopSelect = document.getElementById('cf-shopid');
+        const selectedShopOpt = shopSelect && shopSelect.selectedIndex >= 0 ? shopSelect.options[shopSelect.selectedIndex] : null;
+        let vlccName = 'N/A';
+        let vlccCode = '—';
+        let vlccRoute = mccRoute || 'N/A';
+        let vlccMobile = 'N/A';
+        if (selectedShopOpt) {
+            vlccName = selectedShopOpt.getAttribute('data-name') || selectedShopOpt.text.split('(UIC')[0].trim() || 'N/A';
+            vlccCode = selectedShopOpt.getAttribute('data-code') || selectedShopOpt.getAttribute('data-uic') || '';
+            if (!vlccCode && selectedShopOpt.text.includes('UIC:')) {
+                const match = selectedShopOpt.text.match(/UIC:\s*([^)]+)/);
+                if (match) vlccCode = match[1].trim();
+            }
+            if (!vlccCode) vlccCode = selectedShopOpt.value || '—';
+            vlccRoute = selectedShopOpt.getAttribute('data-route') || mccRoute || 'N/A';
+            vlccMobile = selectedShopOpt.getAttribute('data-mobile') || 'N/A';
+        }
+
+        const dateVal = document.getElementById('cf-date')?.value;
+        let dateFormatted = '—';
+        let timeFormatted = '—';
+        if (dateVal) {
+            const dt = new Date(dateVal);
+            if (!isNaN(dt.getTime())) {
+                const day = String(dt.getDate()).padStart(2, '0');
+                const month = String(dt.getMonth() + 1).padStart(2, '0');
+                const year = dt.getFullYear();
+                dateFormatted = `${day}/${month}/${year}`;
+                const hours = String(dt.getHours()).padStart(2, '0');
+                const minutes = String(dt.getMinutes()).padStart(2, '0');
+                const seconds = String(dt.getSeconds()).padStart(2, '0');
+                timeFormatted = `${hours}:${minutes}:${seconds}`;
+            }
+        }
+
+        let shiftText = 'M';
+        const shiftSelect = document.getElementById('cf-shift');
+        if (shiftSelect && shiftSelect.selectedIndex >= 0) {
+            const val = String(shiftSelect.value);
+            const txt = shiftSelect.options[shiftSelect.selectedIndex].text.toLowerCase();
+            if (val === '1' || txt.includes('even')) {
+                shiftText = 'E';
+            } else {
+                shiftText = 'M';
+            }
+        }
+
+        const typeSelect = document.getElementById('cf-type');
+        let milkType = 'cow';
+        if (typeSelect && typeSelect.selectedIndex >= 0) {
+            const val = String(typeSelect.value);
+            if (val === '1' || typeSelect.options[typeSelect.selectedIndex].text.toLowerCase().includes('buf')) {
+                milkType = 'buffalo';
+            } else if (val === '2' || typeSelect.options[typeSelect.selectedIndex].text.toLowerCase().includes('mix')) {
+                milkType = 'mixed';
+            } else {
+                milkType = 'cow';
+            }
+        }
+
+        const rawQty = parseFloat(document.getElementById('cf-qty')?.value) || 0;
+        const qtyFormatted = rawQty.toFixed(2);
+        const rawFat = parseFloat(document.getElementById('cf-fat')?.value) || 0;
+        const fatFormatted = rawFat.toFixed(2);
+        const rawSnf = parseFloat(document.getElementById('cf-snf')?.value) || 0;
+        const snfFormatted = rawSnf.toFixed(2);
+        const rawRate = parseFloat(document.getElementById('cf-rate')?.value) || 0;
+        const rateFormatted = rawRate.toFixed(2);
+        const rawTotal = parseFloat(document.getElementById('cf-total-hidden')?.value) || (rawQty * rawRate);
+        const totalFormatted = rawTotal.toFixed(2);
+        const samples = document.getElementById('cf-samples')?.value || 'N/A';
+        const cans = document.getElementById('cf-cans')?.value || '0';
+        const rawClr = parseFloat(document.getElementById('cf-clr')?.value) || 0;
+        const clrFormatted = rawClr > 0 ? rawClr.toFixed(2) : '0.00';
+
+        let dynamicRowsHtml = '';
+
+        if (mccType === '2' || mccType === 'weight') {
+            // Case 1: WEIGHT (mcc_type == 2)
+            // Line 1: Route No & Sample No
+            // Line 2: Milk Type & Qty
+            // Line 3: Shift & Cans
+            // Note: fat, snf, rate, amount isme nhi rahte hai.
+            dynamicRowsHtml = `
+                <!-- Line 1: Route No & Sample No -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">Route No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${vlccRoute}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">Sample No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${samples}</span></div>
+                </div>
+
+                <!-- Line 2: Milk Type & Qty -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">Milk Type:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${milkType}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">Qty:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${qtyFormatted} Ltr</span></div>
+                </div>
+
+                <!-- Line 3: Shift & Cans -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">Shift:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${shiftText}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">Cans:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${cans}</span></div>
+                </div>
+            `;
+        } else if (mccType === '1' || mccType === 'fat_snf' || mccType === 'fatsnf') {
+            // Case 2: FAT_SNF (mcc_type == 1)
+            // Line 1: Route No & Sample No
+            // Line 2: Milk Type & Qty
+            // Line 3: Shift & Cans
+            // Line 4: FAT & SNF
+            // Line 5: Rate
+            // Line 6: Total Amount
+            // Line 7/8: CLR
+            dynamicRowsHtml = `
+                <!-- Line 1: Route No & Sample No -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">Route No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${vlccRoute}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">Sample No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${samples}</span></div>
+                </div>
+
+                <!-- Line 2: Milk Type & Qty -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">Milk Type:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${milkType}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">Qty:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${qtyFormatted} Ltr</span></div>
+                </div>
+
+                <!-- Line 3: Shift & Cans -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">Shift:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${shiftText}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">Cans:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${cans}</span></div>
+                </div>
+
+                <!-- Line 4: FAT & SNF -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">FAT:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${fatFormatted}%</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">SNF:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${snfFormatted}%</span></div>
+                </div>
+
+                <!-- Line 5: Rate -->
+                <div>
+                    <span style="color: #475569; font-weight: 500;">Rate (Rs./Ltr):</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${rateFormatted}</span>
+                </div>
+
+                <!-- Line 6: Total Amount -->
+                <div>
+                    <span style="color: #475569; font-weight: 500;">Total Amount:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${totalFormatted}</span>
+                </div>
+
+                <!-- Line 7/8: CLR -->
+                <div style="margin-top: 2px;">
+                    <span style="color: #475569; font-weight: 500;">CLR:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${clrFormatted}</span>
+                </div>
+            `;
+        } else {
+            // Case 3: FIXED_RATE (3) or NORMAL (0)
+            // Line 1: Route No
+            // Line 2: Milk Type & Qty
+            // Line 3: FAT & SNF
+            // Line 4: Rate
+            // Line 5: Total Amount
+            // Line 6/7: Shift & CLR
+            dynamicRowsHtml = `
+                <!-- Line 1: Route No -->
+                <div>
+                    <span style="color: #475569; font-weight: 500;">Route No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${vlccRoute}</span>
+                </div>
+
+                <!-- Line 2: Milk Type & Qty -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">Milk Type:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${milkType}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">Qty:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${qtyFormatted} Ltr</span></div>
+                </div>
+
+                <!-- Line 3: FAT & SNF -->
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div><span style="color: #475569; font-weight: 500;">FAT:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${fatFormatted}%</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">SNF:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${snfFormatted}%</span></div>
+                </div>
+
+                <!-- Line 4: Rate -->
+                <div>
+                    <span style="color: #475569; font-weight: 500;">Rate (Rs./Ltr):</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${rateFormatted}</span>
+                </div>
+
+                <!-- Line 5: Total Amount -->
+                <div>
+                    <span style="color: #475569; font-weight: 500;">Total Amount:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${totalFormatted}</span>
+                </div>
+
+                <!-- Line 6/7: Shift & CLR -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                    <div><span style="color: #475569; font-weight: 500;">Shift:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${shiftText}</span></div>
+                    <div><span style="color: #475569; font-weight: 500;">CLR:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${clrFormatted}</span></div>
+                </div>
+            `;
+        }
+
+        const html = `
+            <div style="width: 100%; max-width: 330px; font-family: 'Courier New', Courier, monospace; color: #000000; box-sizing: border-box; margin: 0 auto; background: transparent;">
+                
+                <!-- Top Asterisks Divider -->
+                <div style="text-align: center; color: #000000; font-size: 13px; letter-spacing: 2px; line-height: 1; user-select: none; margin-bottom: 6px;">
+                    *********************************
+                </div>
+
+                <!-- Header Details -->
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <div style="font-size: 20px; font-weight: 800; color: #000000; letter-spacing: 2px; line-height: 1.15;">VITCO</div>
+                    <div style="font-size: 13px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">Provisional Acknowledgement Slip</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #000000; margin-top: 5px; line-height: 1.15;">${mccName || 'VITCO BULK MCC'}</div>
+                    <div style="font-size: 12.5px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">UIC - ${mccCode || '—'}</div>
+                    ${mccCity ? `<div style="font-size: 12px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">${mccCity}</div>` : ''}
+                </div>
+
+                <!-- Data Content Rows -->
+                <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.25;">
+                    <!-- DATE & TIME -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div><span style="color: #475569; font-weight: 500;">DATE:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${dateFormatted}</span></div>
+                        <div><span style="color: #475569; font-weight: 500;">TIME:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${timeFormatted}</span></div>
+                    </div>
+
+                    <!-- Code -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Code:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${vlccCode}</span>
+                    </div>
+
+                    <!-- Name -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Name:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${vlccName}</span>
+                    </div>
+
+                    <!-- Mobile No -->
+                    <div>
+                        <span style="color: #475569; font-weight: 500;">Mobile No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">${vlccMobile}</span>
+                    </div>
+
+                    ${dynamicRowsHtml}
+
+                    <!-- Bottom Asterisks Divider -->
+                    <div style="text-align: center; color: #000000; font-size: 13px; letter-spacing: 2px; line-height: 1; user-select: none; margin-top: 10px;">
+                        *********************************
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('receipt-preview-content').innerHTML = html;
+        document.getElementById('receiptPreviewModal').style.display = 'flex';
+    }
+
+    function closeReceiptPreviewModal() {
+        document.getElementById('receiptPreviewModal').style.display = 'none';
+    }
+
+    function confirmSaveCollection() {
+        closeReceiptPreviewModal();
+        document.getElementById('form-collection').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    }
+
+    function printReceiptSlip() {
+        const previewEl = document.getElementById('receipt-preview-content');
+        if (!previewEl || !previewEl.innerHTML.trim()) {
+            window.print();
+            return;
+        }
+
+        let printFrame = document.getElementById('receipt-print-iframe');
+        if (!printFrame) {
+            printFrame = document.createElement('iframe');
+            printFrame.id = 'receipt-print-iframe';
+            printFrame.style.position = 'fixed';
+            printFrame.style.right = '0';
+            printFrame.style.bottom = '0';
+            printFrame.style.width = '0';
+            printFrame.style.height = '0';
+            printFrame.style.border = '0';
+            document.body.appendChild(printFrame);
+        }
+
+        const doc = printFrame.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>MCC Collection Slip</title>
+                <style>
+                    @page {
+                        size: 80mm auto;
+                        margin: 2mm;
+                    }
+                    @media print {
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                    }
+                    body {
+                        margin: 0;
+                        padding: 4px;
+                        display: flex;
+                        justify-content: center;
+                        font-family: 'Courier New', Courier, monospace;
+                        background: #ffffff;
+                    }
+                    .slip-box {
+                        width: 100%;
+                        max-width: 330px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="slip-box">
+                    ${previewEl.innerHTML}
+                </div>
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (err) {
+                console.error('Iframe print failed, falling back to window.print():', err);
+                window.print();
+            }
+        }, 250);
+    }
+
+    document.addEventListener("input", (event) => {
+        if (event.target.matches("#cf-qty, #cf-rate")) {
+            calcTotal();
+        }
+    });
+
+    // Trigger initial calculation
+    calcTotal();
+
+    // Recalculate total when HTMX updates the rate field
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+        if (evt.detail.target.id === 'cf-rate') {
+            calcTotal();
+        }
+    });
+
+    // Prevent HTMX requests for rate calculation when using Fixed Rate MCC (Type 3)
+    document.body.addEventListener('htmx:configRequest', function (evt) {
+        const mccSelect = document.getElementById('cf-mccid');
+        const selectedOpt = mccSelect ? mccSelect.options[mccSelect.selectedIndex] : null;
+        const mccType = selectedOpt ? selectedOpt.getAttribute('data-mcc-type') : '';
+        if (mccType === '3' && evt.detail.path.includes('calculate-rate')) {
+            evt.preventDefault();
+        }
+    });
+</script>
+{% endblock %}

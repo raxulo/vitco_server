@@ -1,0 +1,385 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Assign MCC Rate Charts - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn subadmin-container" style="width: 100%; box-sizing: border-box; padding: 20px;">
+    <!-- Page Header -->
+    <div class="detail-header" style="display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:center; margin-bottom:24px; background:white; padding:20px 24px; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div>
+            <h2 style="font-size:22px; font-weight:700; color:#1e293b; margin:0; display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-building-flag" style="color:#2563eb;"></i> Assign MCC Rate Charts
+            </h2>
+            <p style="color:#64748b; font-size:14px; margin:4px 0 0 0;">Drag charts or tap '+' to assign rate charts to a Milk Collection Center (MCC)</p>
+        </div>
+        <a href="/ratecharts" class="btn btn-ghost" style="border:1px solid #cbd5e1; background:white; color:#475569; padding:8px 16px; border-radius:8px; text-decoration:none; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:6px; transition:0.2s;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Rate Charts
+        </a>
+    </div>
+
+    <!-- MCC Selector -->
+    <div class="info-card" style="margin-bottom:24px; padding:20px 24px; background:white; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <label for="assign-mcc-id" style="font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px;">
+            Select Target MCC Center <span style="color:#ef4444;">*</span>
+        </label>
+        <div style="position:relative; max-width:450px; width:100%;">
+            <i class="fa-solid fa-building" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:14px;"></i>
+            <select id="assign-mcc-id" name="mcc_id" class="form-control" 
+                    hx-get="/ratecharts/api/assign-mcc/load-boxes" 
+                    hx-trigger="change"
+                    hx-target="#mcc-boxes-container" 
+                    style="padding:10px 14px 10px 40px; border:1px solid #cbd5e1; border-radius:8px; width:100%; background:white; font-size:14px; color:#1e293b; font-weight:600; outline:none; height:44px;">
+                <option value="">— Select an MCC Center —</option>
+                {% for mcc in mccs %}
+                <option value="{{ mcc.id }}">{{ mcc.name }} ({{ mcc.code }})</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Dual Drag Panel -->
+    <div class="dual-drag-grid">
+        <!-- Column 0: Groups sidebar -->
+        <div class="info-card" style="background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0; padding:20px; align-self: start; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div class="box-header" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size:14px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:6px;">
+                    <i class="fa-solid fa-folder-tree" style="color:#2563eb;"></i> Chart Groups
+                </div>
+                <span style="font-size:11px; font-weight:700; color:#64748b; background:#e2e8f0; padding:2px 8px; border-radius:10px;">{{ groups|length }}</span>
+            </div>
+            <div id="groups-sidebar">
+                {% for group in groups %}
+                <div class="group-drag-item" draggable="true" ondragstart="onGroupDragStart(event, '{{ group.id }}')">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fa-solid fa-layer-group" style="color:#2563eb; font-size:13px;"></i>
+                        <div style="font-size:13px; font-weight:700; color:#1e293b;">{{ group.group_name }}</div>
+                    </div>
+                    <span style="font-size:11px; font-weight:700; color:#64748b; background:#f1f5f9; padding:2px 6px; border-radius:6px;">{{ group.chart_ids|length }} Charts</span>
+                </div>
+                {% else %}
+                <div style="padding:16px; text-align:center; color:#94a3b8; font-size:12px;">No groups available</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- HTMX Container for Available and Assigned columns -->
+        <div id="mcc-boxes-container" class="boxes-grid">
+            {% include 'pages/ratechart/assign_boxes_mcc.html' %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .dual-drag-grid {
+        display: grid;
+        grid-template-columns: 280px 1.5fr;
+        gap: 20px;
+    }
+
+    .boxes-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    #groups-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .group-drag-item {
+        background: white;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        cursor: grab;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+    }
+
+    .group-drag-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border-color: #2563eb;
+    }
+
+    .chart-item {
+        background: white;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: grab;
+        transition: all 0.15s;
+    }
+
+    .chart-item:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+    }
+
+    .chart-item.dragging {
+        opacity: 0.5;
+    }
+
+    .drag-box.drag-over {
+        background: #eff6ff !important;
+        border-color: #2563eb !important;
+    }
+
+    @media (max-width: 1024px) {
+        .dual-drag-grid {
+            grid-template-columns: 1fr !important;
+        }
+        #groups-sidebar {
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+        }
+        .group-drag-item {
+            flex: 1 1 220px !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .subadmin-container { padding: 12px !important; }
+        .detail-header { flex-direction: column; align-items: flex-start !important; gap: 12px !important; }
+        .detail-header .btn { width: 100%; justify-content: center; }
+        .boxes-grid { grid-template-columns: 1fr !important; }
+        .btn-tap-action { padding: 6px 12px !important; }
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let dragSrcEl = null;
+
+    function onDragStart(e) {
+        dragSrcEl = e.currentTarget;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', e.currentTarget.id);
+        e.currentTarget.classList.add('dragging');
+    }
+
+    function onDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+        return false;
+    }
+
+    function onDragLeave(boxId) {
+        const box = document.getElementById(boxId);
+        if (box) box.classList.remove('drag-over');
+    }
+
+    function onDrop(e, targetBoxId) {
+        e.preventDefault();
+        const targetBox = document.getElementById(targetBoxId);
+        if (targetBox) targetBox.classList.remove('drag-over');
+
+        if (!dragSrcEl) return;
+
+        if (targetBoxId === 'assigned-box') {
+            assignSingleChart(dragSrcEl.id);
+        } else if (targetBoxId === 'pool-box') {
+            removeSingleChart(dragSrcEl.id);
+        }
+
+        dragSrcEl.classList.remove('dragging');
+        dragSrcEl = null;
+    }
+
+    function assignSingleChart(chartElId) {
+        const el = document.getElementById(chartElId);
+        if (!el) return;
+        const assignedBox = document.getElementById('assigned-box');
+
+        // Remove old action button
+        el.querySelector('.btn-tap-action')?.remove();
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.style.cssText = 'display:flex; align-items:center; gap:4px; flex-shrink:0;';
+        actionsDiv.innerHTML = `
+            <button type="button" onclick="moveChartOrder('${chartElId}', 'up')" class="btn-order" title="Move Up" style="background:#f8fafc; color:#64748b; border:1px solid #cbd5e1; border-radius:4px; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:11px;"><i class="fa-solid fa-chevron-up"></i></button>
+            <button type="button" onclick="moveChartOrder('${chartElId}', 'down')" class="btn-order" title="Move Down" style="background:#f8fafc; color:#64748b; border:1px solid #cbd5e1; border-radius:4px; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:11px;"><i class="fa-solid fa-chevron-down"></i></button>
+            <button type="button" onclick="removeSingleChart('${chartElId}')" class="btn-tap-action btn-remove-chart" title="Remove Chart" style="background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:6px; padding:4px 8px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-xmark"></i></button>
+        `;
+        el.appendChild(actionsDiv);
+
+        assignedBox.appendChild(el);
+        updateCounts();
+    }
+
+    function removeSingleChart(chartElId) {
+        const el = document.getElementById(chartElId);
+        if (!el) return;
+        const poolBox = document.getElementById('pool-box');
+
+        // Remove order controls & actions
+        const lastChild = el.children[el.children.length - 1];
+        if (lastChild && lastChild.tagName === 'DIV') lastChild.remove();
+        el.querySelector('.btn-tap-action')?.remove();
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn-tap-action btn-add-chart';
+        addBtn.title = 'Assign Chart';
+        addBtn.style.cssText = 'background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; flex-shrink:0;';
+        addBtn.setAttribute('onclick', `assignSingleChart('${chartElId}')`);
+        addBtn.innerHTML = `<i class="fa-solid fa-plus"></i> <span class="action-text">Assign</span>`;
+        el.appendChild(addBtn);
+
+        poolBox.appendChild(el);
+        updateCounts();
+    }
+
+    function moveChartOrder(chartElId, direction) {
+        const el = document.getElementById(chartElId);
+        if (!el) return;
+        if (direction === 'up' && el.previousElementSibling && !el.previousElementSibling.classList.contains('empty-state')) {
+            el.parentNode.insertBefore(el, el.previousElementSibling);
+        } else if (direction === 'down' && el.nextElementSibling && !el.nextElementSibling.classList.contains('empty-state')) {
+            el.parentNode.insertBefore(el.nextElementSibling, el);
+        }
+        updateCounts();
+    }
+
+    function assignAllCharts() {
+        const poolBox = document.getElementById('pool-box');
+        if (!poolBox) return;
+        const items = Array.from(poolBox.querySelectorAll('.chart-item')).filter(item => item.style.display !== 'none');
+        items.forEach(item => assignSingleChart(item.id));
+    }
+
+    function removeAllCharts() {
+        const assignedBox = document.getElementById('assigned-box');
+        if (!assignedBox) return;
+        const items = Array.from(assignedBox.querySelectorAll('.chart-item'));
+        items.forEach(item => removeSingleChart(item.id));
+    }
+
+    function filterPoolCharts(query) {
+        const q = (query || '').toLowerCase().trim();
+        const poolBox = document.getElementById('pool-box');
+        if (!poolBox) return;
+        const items = poolBox.querySelectorAll('.chart-item');
+        items.forEach(item => {
+            const name = (item.dataset.name || item.textContent).toLowerCase();
+            if (name.includes(q)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function updateCounts() {
+        const poolBox = document.getElementById('pool-box');
+        const assignedBox = document.getElementById('assigned-box');
+
+        const poolItems = poolBox ? poolBox.querySelectorAll('.chart-item') : [];
+        const assignedItems = assignedBox ? assignedBox.querySelectorAll('.chart-item') : [];
+
+        const poolCount = poolItems.length;
+        const assignedCount = assignedItems.length;
+
+        const poolCountEl = document.getElementById('pool-count');
+        const assignedCountEl = document.getElementById('assigned-count');
+        if (poolCountEl) poolCountEl.textContent = poolCount;
+        if (assignedCountEl) assignedCountEl.textContent = assignedCount;
+
+        const poolEmpty = document.getElementById('pool-empty');
+        const assignedEmpty = document.getElementById('assigned-empty');
+        if (poolEmpty) poolEmpty.style.display = poolCount === 0 ? 'block' : 'none';
+        if (assignedEmpty) assignedEmpty.style.display = assignedCount === 0 ? 'block' : 'none';
+
+        // Update index chips for assigned items
+        assignedItems.forEach((item, index) => {
+            let nameWrapper = item.querySelector('div:first-child');
+            if (!nameWrapper) return;
+            let chip = nameWrapper.querySelector('.type-chip');
+            if (!chip) {
+                chip = document.createElement('span');
+                chip.className = 'type-chip';
+                chip.style.cssText = 'background:#f1f5f9; color:#475569; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700; flex-shrink:0;';
+                const grip = nameWrapper.querySelector('.grip');
+                if (grip) {
+                    grip.after(chip);
+                } else {
+                    nameWrapper.prepend(chip);
+                }
+            }
+            chip.textContent = index + 1;
+        });
+
+        // Remove index chips from pool items
+        poolItems.forEach(item => {
+            const chip = item.querySelector('.type-chip');
+            if (chip) chip.remove();
+        });
+    }
+
+    async function saveAssignments() {
+        const mccId = document.getElementById('assign-mcc-id')?.value;
+        
+        if (!mccId) { 
+            Swal.fire({
+                icon: 'warning',
+                title: 'Please Select MCC',
+                text: 'Please select an MCC center before saving assignments.',
+                confirmButtonColor: '#2563eb',
+                customClass: { popup: 'glass-card' }
+            }); 
+            return; 
+        }
+
+        const chartIds = Array.from(document.querySelectorAll('#assigned-box .chart-item')).map(el => el.dataset.id);
+        const payload = { mcc_id: mccId, chart_ids: chartIds };
+
+        try {
+            const res = await fetch('/ratecharts/api/assign-mcc-bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Saved Successfully!',
+                    text: `${chartIds.length} rate chart(s) assigned to MCC.`,
+                    timer: 2000,
+                    showConfirmButton: false,
+                    customClass: { popup: 'glass-card' }
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Save Failed',
+                    text: 'Could not save rate chart assignments. Please try again.',
+                    confirmButtonColor: '#ef4444',
+                    customClass: { popup: 'glass-card' }
+                });
+            }
+        } catch (err) { 
+            Swal.fire({
+                icon: 'error',
+                title: 'Network Error',
+                text: 'Connection failed. Please check your network connection.',
+                confirmButtonColor: '#ef4444',
+                customClass: { popup: 'glass-card' }
+            }); 
+        }
+    }
+
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        if (evt.detail.target.id === 'mcc-boxes-container') {
+            updateCounts();
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,436 @@
+<form hx-post="{% if collection %}/vlcc-collections/edit/{{ collection.id }}{% else %}/vlcc-collections/create{% endif %}" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection">
+    <div class="grid-forms" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 24px;">
+
+        <!-- VLCC Shop -->
+        <div class="form-group">
+            <label>VLCC Shop *</label>
+            <select name="vlcc_id" id="cf-vlccid" class="form-control" required hx-get="/vlcc-collections/load-form"
+                hx-trigger="change" hx-target="#form-collection" hx-swap="outerHTML">
+                <option value=""> -- Select VLCC -- </option>
+                {% for v in vlccs %}
+                <option value="{{ v.id }}" data-code="{{ v.vlcc_code }}" data-uic="{{ v.uic_code or '' }}" data-route="{{ v.route_code if v.route_code is not none else '' }}" data-city="{{ v.city or '' }}" {{ 'selected' if (selected_vlcc_id|string==v.id|string) or (collection and
+                    collection.vlcc_id|string==v.id|string) else '' }}>
+                    {{ v.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Custom Searchable Farmer Select -->
+        <style>
+            .custom-select-container {
+                position: relative;
+                width: 100%;
+            }
+
+            .select-box {
+                padding: 10px 16px;
+                border: 1.5px solid #cbd5e1;
+                border-radius: 10px;
+                background: #ffffff;
+                cursor: pointer;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                min-height: 44px;
+                font-size: 14px;
+                color: #0f172a;
+                transition: all 0.2s ease;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+            }
+
+            .select-box:hover {
+                border-color: #3b82f6;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.05);
+            }
+
+            .dropdown-list {
+                position: absolute;
+                top: calc(100% + 6px);
+                left: 0;
+                right: 0;
+                border: 1px solid #e2e8f0;
+                background: #ffffff;
+                border-radius: 12px;
+                display: none;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+                z-index: 1001;
+                overflow: hidden;
+            }
+
+            .dropdown-list.active {
+                display: block;
+            }
+
+            .search-box {
+                padding: 10px 12px;
+                border-bottom: 1px solid #f1f5f9;
+                background: #fafcff;
+            }
+
+            .search-box input {
+                width: 100%;
+                padding: 8px 12px;
+                box-sizing: border-box;
+                border: 1.5px solid #cbd5e1;
+                border-radius: 8px;
+                outline: none;
+                font-size: 13px;
+                transition: all 0.2s ease;
+            }
+
+            .search-box input:focus {
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+            }
+
+            .dropdown-list ul {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                max-height: 190px;
+                overflow-y: auto;
+            }
+
+            .dropdown-list ul::-webkit-scrollbar {
+                width: 5px;
+            }
+
+            .dropdown-list ul::-webkit-scrollbar-thumb {
+                background: #cbd5e1;
+                border-radius: 3px;
+            }
+
+            .dropdown-list li {
+                padding: 11px 16px;
+                cursor: pointer;
+                font-size: 13.5px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #f8fafc;
+                transition: all 0.15s ease;
+            }
+
+            .dropdown-list li:hover {
+                background-color: #f8fafc;
+                color: #2563eb;
+            }
+        </style>
+
+        <div class="form-group" style="position: relative;">
+            <label>Farmer *</label>
+            <div class="custom-select-container">
+                <!-- Direct Searchable Input Field -->
+                <div class="input-icon-wrapper" style="position: relative;">
+                    <i class="fa-solid fa-user"
+                        style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; z-index: 5;"></i>
+                    <input type="text" id="cf-farmer-search" class="form-control" style="padding-left: 36px;"
+                        placeholder="Search by name or code..." autocomplete="off"
+                        value="{% if farmer %}{{ farmer.name or farmer.farmer_code }} ({{ farmer.farmer_code }}){% elif collection and collection.farmer_code %}{{ collection.farmer_code }}{% endif %}">
+                </div>
+
+                <!-- Dropdown list -->
+                <div class="dropdown-list" id="dropdownList">
+                    <ul id="optionsList">
+                        {% if farmers %}
+                        {% for f in farmers %}
+                        <li data-id="{{ f.id }}" data-code="{{ f.farmer_code }}"
+                        data-assigned-chart-rank="{{ f.assigned_chart_rank }}"
+                        data-mobile="{{ f.mobile or '' }}"
+                            data-name="{{ f.name or f.farmer_code }}">
+                            <span><i class="fa-solid fa-user-tag"
+                                     style="color:#64748b; font-size:12px; margin-right:6px;"></i>
+                                <strong>{{ f.name or '' }}</strong>
+                            </span>
+                            <span
+                                style="background: #eff6ff; color: #2563eb; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">{{
+                                f.farmer_code }}</span>
+                        </li>
+                        {% endfor %}
+                        {% else %}
+                        <li style="color: #94a3b8; justify-content: center; text-align: center;">No farmers available</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <input type="hidden" name="farmer_id" id="cf-farmer-id-hidden" required
+                value="{{ collection.farmer_id if collection else '' }}">
+            <input type="hidden" name="farmer_code" id="cf-farmer-code"
+                value="{{ collection.farmer_code if collection else '' }}">
+            <input type="hidden" name="farmer_name" id="cf-farmer-name"
+                value="{{ (farmer.name if farmer else (collection.farmer_name if collection else '')) }}">
+            <input type="hidden" name="farmer_mobile" id="cf-farmer-mobile"
+                value="{{ (farmer.mobile if farmer else '') }}">
+        </div>
+
+        <script>
+            (function () {
+                const searchInput = document.getElementById('cf-farmer-search');
+                const dropdownList = document.getElementById('dropdownList');
+                const optionsList = document.getElementById('optionsList');
+
+                if (searchInput && dropdownList && optionsList) {
+                    const filterFarmers = (term) => {
+                        const items = optionsList.querySelectorAll('li[data-id]');
+                        items.forEach(item => {
+                            const text = item.textContent.toLowerCase();
+                            item.style.display = text.includes(term.toLowerCase()) ? 'flex' : 'none';
+                        });
+                    };
+
+                    searchInput.addEventListener('keydown', (event) => {
+                        if (event.key === 'Tab' && dropdownList.classList.contains('active')) {
+                            const visibleItems = Array.from(optionsList.querySelectorAll('li[data-id]'))
+                                .filter(li => li.style.display !== 'none');
+                            if (visibleItems.length > 0) {
+                                event.preventDefault(); // Stop default tab focus
+                                visibleItems[0].click(); // Select first item
+                                
+                                const dateInput = document.getElementById('cf-date');
+                                if (dateInput) {
+                                    dateInput.focus();
+                                }
+                            }
+                        }
+                    });
+
+                    searchInput.addEventListener('input', (e) => {
+                        const value = e.target.value.trim();
+                        
+                        // If user clears or changes input, reset hidden values
+                        const hiddenId = document.getElementById('cf-farmer-id-hidden');
+                        const hiddenCode = document.getElementById('cf-farmer-code');
+                        const hiddenMobile = document.getElementById('cf-farmer-mobile');
+                        if (hiddenId && !e.target.value.includes('(')) {
+                            hiddenId.value = '';
+                            if (hiddenCode) hiddenCode.value = '';
+                            if (hiddenMobile) hiddenMobile.value = '';
+                        }
+
+                        if (typeof updatePreviewSaveBtnState === 'function') {
+                            updatePreviewSaveBtnState();
+                        }
+
+                        if (value.length > 0 && !e.target.value.includes('(')) {
+                            dropdownList.classList.add('active');
+                            filterFarmers(value);
+                        } else {
+                            dropdownList.classList.remove('active');
+                        }
+                    });
+
+                    optionsList.addEventListener('click', (e) => {
+                        const item = e.target.closest('li[data-id]');
+                        if (item) {
+                            const id = item.getAttribute('data-id');
+                            const code = item.getAttribute('data-code');
+                            const name = item.getAttribute('data-name');
+                            const assignedRateChartId = item.getAttribute('data-assigned-rate-chart-id');
+                            const mobile = item.getAttribute('data-mobile') || '';
+
+                            if (typeof selectFarmer === 'function') {
+                                selectFarmer(id, name, code, assignedRateChartId, mobile);
+                            } else {
+                                searchInput.value = `${name} (${code})`;
+
+                                const hiddenId = document.getElementById('cf-farmer-id-hidden');
+                                const hiddenCode = document.getElementById('cf-farmer-code');
+                                const hiddenMobile = document.getElementById('cf-farmer-mobile');
+                                if (hiddenId) hiddenId.value = id;
+                                if (hiddenCode) hiddenCode.value = code;
+                                if (hiddenMobile) hiddenMobile.value = mobile;
+
+                                if (assignedRateChartId) {
+                                    const rateChartSelect = document.getElementById('cf-ratechart');
+                                    if (rateChartSelect) {
+                                        for (let i = 0; i < rateChartSelect.options.length; i++) {
+                                            if (rateChartSelect.options[i].value === assignedRateChartId) {
+                                                rateChartSelect.value = assignedRateChartId;
+                                                rateChartSelect.dispatchEvent(new Event('change'));
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (typeof updatePreviewSaveBtnState === 'function') {
+                                updatePreviewSaveBtnState();
+                            }
+
+                            dropdownList.classList.remove('active');
+                        }
+                    });
+
+                    document.addEventListener('click', (e) => {
+                        if (!e.target.closest('.custom-select-container')) {
+                            dropdownList.classList.remove('active');
+                        }
+                    });
+
+                    if (typeof updatePreviewSaveBtnState === 'function') {
+                        updatePreviewSaveBtnState();
+                    }
+                }
+            })();
+        </script>
+
+        <!-- Entry Date -->
+        <div class="form-group">
+            <label>Entry Date *</label>
+            <input type="datetime-local" name="collection_date" id="cf-date" class="form-control" required
+                value="{{ default_date }}">
+        </div>
+
+        <!-- Shift -->
+        <div class="form-group">
+            <label>Shift *</label>
+            <select name="shift" id="cf-shift" class="form-control">
+                <option value="0" {{ 'selected' if collection and collection.shift|int==0 else '' }}>Morning</option>
+                <option value="1" {{ 'selected' if collection and collection.shift|int==1 else '' }}>Evening</option>
+            </select>
+        </div>
+
+        <!-- Milk Type -->
+        <div class="form-group">
+            <label>Milk Type *</label>
+            <select name="milk_type" id="cf-type" class="form-control">
+                <option value="0" {{ 'selected' if collection and collection.milk_type|int==0 else '' }}>Cow</option>
+                <option value="1" {{ 'selected' if collection and collection.milk_type|int==1 else '' }}>Buffalo
+                </option>
+                <option value="2" {{ 'selected' if collection and collection.milk_type|int==2 else '' }}>Mixed</option>
+            </select>
+        </div>
+
+        <!-- Rate Chart -->
+        <div class="form-group">
+
+            <label>Rate Chart <span style="font-size:10px; color:var(--text-muted);">(Optional)</span></label>
+
+            <select name="chart_id" id="cf-ratechart" class="form-control">
+
+                {% if rate_charts %}
+
+                {% for chart in rate_charts %}
+
+                <option value="{{ chart.id }}" {% if collection and collection.rate_chart_id|string==chart.id|string %}
+                    selected {% endif %}>
+
+                    {{ chart.chart_name }}
+
+                </option>
+
+                {% endfor %}
+
+                {% else %}
+
+                <option value="" readonly>-- No Rate Chart --</option>
+
+                {% endif %}
+
+            </select>
+
+        </div>
+
+        <!-- Weight -->
+        <div class="form-group">
+
+            <label>Weight (Ltr/Kg) *</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-weight-hanging"></i>
+
+                <input type="number" step="0.01" name="quantity" id="cf-qty" class="form-control" placeholder="0.00"
+                    required {% if setting and setting.weight_collection_mode|int==1 %}readonly{% endif %}>
+
+            </div>
+
+        </div>
+
+        <!-- FAT / SNF -->
+        <div class="form-group" id="group-fat-snf" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+
+            <div>
+
+                <label>FAT % *</label>
+
+                <input type="number" step="0.1" name="fat_percent" id="cf-fat" class="form-control" placeholder="0.0"
+                    required {% if setting and setting.analyzer_collection_mode|int==1 %}readonly{% endif %}>
+
+            </div>
+
+            <div>
+
+                <label>SNF % *</label>
+
+                <input type="number" step="0.1" name="snf_percent" id="cf-snf" class="form-control" placeholder="0.0"
+                    required {% if setting and setting.analyzer_collection_mode|int==1 %}readonly{% endif %}>
+
+            </div>
+
+        </div>
+
+        <!-- Rate -->
+        <div class="form-group" id="group-rate">
+
+            <label>Rate (₹/Unit) *</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-indian-rupee-sign"></i>
+
+                <input readonly type="number" step="0.01" name="rate_per_unit" id="cf-rate" class="form-control"
+                    value="{{ collection.rate_per_unit if collection else '' }}"
+                    required hx-get="/ratecharts/get-rate" hx-trigger="rate:calculate"
+                    hx-include="#cf-ratechart, #cf-fat, #cf-snf, #cf-type" hx-target="#group-rate" hx-swap="outerHTML">
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Hidden Fields -->
+    <input type="hidden" name="status" id="cf-payment"
+        value="{{ collection.status|int if collection else '0' }}">
+    <input type="hidden" name="total_amount" id="cf-total-hidden"
+        value="{{ collection.total_amount if collection else '0.00' }}">
+    <input type="hidden" name="rank" value="1">
+    <input type="hidden" name="measurement_mode" id="cf-analyzer-collection-mode-hidden"
+        value="{{ setting.analyzer_collection_mode|int if setting else 1 }}">
+    <input type="hidden" name="quantity_collection_mode" id="cf-weight-collection-mode-hidden"
+        value="{{ setting.weight_collection_mode|int if setting else 1 }}">
+    <!-- Footer Actions -->
+    <div
+        style="padding:18px 24px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:flex-end; gap:12px; align-items:center;">
+        <a href="/vlcc-collections" class="btn btn-ghost"
+            style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">Cancel</a>
+        {% set is_btn_enabled = collection and collection.farmer_id and collection.rate_per_unit and collection.rate_per_unit|float > 0 %}
+        <button type="button" class="btn btn-primary" id="ff-preview-save-collection"
+            style="background: #2563eb; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; cursor: {{ 'pointer' if is_btn_enabled else 'not-allowed' }}; opacity: {{ '1' if is_btn_enabled else '0.5' }};"
+            onclick="openReceiptPreview()"
+            {{ '' if is_btn_enabled else 'disabled' }}
+            title="{{ 'Preview receipt and save collection' if is_btn_enabled else 'Please select a farmer and calculate rate' }}">
+            <i class="fa-solid fa-eye"></i> Preview & Save
+        </button>
+    </div>
+</form>
+
+{% if new_item %}
+<div hx-swap-oob="delete:#empty-list-msg"></div>
+<div hx-swap-oob="afterbegin:#recent-list">
+    <div data-qty="{{ new_item.qty }}" data-total="{{ new_item.total }}"
+        style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <div style="font-weight: 600; color: #1e293b;">{{ new_item.farmer_name }}</div>
+            <div style="font-size: 11px; color: #64748b;">
+                {{ new_item.date }} • {{ "%.2f"|format(new_item.qty) }} Ltr • FAT {{ "%.1f"|format(new_item.fat) }}%
+            </div>
+        </div>
+        <div style="font-weight: 700; color: #2563eb;">₹{{ "%.2f"|format(new_item.total) }}</div>
+    </div>
+</div>
+{% endif %}

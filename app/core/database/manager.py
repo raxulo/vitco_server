@@ -1,8 +1,9 @@
-"""
-RealTimeTransfer
-================
 
+
+"""
 Enterprise Database Manager
+
+Ultra High Performance
 
 Python 3.13+
 """
@@ -11,101 +12,167 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
 )
 
+from app.config.database import DatabaseConfig
+
 from app.core.database.drivers.base import BaseDatabaseDriver
 from app.core.database.session import SessionManager
-from app.core.database.transaction import (
-    TransactionManager,
-    TransactionOptions,
-)
+from app.core.database.transaction import TransactionManager
 
 
 class DatabaseManager:
-    """
-    Enterprise Database Facade.
 
-    This is the ONLY public entry point for the database layer.
-    """
+    priority = 10
 
     __slots__ = (
         "_driver",
-        "_sessions",
-        "_transactions",
+        "_config",
+
+        "_session_manager",
+        "_transaction_manager",
+
+        "_started",
     )
 
     def __init__(
         self,
         driver: BaseDatabaseDriver,
+        config: DatabaseConfig,
     ) -> None:
+
         self._driver = driver
-        self._sessions: SessionManager | None = None
-        self._transactions: TransactionManager | None = None
+        self._config = config
+
+        self._session_manager: SessionManager | None = None
+        self._transaction_manager: TransactionManager | None = None
+
+        self._started = False
+
+    # ----------------------------------------------------
+    # Startup
+    # ----------------------------------------------------
+
+    async def startup(self) -> None:
+
+        if self._started:
+            return
+
+        await self._driver.start()
+
+        self._session_manager = SessionManager(
+            engine=self._driver.engine,
+            replica_engine=self._driver.replica_engine,
+        )
+
+        self._transaction_manager = TransactionManager(
+            self._session_manager,
+        )
+
+        self._started = True
+
+    # ----------------------------------------------------
+
+    async def shutdown(self) -> None:
+
+        if not self._started:
+            return
+
+        await self._driver.stop()
+
+        self._started = False
+
+    # ----------------------------------------------------
+    # Driver
+    # ----------------------------------------------------
 
     @property
     def driver(self) -> BaseDatabaseDriver:
         return self._driver
 
     @property
-    def driver_name(self) -> str:
-        return self.driver.name
+    def engine(self) -> AsyncEngine:
+        return self._driver.engine
 
     @property
-    def engine(self) -> AsyncEngine:
-        return self.driver.engine
+    def replica_engine(self) -> AsyncEngine:
+        return self._driver.replica_engine
+
+    # ----------------------------------------------------
+    # Managers
+    # ----------------------------------------------------
 
     @property
     def sessions(self) -> SessionManager:
-        """
-        Lazy loaded sessions manager to prevent startup DatabaseConnectionError.
-        """
-        if self._sessions is None:
-            self._sessions = self._driver.session_manager
-        return self._sessions
+
+        manager = self._session_manager
+
+        if manager is None:
+            raise RuntimeError(
+                "Database has not started."
+            )
+
+        return manager
 
     @property
     def transactions(self) -> TransactionManager:
-        """
-        Lazy loaded transactions manager to prevent startup DatabaseConnectionError.
-        """
-        if self._transactions is None:
-            self._transactions = TransactionManager(self.sessions)
-        return self._transactions
 
-    async def startup(self) -> None:
-        await self.driver.start()
+        manager = self._transaction_manager
 
-    async def shutdown(self) -> None:
-        await self.driver.stop()
+        if manager is None:
+            raise RuntimeError(
+                "Database has not started."
+            )
+
+        return manager
+
+    # ----------------------------------------------------
+    # Current Session
+    # ----------------------------------------------------
+
+    @property
+    def session(self) -> AsyncSession:
+        return self.transactions.session
+
+    # ----------------------------------------------------
+    # Transaction
+    # ----------------------------------------------------
 
     @asynccontextmanager
-    async def session(self) -> AsyncIterator[AsyncSession]:
+    async def transaction(self):
+
+        async with self.transactions.transaction() as session:
+
+            yield session
+
+    # ----------------------------------------------------
+    # Session
+    # ----------------------------------------------------
+
+    @asynccontextmanager
+    async def create_session(self):
+
         async with self.sessions.session() as session:
+
             yield session
 
-    @asynccontextmanager
-    async def transaction(
-        self,
-        options: TransactionOptions | None = None,
-    ) -> AsyncIterator[AsyncSession]:
-        async with self.transactions.transaction(options) as session:
-            yield session
+    # ----------------------------------------------------
+    # Health
+    # ----------------------------------------------------
 
-    async def health(self) -> dict[str, Any]:
-        return await self.driver.health()
+    async def ping(self):
 
-    async def ping(self) -> bool:
         return await self.driver.ping()
 
-    @property
-    def connected(self) -> bool:
-        return self.driver.connected
+    async def health(self):
+
+        return await self.driver.health()
 
     @property
-    def in_transaction(self) -> bool:
-        return self.transactions.current is not None
+    def connected(self):
+
+        return self.driver.connected

@@ -9,74 +9,57 @@ Python 3.13+
 
 from __future__ import annotations
 
-from threading import Lock
-
 from app.core.config import config
+from app.config.database import DatabaseConfig
 from app.core.database.drivers.base import BaseDatabaseDriver
-from app.core.database.drivers.cockroach import CockroachDriver
-from app.core.database.drivers.postgres import PostgreSQLDriver
-from app.core.database.drivers.sqlite import SQLiteDriver
-from app.core.database.exceptions import (
-    DriverNotFoundError,
-)
+from app.core.database.exceptions import DriverNotFoundError
 from app.core.database.manager import DatabaseManager
 
 
 class DatabaseFactory:
     """
-    Enterprise Database Factory.
+    Stateless enterprise database factory with lazy driver loading.
     """
 
-    __slots__ = ()
+    __slots__ = (
+        "_config",
+    )
 
-    _instance: DatabaseManager | None = None
-    _lock = Lock()
+    def __init__(
+        self,
+        config_inst: DatabaseConfig,
+    ) -> None:
+        self._config = config_inst
 
-    _drivers: dict[str, type[BaseDatabaseDriver]] = {
-        "sqlite": SQLiteDriver,
-        "postgresql": PostgreSQLDriver,
-        "cockroach": CockroachDriver,
-    }
-
-    @classmethod
-    def create(cls) -> DatabaseManager:
-        if cls._instance is not None:
-            return cls._instance
-
-        with cls._lock:
-            if cls._instance is not None:
-                return cls._instance
-
-            driver_name = config.database.driver.lower()
-            driver_cls = cls._drivers.get(driver_name)
-
-            if driver_cls is None:
-                raise DriverNotFoundError(
-                    f"Unsupported database driver '{driver_name}'."
-                )
-
-            driver = driver_cls()
-            cls._instance = DatabaseManager(driver)
-            return cls._instance
-
-    @classmethod
-    async def startup(cls) -> DatabaseManager:
-        manager = cls.create()
-        await manager.startup()
-        return manager
-
-    @classmethod
-    async def shutdown(cls) -> None:
-        if cls._instance is None:
-            return
-        await cls._instance.shutdown()
-
-    @classmethod
-    def reset(cls) -> None:
+    def create(self) -> DatabaseManager:
         """
-        Testing only.
+        Create a configured DatabaseManager.
         """
-        cls._instance = None
+        driver = self._create_driver()
+        return DatabaseManager(
+            driver=driver,
+            config=self._config,
+        )
 
+    def _get_driver(self) -> str:
+        return self._config.driver
 
-database = DatabaseFactory.create()
+    def _create_driver(self) -> BaseDatabaseDriver:
+        """
+        Resolve and instantiate the configured driver dynamically.
+        """
+        driver_name = self._get_driver().lower()
+
+        if driver_name == "sqlite":
+            from app.core.database.drivers.sqlite import SQLiteDriver
+            return SQLiteDriver()
+        elif driver_name == "postgresql":
+            from app.core.database.drivers.postgres import PostgreSQLDriver
+            return PostgreSQLDriver()
+        elif driver_name == "cockroach":
+            from app.core.database.drivers.cockroach import CockroachDriver
+            return CockroachDriver()
+        else:
+            raise DriverNotFoundError(
+                f"Unsupported database driver '{driver_name}'."
+            )

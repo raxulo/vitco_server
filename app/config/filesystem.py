@@ -41,6 +41,8 @@ class StorageConfig:
 
     logs: Path
 
+    media: Path
+
 
 storage_config = StorageConfig(
     root=settings.STORAGE_PATH,
@@ -50,6 +52,7 @@ storage_config = StorageConfig(
     chunks=settings.CHUNK_PATH,
     database=settings.database_file.parent,
     logs=settings.LOG_PATH,
+    media=settings.MEDIA_PATH,
 )
 
 

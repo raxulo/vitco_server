@@ -2,9 +2,7 @@
 RealTimeTransfer
 ================
 
-Enterprise Logging Handlers
-
-Heavy Traffic Ready
+Enterprise Logger Handlers
 
 Python 3.13+
 """
@@ -12,111 +10,154 @@ Python 3.13+
 from __future__ import annotations
 
 import logging
-from pathlib import Path
+
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
-from app.core.logging.formatter import JsonFormatter
+from app.config.logging import LOGGER_CONFIG
+from app.core.logging.filters import (
+    ContextFilter,
+    ErrorOnlyFilter,
+)
+from app.core.logging.formatter import (
+    ConsoleFormatter,
+    JsonFormatter,
+)
 
 
-class LoggingHandlers:
+class HandlerFactory:
     """
     Creates logging handlers.
 
-    Stateless factory.
+    Stateless.
+
+    Thread-safe.
     """
 
     __slots__ = ()
 
+    # ---------------------------------------------------------
+
     @staticmethod
-    def console(
-        application: str,
-        level: int = logging.INFO,
-    ) -> logging.Handler:
+    def console() -> logging.Handler:
 
         handler = logging.StreamHandler()
 
-        handler.setLevel(level)
+        handler.setLevel(
+            LOGGER_CONFIG.console_level,
+        )
 
         handler.setFormatter(
+            ConsoleFormatter(),
+        )
 
-            JsonFormatter(application)
-
+        handler.addFilter(
+            ContextFilter(),
         )
 
         return handler
 
+    # ---------------------------------------------------------
+
     @staticmethod
-    def rotating_file(
-        application: str,
-        file: str | Path,
-        *,
-        level: int = logging.INFO,
-        max_bytes: int = 100 * 1024 * 1024,
-        backups: int = 10,
-    ) -> logging.Handler:
+    def application_file() -> logging.Handler:
 
-        path = Path(file)
-
-        path.parent.mkdir(
-
+        Path(
+            LOGGER_CONFIG.directory,
+        ).mkdir(
             parents=True,
-
             exist_ok=True,
         )
 
         handler = RotatingFileHandler(
 
-            filename=path,
+            filename=(
+                LOGGER_CONFIG.directory
+                /
+                LOGGER_CONFIG.application_file
+            ),
 
-            maxBytes=max_bytes,
+            maxBytes=LOGGER_CONFIG.max_file_size,
 
-            backupCount=backups,
+            backupCount=LOGGER_CONFIG.backup_count,
 
-            encoding="utf-8",
+            encoding=LOGGER_CONFIG.encoding,
 
-            delay=True,
         )
 
-        handler.setLevel(level)
+        handler.setLevel(
+            LOGGER_CONFIG.file_level,
+        )
 
         handler.setFormatter(
+            JsonFormatter(),
+        )
 
-            JsonFormatter(application)
-
+        handler.addFilter(
+            ContextFilter(),
         )
 
         return handler
+
+    # ---------------------------------------------------------
 
     @staticmethod
-    def error_file(
-        application: str,
-        file: str | Path,
-    ) -> logging.Handler:
+    def error_file() -> logging.Handler:
 
-        handler = LoggingHandlers.rotating_file(
+        Path(
+            LOGGER_CONFIG.directory,
+        ).mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
-            application,
+        handler = RotatingFileHandler(
 
-            file,
+            filename=(
+                LOGGER_CONFIG.directory
+                /
+                LOGGER_CONFIG.error_file
+            ),
 
-            level=logging.ERROR,
+            maxBytes=LOGGER_CONFIG.max_file_size,
+
+            backupCount=LOGGER_CONFIG.backup_count,
+
+            encoding=LOGGER_CONFIG.encoding,
+
+        )
+
+        handler.setLevel(
+            LOGGER_CONFIG.error_level,
+        )
+
+        handler.setFormatter(
+            JsonFormatter(),
+        )
+
+        handler.addFilter(
+            ContextFilter(),
+        )
+
+        handler.addFilter(
+            ErrorOnlyFilter(),
         )
 
         return handler
 
-    @staticmethod
-    def audit_file(
-        application: str,
-        file: str | Path,
-    ) -> logging.Handler:
+    # ---------------------------------------------------------
 
-        handler = LoggingHandlers.rotating_file(
+    @classmethod
+    def create(
+        cls,
+    ) -> tuple[logging.Handler, ...]:
 
-            application,
+        return (
 
-            file,
+            cls.console(),
 
-            level=logging.INFO,
+            cls.application_file(),
+
+            cls.error_file(),
+
         )
-
-        return handler

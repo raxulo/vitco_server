@@ -2,106 +2,95 @@
 RealTimeTransfer
 ================
 
-Enterprise Logging Queue
-
-Heavy Traffic Ready
+Enterprise Logger Queue
 
 Python 3.13+
 """
 
 from __future__ import annotations
 
-import atexit
 import logging
 from logging.handlers import (
     QueueHandler,
     QueueListener,
 )
+
 from queue import Queue
-from threading import RLock
 
 
-class LoggingQueue:
-
+class LoggerQueue:
     """
-    Singleton Queue Listener.
-
-    One Queue
-
-    One Listener
-
-    Unlimited Loggers
+    High-performance asynchronous logging queue.
     """
 
-    __slots__ = ()
+    __slots__ = (
+        "_queue",
+        "_handler",
+        "_listener",
+    )
 
-    _queue: Queue | None = None
+    def __init__(
+        self,
+        maxsize: int = 50_000,
+    ) -> None:
 
-    _listener: QueueListener | None = None
+        self._queue: Queue[logging.LogRecord] = Queue(
+            maxsize=maxsize,
+        )
 
-    _lock = RLock()
+        self._handler = QueueHandler(
+            self._queue,
+        )
 
-    @classmethod
+        self._listener: QueueListener | None = None
+
+    # -----------------------------------------------------
+
+    @property
+    def handler(
+        self,
+    ) -> QueueHandler:
+
+        return self._handler
+
+    # -----------------------------------------------------
+
+    @property
+    def listener(
+        self,
+    ) -> QueueListener | None:
+
+        return self._listener
+
+    # -----------------------------------------------------
+
     def start(
-        cls,
+        self,
         *handlers: logging.Handler,
     ) -> None:
 
-        if cls._listener is not None:
+        if self._listener is not None:
             return
 
-        with cls._lock:
+        self._listener = QueueListener(
+            self._queue,
+            *handlers,
+            respect_handler_level=True,
+        )
 
-            if cls._listener is not None:
-                return
+        self._listener.start()
 
-            cls._queue = Queue(
-                maxsize=50000
-            )
+    # -----------------------------------------------------
 
-            cls._listener = QueueListener(
-
-                cls._queue,
-
-                *handlers,
-
-                respect_handler_level=True,
-            )
-
-            cls._listener.start()
-
-            atexit.register(
-                cls.stop
-            )
-
-    @classmethod
     def stop(
-        cls,
+        self,
     ) -> None:
 
-        with cls._lock:
+        listener = self._listener
 
-            if cls._listener is None:
-                return
+        if listener is None:
+            return
 
-            cls._listener.stop()
+        listener.stop()
 
-            cls._listener = None
-
-            cls._queue = None
-
-    @classmethod
-    def handler(
-        cls,
-    ) -> QueueHandler:
-
-        if cls._queue is None:
-
-            raise RuntimeError(
-
-                "LoggingQueue not started."
-            )
-
-        return QueueHandler(
-            cls._queue
-        )
+        self._listener = None

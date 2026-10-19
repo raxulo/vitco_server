@@ -1,0 +1,296 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}MCC Collection Slip - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 16px 50px;">
+    <!-- Only the Printable Slip Content -->
+    <div id="printable-slip" style="width: 100%; max-width: 330px; font-family: 'Courier New', Courier, monospace; color: #000000; box-sizing: border-box; margin: 0 auto; background: transparent;">
+        
+        <!-- Top Asterisks Divider -->
+        <div style="text-align: center; color: #000000; font-size: 13px; letter-spacing: 2px; line-height: 1; user-select: none; margin-bottom: 6px;">
+            *********************************
+        </div>
+
+        <!-- Header Details -->
+        <div style="text-align: center; margin-bottom: 10px;">
+            <div style="font-size: 20px; font-weight: 800; color: #000000; letter-spacing: 2px; line-height: 1.15;">VITCO</div>
+            <div style="font-size: 13px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">Provisional Acknowledgement Slip</div>
+            <div style="font-size: 16px; font-weight: 800; color: #000000; margin-top: 5px; line-height: 1.15;">{{ mcc.name if mcc else 'VITCO BULK MCC' }}</div>
+            <div style="font-size: 12.5px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">UIC - {{ mcc.code if (mcc and mcc.code) else '—' }}</div>
+            {% if mcc and mcc.city %}
+            <div style="font-size: 12px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">{{ mcc.city }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Data Content Rows -->
+        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; line-height: 1.25;">
+            <!-- DATE & TIME -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">DATE:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ collection.collected_at.strftime('%d/%m/%Y') if collection.collected_at else '—' }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">TIME:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ collection.collected_at.strftime('%H:%M:%S') if collection.collected_at else '—' }}</span></div>
+            </div>
+
+            <!-- Code -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Code:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ vlcc.vlcc_code if (vlcc and vlcc.vlcc_code) else (vlcc.uic_code if vlcc else '—') }}</span>
+            </div>
+
+            <!-- Name -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Name:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ vlcc.name if vlcc else '—' }}</span>
+            </div>
+
+            <!-- Mobile No -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Mobile No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ vlcc.mobile if (vlcc and vlcc.mobile) else (vlcc.contact_person if vlcc else 'N/A') }}</span>
+            </div>
+
+            {% set current_mcc_type = mcc.mcc_type|int if mcc else 0 %}
+
+            {% if current_mcc_type == 2 %}
+            {# ==================== CASE 1: WEIGHT (mcc_type == 2) ==================== #}
+            <!-- Line 1: Route No & Sample No -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">Route No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ vlcc.route_code if (vlcc and vlcc.route_code is not none) else (mcc.route_code if (mcc and mcc.route_code is not none) else 'N/A') }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">Sample No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ collection.sample_number if collection.sample_number else 'N/A' }}</span></div>
+            </div>
+
+            <!-- Line 2: Milk Type & Qty -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">Milk Type:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ 'cow' if collection.milk_type|int == 0 else ('buffalo' if collection.milk_type|int == 1 else 'mixed') }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">Qty:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.quantity|float) }} Ltr</span></div>
+            </div>
+
+            <!-- Line 3: Shift & Cans -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">Shift:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ 'M' if collection.shift|int == 0 else 'E' }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">Cans:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ collection.can_count if collection.can_count is not none else 0 }}</span></div>
+            </div>
+
+            {% elif current_mcc_type == 1 %}
+            {# ==================== CASE 2: FAT_SNF (mcc_type == 1) ==================== #}
+            <!-- Line 1: Route No & Sample No -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">Route No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ vlcc.route_code if (vlcc and vlcc.route_code is not none) else (mcc.route_code if (mcc and mcc.route_code is not none) else 'N/A') }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">Sample No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ collection.sample_number if collection.sample_number else 'N/A' }}</span></div>
+            </div>
+
+            <!-- Line 2: Milk Type & Qty -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">Milk Type:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ 'cow' if collection.milk_type|int == 0 else ('buffalo' if collection.milk_type|int == 1 else 'mixed') }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">Qty:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.quantity|float) }} Ltr</span></div>
+            </div>
+
+            <!-- Line 3: Shift & Cans -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">Shift:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ 'M' if collection.shift|int == 0 else 'E' }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">Cans:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ collection.can_count if collection.can_count is not none else 0 }}</span></div>
+            </div>
+
+            <!-- Line 4: FAT & SNF -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">FAT:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.fat_percent|float) if collection.fat_percent is not none else '0.00' }}%</span></div>
+                <div><span style="color: #475569; font-weight: 500;">SNF:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.snf_percent|float) if collection.snf_percent is not none else '0.00' }}%</span></div>
+            </div>
+
+            <!-- Line 5: Rate -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Rate (Rs./Ltr):</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.rate_per_unit|float) if collection.rate_per_unit is not none else '0.00' }}</span>
+            </div>
+
+            <!-- Line 6: Total Amount -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Total Amount:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.total_amount|float) if collection.total_amount is not none else '0.00' }}</span>
+            </div>
+
+            <!-- Line 7/8: CLR -->
+            <div style="margin-top: 2px;">
+                <span style="color: #475569; font-weight: 500;">CLR:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.clr_value|float) if (collection.clr_value is not none and collection.clr_value|float > 0) else '0.00' }}</span>
+            </div>
+
+            {% else %}
+            {# ==================== CASE 3: FIXED_RATE (3) or NORMAL (0) ==================== #}
+            <!-- Line 1: Route No -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Route No:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ vlcc.route_code if (vlcc and vlcc.route_code is not none) else (mcc.route_code if (mcc and mcc.route_code is not none) else 'N/A') }}</span>
+            </div>
+
+            <!-- Line 2: Milk Type & Qty -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">Milk Type:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ 'cow' if collection.milk_type|int == 0 else ('buffalo' if collection.milk_type|int == 1 else 'mixed') }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">Qty:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.quantity|float) }} Ltr</span></div>
+            </div>
+
+            <!-- Line 3: FAT & SNF -->
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div><span style="color: #475569; font-weight: 500;">FAT:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.fat_percent|float) if collection.fat_percent is not none else '0.00' }}%</span></div>
+                <div><span style="color: #475569; font-weight: 500;">SNF:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.snf_percent|float) if collection.snf_percent is not none else '0.00' }}%</span></div>
+            </div>
+
+            <!-- Line 4: Rate -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Rate (Rs./Ltr):</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.rate_per_unit|float) if collection.rate_per_unit is not none else '0.00' }}</span>
+            </div>
+
+            <!-- Line 5: Total Amount -->
+            <div>
+                <span style="color: #475569; font-weight: 500;">Total Amount:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.total_amount|float) if collection.total_amount is not none else '0.00' }}</span>
+            </div>
+
+            <!-- Line 6/7: Shift & CLR -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                <div><span style="color: #475569; font-weight: 500;">Shift:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ 'M' if collection.shift|int == 0 else 'E' }}</span></div>
+                <div><span style="color: #475569; font-weight: 500;">CLR:</span> <span style="font-weight: 800; color: #000000; margin-left: 4px;">{{ "%.2f"|format(collection.clr_value|float) if (collection.clr_value is not none and collection.clr_value|float > 0) else '0.00' }}</span></div>
+            </div>
+            {% endif %}
+
+            <!-- Bottom Asterisks Divider -->
+            <div style="text-align: center; color: #000000; font-size: 13px; letter-spacing: 2px; line-height: 1; user-select: none; margin-top: 10px;">
+                *********************************
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons (Hidden during print) -->
+    <div class="no-print" style="margin-top: 24px; display: flex; justify-content: center; gap: 12px; align-items: center;">
+        <a href="/mcc-collections" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 18px; border-radius: 8px; text-decoration: none; font-size: 13.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
+        <button type="button" class="btn" onclick="printReceiptSlip()" style="background: #0284c7; color: white; border: none; padding: 8px 20px; border-radius: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(2, 132, 199, 0.2);">
+            <i class="fa-solid fa-print"></i> Print
+        </button>
+    </div>
+</div>
+
+<script>
+    function printReceiptSlip() {
+        const slipEl = document.getElementById('printable-slip');
+        if (!slipEl || !slipEl.innerHTML.trim()) {
+            window.print();
+            return;
+        }
+
+        let printFrame = document.getElementById('receipt-print-iframe');
+        if (!printFrame) {
+            printFrame = document.createElement('iframe');
+            printFrame.id = 'receipt-print-iframe';
+            printFrame.style.position = 'fixed';
+            printFrame.style.right = '0';
+            printFrame.style.bottom = '0';
+            printFrame.style.width = '0';
+            printFrame.style.height = '0';
+            printFrame.style.border = '0';
+            document.body.appendChild(printFrame);
+        }
+
+        const doc = printFrame.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>MCC Collection Slip</title>
+                <style>
+                    @page {
+                        size: 80mm auto;
+                        margin: 2mm;
+                    }
+                    @media print {
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                        }
+                    }
+                    body {
+                        margin: 0;
+                        padding: 4px;
+                        display: flex;
+                        justify-content: center;
+                        font-family: 'Courier New', Courier, monospace;
+                        background: #ffffff;
+                    }
+                    .slip-box {
+                        width: 100%;
+                        max-width: 330px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="slip-box">
+                    ${slipEl.innerHTML}
+                </div>
+            </body>
+            </html>
+        `);
+        doc.close();
+
+        setTimeout(() => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (err) {
+                console.error('Iframe print failed, falling back to window.print():', err);
+                window.print();
+            }
+        }, 250);
+    }
+</script>
+
+<!-- Print Stylesheet for System Print Dialog -->
+<style>
+@media print {
+    /* Hide dashboard layout elements */
+    body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    header, nav, aside, footer, .sidebar, .topbar, .page-header, .no-print, .btn, .breadcrumb {
+        display: none !important;
+    }
+
+    /* Isolate printable receipt */
+    body * {
+        visibility: hidden;
+    }
+
+    #printable-slip, #printable-slip * {
+        visibility: visible;
+    }
+
+    #receipt-print-wrapper {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: flex-start !important;
+        background: transparent !important;
+        border: none !important;
+    }
+
+    #printable-slip {
+        box-shadow: none !important;
+        margin: 0 auto !important;
+        border: none !important;
+        background: #ffffff !important;
+        padding: 0 !important;
+    }
+
+    @page {
+        size: 80mm auto;
+        margin: 2mm;
+    }
+}
+</style>
+{% endblock %}

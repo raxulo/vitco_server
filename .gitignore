@@ -1,0 +1,23 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# User-uploaded media
+storage/media/
+
+# Editor / OS
+.DS_Store
+Thumbs.db

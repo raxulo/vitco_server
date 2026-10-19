@@ -1,117 +1,46 @@
 """
-==========================================================
-Enterprise Session Context
+RealTimeTransfer
+================
 
-Google
-Microsoft
-Uber
-Netflix
+Session Context Holder using ContextVars.
 
-Python 3.13
-==========================================================
+Python 3.13+
 """
 
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Final
+from typing import Any, Callable
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-
-class SessionContextError(RuntimeError):
-    """Base session context error."""
-
-
-class SessionNotAvailableError(SessionContextError):
-    """Raised when no session exists in current context."""
-
-
-class SessionAlreadyExistsError(SessionContextError):
-    """Raised when attempting to overwrite active session."""
+# Context var storing a callable that resolves the database session lazily.
+_SESSION_RESOLVER: ContextVar[Callable[[], Any] | None] = ContextVar(
+    "session_resolver",
+    default=None,
+)
 
 
 class SessionContext:
     """
-    Enterprise AsyncSession Context.
-
-    One AsyncSession per async execution context.
-
-    Thread Safe
-
-    Async Safe
-
-    Lock Free
+    Context Manager helper for request-scoped database session access.
     """
 
     __slots__ = ()
 
-    _session: Final[
-        ContextVar[AsyncSession | None]
-    ] = ContextVar(
-        "database_session",
-        default=None,
-    )
+    @staticmethod
+    def set(resolver: Callable[[], Any]) -> Any:
+        return _SESSION_RESOLVER.set(resolver)
 
-    # ---------------------------------------------------------
+    @staticmethod
+    def reset(token: Any) -> None:
+        _SESSION_RESOLVER.reset(token)
 
-    @classmethod
-    def exists(cls) -> bool:
+    @staticmethod
+    def exists() -> bool:
+        return _SESSION_RESOLVER.get() is not None
 
-        return cls._session.get() is not None
-
-    # ---------------------------------------------------------
-
-    @classmethod
-    def get(cls) -> AsyncSession:
-
-        session = cls._session.get()
-
-        if session is None:
-
-            raise SessionNotAvailableError(
-
-                "Database session is not available."
-
-            )
-
-        return session
-
-    # ---------------------------------------------------------
-
-    @classmethod
-    def set(
-        cls,
-        session: AsyncSession,
-    ):
-
-        if cls.exists():
-
-            raise SessionAlreadyExistsError(
-
-                "Session already exists."
-
-            )
-
-        return cls._session.set(
-            session
-        )
-
-    # ---------------------------------------------------------
-
-    @classmethod
-    def reset(
-        cls,
-        token,
-    ) -> None:
-
-        cls._session.reset(
-            token
-        )
-
-    # ---------------------------------------------------------
-
-    @classmethod
-    def clear(cls) -> None:
-
-        cls._session.set(None)
+    @staticmethod
+    def get() -> Any:
+        resolver = _SESSION_RESOLVER.get()
+        if resolver is None:
+            raise RuntimeError("No active session context.")
+        return resolver()

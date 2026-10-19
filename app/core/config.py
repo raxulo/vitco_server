@@ -14,7 +14,7 @@ from functools import cached_property
 
 from app.config.settings import settings
 from app.config.database import database_config
-from app.config.logging import logging_config
+from app.config.logging import LOGGER_CONFIG
 from app.config.security import (
     jwt_config,
     password_config,
@@ -73,7 +73,7 @@ class ConfigProvider:
 
     @cached_property
     def logging(self):
-        return logging_config
+        return LOGGER_CONFIG
 
     @cached_property
     def jwt(self):

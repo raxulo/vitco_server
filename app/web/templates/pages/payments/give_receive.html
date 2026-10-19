@@ -1,0 +1,285 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Give / Receive Payment - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn subadmin-container" style="width: 100%; box-sizing: border-box; padding: 20px;">
+    <!-- Page Header -->
+    <div class="page-header" style="margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div class="page-title">
+            <h2 style="margin:0; font-size: 22px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-hand-holding-dollar" style="color: #2563eb;"></i> Give / Receive Payment
+            </h2>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">Record ledger transfers with real-time double-entry auditing</p>
+        </div>
+    </div>
+
+        <!-- Alert Badges -->
+        {% if success %}
+        <div class="alert alert-success" style="margin-bottom: 24px; padding: 16px 20px; border-radius: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.05); animation: slideDown 0.3s ease-out;">
+            <i class="fa-solid fa-circle-check" style="font-size: 18px; color: #16a34a;"></i> <span>{{ success }}</span>
+        </div>
+        {% endif %}
+
+        {% if error %}
+        <div class="alert alert-danger" style="margin-bottom: 24px; padding: 16px 20px; border-radius: 12px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.05); animation: slideDown 0.3s ease-out;">
+            <i class="fa-solid fa-circle-exclamation" style="font-size: 18px; color: #dc2626;"></i> <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <!-- Main Card -->
+        <div class="card-container" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); padding: 28px; border-radius: 20px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);">
+            <form method="POST" action="/payments/user-to" style="display: flex; flex-direction: column; gap: 24px;">
+            
+            <!-- Two Column Form Body Grid -->
+            <div class="form-body-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                
+                <!-- Left Column (Core Details) -->
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    <!-- Type Selector -->
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Transaction Type</label>
+                        <div style="display: flex; background: #f1f5f9; padding: 5px; border-radius: 14px; gap: 5px; border: 1px solid #e2e8f0; position: relative;">
+                            <label style="flex: 1; text-align: center; padding: 12px 0; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.25s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; user-select: none;" id="label-give">
+                                <input type="radio" name="action_type" value="give" {% if not prefilled_amount or prefilled_amount|float < 0 %}checked{% endif %} style="display: none;" onchange="toggleType('give')">
+                                <i class="fa-solid fa-arrow-trend-down"></i> Give (Pay Out)
+                            </label>
+                            <label style="flex: 1; text-align: center; padding: 12px 0; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.25s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; user-select: none;" id="label-receive">
+                                <input type="radio" name="action_type" value="receive" {% if prefilled_amount and prefilled_amount|float >= 0 %}checked{% endif %} style="display: none;" onchange="toggleType('receive')">
+                                <i class="fa-solid fa-arrow-trend-up"></i> Receive (Collect)
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Searchable User Dropdown with Icon -->
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">To User</label>
+                        <div style="position: relative;" id="searchable-user-container">
+                            <i class="fa-solid fa-user" style="position: absolute; left: 16px; top: 17px; color: #94a3b8; font-size: 16px; z-index: 2;"></i>
+                            <input type="text" id="user-search-input" value="{% if prefilled_user %}{{ prefilled_user.name }} ({{ prefilled_user.mobile }}){% endif %}" placeholder="Search user by name or mobile..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 50px; padding: 0 16px 0 45px; font-size: 15px; color: #1e293b; outline: none; background: white; transition: border-color 0.2s, box-shadow 0.2s;" onfocus="showDropdown(); this.style.borderColor='#2563eb'; this.style.boxShadow='0 0 0 4px rgba(37,99,235,0.1)'" onblur="setTimeout(hideDropdown, 200); this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'" oninput="filterUsers()" autocomplete="off">
+                            <i class="fa-solid fa-chevron-down" style="position: absolute; right: 16px; top: 18px; color: #94a3b8; pointer-events: none; font-size: 14px; z-index: 2;"></i>
+                            
+                            <!-- Hidden input to hold the actual selected user ID -->
+                            <input type="hidden" id="counterparty_id" name="counterparty_id" value="{% if prefilled_user %}{{ prefilled_user.id }}{% endif %}" required>
+
+                            <!-- Absolute positioned dropdown list -->
+                            <div id="user-dropdown-list" style="position: absolute; left: 0; right: 0; top: 56px; max-height: 250px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); z-index: 10; display: none;">
+                                <div id="no-users-found" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 14px; display: none;">
+                                    No users found
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Amount Input + Quick Selection Buttons -->
+                    <div>
+                        <label for="amount" style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Amount</label>
+                        <div style="position: relative; display: flex; align-items: center; margin-bottom: 12px;">
+                            <span style="position: absolute; left: 18px; font-weight: 800; color: #475569; font-size: 18px;">₹</span>
+                            <input type="number" id="amount" name="amount" step="0.01" min="0.01" placeholder="0.00" required value="{% if prefilled_amount %}{{ '%.2f'|format(prefilled_amount|float|abs) }}{% endif %}" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 54px; padding-left: 36px; font-size: 18px; font-weight: 800; color: #0f172a; outline: none; transition: border-color 0.2s, box-shadow 0.2s;" onfocus="this.style.borderColor='#2563eb'; this.style.boxShadow='0 0 0 4px rgba(37,99,235,0.1)'" onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none'">
+                        </div>
+                        <!-- Quick Amount Buttons -->
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" onclick="setAmount(500)" style="flex: 1; min-width: 65px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; font-size: 12px; font-weight: 700; color: #475569; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">+ ₹500</button>
+                            <button type="button" onclick="setAmount(1000)" style="flex: 1; min-width: 65px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; font-size: 12px; font-weight: 700; color: #475569; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">+ ₹1000</button>
+                            <button type="button" onclick="setAmount(5000)" style="flex: 1; min-width: 65px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; font-size: 12px; font-weight: 700; color: #475569; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">+ ₹5000</button>
+                            <button type="button" onclick="setAmount(10000)" style="flex: 1; min-width: 65px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; font-size: 12px; font-weight: 700; color: #475569; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#cbd5e1'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">+ ₹10k</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column (Metadata & Details) -->
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    <!-- Payment Method Selection -->
+                    <div>
+                        <label for="method" style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Payment Method</label>
+                        <select id="method" name="payment_method" required style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 50px; padding: 0 16px; font-size: 14px; color: #1e293b; outline: none; background: white; cursor: pointer; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'">
+                            <option value="1">Cash</option>
+                            <option value="2">UPI / QR Code</option>
+                            <option value="3">Bank Transfer</option>
+                            <option value="4">Online Net</option>
+                            <option value="5">System Adjustment</option>
+                        </select>
+                    </div>
+
+                    <!-- Reference -->
+                    <div>
+                        <label for="reference" style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Reference</label>
+                        <input type="text" id="reference" name="reference" placeholder="e.g. TXN100982" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; height: 50px; padding: 0 16px; font-size: 14px; color: #1e293b; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'">
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="description" style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: block;">Description / Notes</label>
+                        <textarea id="description" name="description" rows="3" placeholder="Add optional details or remarks..." style="width: 100%; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px 16px; font-size: 14px; color: #1e293b; outline: none; resize: none; font-family: inherit; transition: border-color 0.2s;" onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'"></textarea>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Submit Button -->
+            <button id="payment-submit-btn" type="submit" class="btn btn-primary" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; border: none; height: 54px; border-radius: 14px; font-weight: 700; font-size: 16px; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.3s; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); opacity: 0.6;" disabled="true" onmouseover="if(!this.disabled){this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 15px rgba(37, 99, 235, 0.3)'}" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 10px rgba(37, 99, 235, 0.2)'">
+                <i class="fa-solid fa-paper-plane"></i> Transfer
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleType(type) {
+        const giveLabel = document.getElementById('label-give');
+        const receiveLabel = document.getElementById('label-receive');
+        
+        if (type === 'give') {
+            giveLabel.style.background = '#dc2626';
+            giveLabel.style.color = 'white';
+            giveLabel.style.boxShadow = '0 4px 10px rgba(220, 38, 38, 0.2)';
+            
+            receiveLabel.style.background = 'transparent';
+            receiveLabel.style.color = '#475569';
+            receiveLabel.style.boxShadow = 'none';
+        } else {
+            receiveLabel.style.background = '#16a34a';
+            receiveLabel.style.color = 'white';
+            receiveLabel.style.boxShadow = '0 4px 10px rgba(22, 163, 74, 0.2)';
+            
+            giveLabel.style.background = 'transparent';
+            giveLabel.style.color = '#475569';
+            giveLabel.style.boxShadow = 'none';
+        }
+    }
+
+    function setAmount(val) {
+        const amountInput = document.getElementById('amount');
+        const currentVal = parseFloat(amountInput.value) || 0;
+        amountInput.value = (currentVal + val).toFixed(2);
+        validateForm();
+    }
+
+    let searchDebounceTimeout = null;
+
+    async function filterUsers() {
+        const input = document.getElementById('user-search-input');
+        const filter = input.value.trim();
+        
+        clearTimeout(searchDebounceTimeout);
+        searchDebounceTimeout = setTimeout(async () => {
+            await fetchAndPopulateUsers(filter);
+        }, 300);
+    }
+
+    async function fetchAndPopulateUsers(query = "") {
+        const dropdownList = document.getElementById('user-dropdown-list');
+        const noUsers = document.getElementById('no-users-found');
+
+        if(encodeURIComponent(query).length<3){return}
+        
+        try {
+            const response = await fetch(`/payments/api/users?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            const users = data.users || [];
+            
+            const options = dropdownList.querySelectorAll('.user-option');
+            options.forEach(opt => opt.remove());
+            
+            if (users.length === 0) {
+                noUsers.style.display = 'block';
+            } else {
+                noUsers.style.display = 'none';
+                users.forEach(u => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'user-option';
+                    optionDiv.style.padding = '12px 16px';
+                    optionDiv.style.cursor = 'pointer';
+                    optionDiv.style.fontSize = '14px';
+                    optionDiv.style.borderBottom = '1px solid #f1f5f9';
+                    optionDiv.style.transition = 'background 0.2s';
+                    optionDiv.setAttribute('onmousedown', `selectUser('${u.id}', '${u.name} (${u.mobile})')`);
+                    
+                    optionDiv.innerHTML = `
+                        <div style="font-weight: 700; color: #1e293b;">${u.name}</div>
+                        <div style="font-size: 12px; color: #64748b;">${u.mobile}</div>
+                    `;
+                    
+                    optionDiv.addEventListener('mouseover', () => {
+                        optionDiv.style.backgroundColor = '#f1f5f9';
+                    });
+                    optionDiv.addEventListener('mouseout', () => {
+                        optionDiv.style.backgroundColor = 'transparent';
+                    });
+
+                    dropdownList.appendChild(optionDiv);
+                });
+            }
+        } catch (err) {
+            console.error("Failed to fetch users", err);
+        }
+    }
+
+    async function showDropdown() {
+        const dropdownList = document.getElementById('user-dropdown-list');
+        dropdownList.style.display = 'block';
+        
+        const input = document.getElementById('user-search-input');
+        const options = dropdownList.querySelectorAll('.user-option');
+        if (options.length === 0 || input.value.trim() === "") {
+            await fetchAndPopulateUsers(input.value.trim());
+        }
+    }
+
+    function hideDropdown() {
+        document.getElementById('user-dropdown-list').style.display = 'none';
+    }
+
+    function selectUser(id, text) {
+        document.getElementById('counterparty_id').value = id;
+        document.getElementById('user-search-input').value = text;
+        hideDropdown();
+        validateForm();
+    }
+
+    function validateForm() {
+        const userId = document.getElementById('counterparty_id').value.trim();
+        const amount = parseFloat(document.getElementById('amount').value) || 0;
+        const submitBtn = document.getElementById('payment-submit-btn');
+        if (!submitBtn) return;
+        
+        if (userId && amount > 0) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+        }
+    }
+    
+    // Initialize active state
+    {% if prefilled_amount and prefilled_amount|float >= 0 %}
+    toggleType('receive');
+    {% else %}
+    toggleType('give');
+    {% endif %}
+    
+    document.getElementById('amount').addEventListener('input', validateForm);
+    document.getElementById('amount').addEventListener('change', validateForm);
+    validateForm();
+</script>
+
+<style>
+    .user-option:hover {
+        background-color: #f1f5f9 !important;
+    }
+    @keyframes slideDown {
+        from { transform: translateY(-10px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    @media (max-width: 768px) {
+        .subadmin-container { padding: 12px !important; }
+        .page-header { flex-direction: column; align-items: flex-start !important; }
+        .form-body-grid { grid-template-columns: 1fr !important; gap: 20px !important; }
+        .card-container { padding: 16px !important; }
+    }
+</style>
+{% endblock %}

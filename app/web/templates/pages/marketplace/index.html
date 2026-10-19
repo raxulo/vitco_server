@@ -1,0 +1,1327 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Vitco Marketplace - Buy & Sell Dairy, Crops & Livestock{% endblock %}
+
+{% block content %}
+<div class="mp-index-page animate-fadeIn">
+    <!-- SuperAdmin & Post Setup Link Bar -->
+    {% if is_superadmin %}
+    <div class="mp-admin-bar">
+        <span><i class="fa-solid fa-user-shield"></i> You are logged in as SuperAdmin.</span>
+        <a href="/marketplace/setup" class="btn-clean-primary" style="margin-left: auto; text-decoration: none; padding: 6px 14px; font-size: 12px;">
+            <i class="fa-solid fa-sliders"></i> Go to Marketplace Setup Center
+        </a>
+    </div>
+    {% elif can_post %}
+    <div class="mp-admin-bar">
+        <span><i class="fa-solid fa-square-plus"></i> Post animal & product listings directly in Marketplace.</span>
+        <a href="/marketplace/setup" class="btn-clean-primary" style="margin-left: auto; text-decoration: none; padding: 6px 14px; font-size: 12px;">
+            <i class="fa-solid fa-plus"></i> Go to Post Setup
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- MARKETPLACE SEARCH & TOP FILTER HEADER -->
+    <div class="mp-search-header-card">
+        <div class="mp-search-top-row">
+            <div class="mp-search-title-wrap">
+                <h2 class="mp-search-heading"><i class="fa-solid fa-store text-emerald"></i> Vitco Marketplace</h2>
+                <p class="mp-search-subheading">Buy & sell verified dairy cattle, bypass feeds, organic harvests & farm machinery direct from breeders & farmers</p>
+            </div>
+        </div>
+
+        <form action="/marketplace" method="GET" class="mp-search-bar-form" id="mpSearchForm">
+            {% if selected_category and selected_category != 'all' %}
+            <input type="hidden" name="category" value="{{ selected_category }}">
+            {% endif %}
+            {% if selected_animal_type and selected_animal_type != 'all' %}
+            <input type="hidden" name="animal_type" value="{{ selected_animal_type }}">
+            {% endif %}
+
+            <div class="mp-search-input-group">
+                <i class="fa-solid fa-magnifying-glass mp-input-icon"></i>
+                <input 
+                    type="text" 
+                    name="query" 
+                    id="mpMainSearchInput"
+                    class="mp-search-field" 
+                    placeholder="Search cows, Murrah buffaloes, dairy feeds, silage, machinery..." 
+                    value="{{ search_query or '' }}"
+                    oninput="liveFilterMarketplace(this.value)"
+                    autocomplete="off"
+                >
+                {% if search_query %}
+                <a href="/marketplace?{% if selected_category and selected_category != 'all' %}category={{ selected_category }}&{% endif %}{% if selected_animal_type and selected_animal_type != 'all' %}animal_type={{ selected_animal_type }}&{% endif %}sort_by={{ sort_by }}" class="mp-search-clear" title="Clear search">
+                    <i class="fa-solid fa-xmark"></i>
+                </a>
+                {% endif %}
+            </div>
+
+            <div class="mp-search-sort-group">
+                <i class="fa-solid fa-arrow-down-short-wide mp-sort-icon"></i>
+                <select name="sort_by" class="mp-sort-dropdown" onchange="this.form.submit()">
+                    <option value="default" {% if sort_by == 'default' or not sort_by %}selected{% endif %}>Sort: Default</option>
+                    <option value="price_low" {% if sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_high" {% if sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                </select>
+            </div>
+
+            <button type="submit" class="mp-search-btn">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <span>Search</span>
+            </button>
+        </form>
+
+        {% if search_query or (selected_category and selected_category != 'all') or (selected_animal_type and selected_animal_type != 'all') %}
+        <div class="mp-active-filters">
+            <span class="mp-filter-label"><i class="fa-solid fa-filter text-emerald"></i> Active Filters:</span>
+            {% if search_query %}
+            <span class="mp-filter-tag">
+                Query: "<strong>{{ search_query }}</strong>"
+                <a href="/marketplace?{% if selected_category and selected_category != 'all' %}category={{ selected_category }}&{% endif %}{% if selected_animal_type and selected_animal_type != 'all' %}animal_type={{ selected_animal_type }}&{% endif %}sort_by={{ sort_by }}" class="mp-tag-close" title="Remove search"><i class="fa-solid fa-xmark"></i></a>
+            </span>
+            {% endif %}
+            {% if selected_category and selected_category != 'all' %}
+            <span class="mp-filter-tag">
+                Category: <strong>{{ selected_category }}</strong>
+                <a href="/marketplace?{% if search_query %}query={{ search_query }}&{% endif %}{% if selected_animal_type and selected_animal_type != 'all' %}animal_type={{ selected_animal_type }}&{% endif %}sort_by={{ sort_by }}" class="mp-tag-close" title="Remove category"><i class="fa-solid fa-xmark"></i></a>
+            </span>
+            {% endif %}
+            {% if selected_animal_type and selected_animal_type != 'all' %}
+            <span class="mp-filter-tag">
+                Animal: <strong>{{ selected_animal_type }}</strong>
+                <a href="/marketplace?{% if search_query %}query={{ search_query }}&{% endif %}{% if selected_category and selected_category != 'all' %}category={{ selected_category }}&{% endif %}sort_by={{ sort_by }}" class="mp-tag-close" title="Remove animal type"><i class="fa-solid fa-xmark"></i></a>
+            </span>
+            {% endif %}
+
+            <a href="/marketplace" class="mp-clear-all-btn"><i class="fa-solid fa-rotate-left"></i> Reset All Filters</a>
+        </div>
+        {% endif %}
+    </div>
+    {% if not search_query %}
+    <!-- HERO BANNER CAROUSEL -->
+    {% if banners %}
+    <div class="mp-hero-carousel-wrapper">
+        <div class="mp-banner-slides-container">
+            {% for banner in banners %}
+            <div class="mp-hero-slide {% if loop.first %}active{% endif %}" 
+                 style="--bg-color: {% if banner.bg_gradient and ('linear-gradient' not in banner.bg_gradient) %}{{ banner.bg_gradient }}{% else %}#4a1e08{% endif %};">
+                {% if banner.image or banner.image_url %}
+                <div class="mp-hero-slide-bg-img" style="background-image: url('{{ banner.image or banner.image_url }}');"></div>
+                {% endif %}
+                <div class="mp-hero-color-overlay"></div>
+                <div class="mp-hero-slide-content">
+                    <div class="mp-hero-pill-badge">
+                        <span class="mp-badge-pulse-dot"></span>
+                        <span>{{ banner.badge or 'PASHU BAZAAR' }}</span>
+                    </div>
+                    <h1 class="mp-hero-slide-title">{{ banner.title }}</h1>
+                    <p class="mp-hero-slide-sub">{{ banner.subtitle }}</p>
+                    <a href="{{ banner.cta_target_url or '#catalog-section' }}" class="mp-hero-slide-cta">
+                        <span>{{ banner.cta_text or 'Explore Cattle Bazaar' }}</span>
+                        <i class="fa-solid fa-arrow-right mp-cta-arrow"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Auto-Play Progress Bar -->
+        {% if banners|length > 1 %}
+        <div class="mp-banner-progress-track">
+            <div class="mp-banner-progress-bar" id="bannerProgressBar"></div>
+        </div>
+        {% endif %}
+
+        <!-- Floating Glass Controls -->
+        {% if banners|length > 1 %}
+        <div class="mp-carousel-controls">
+            <span class="mp-carousel-counter">
+                <strong id="slideCurrentNum">01</strong> / {{ "%02d"|format(banners|length) }}
+            </span>
+            <div class="mp-carousel-dots">
+                {% for b in banners %}
+                <span class="mp-carousel-dot {% if loop.first %}active{% endif %}" onclick="goToBannerSlide({{ loop.index0 }})"></span>
+                {% endfor %}
+            </div>
+            <div class="mp-carousel-arrows">
+                <button type="button" class="mp-carousel-arrow-btn" onclick="prevBannerSlide()" title="Previous slide">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button type="button" class="mp-carousel-arrow-btn" onclick="nextBannerSlide()" title="Next slide">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- TRENDING TAGS STRIP -->
+    <div class="mp-trending-bar">
+        <span class="mp-trending-label"><i class="fa-solid fa-fire text-amber"></i> Trending:</span>
+        <div class="mp-trending-tags">
+            {% for tag in trending_tags %}
+            <a href="{{ tag.url_path }}" class="mp-trending-pill">
+                {{ tag.title or tag.label }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- BROWSE CATEGORIES CARDS -->
+    <div class="mp-section" id="categories-section">
+        <div class="mp-section-head">
+            <div>
+                <h3 class="mp-section-title"><i class="fa-solid fa-layer-group text-emerald"></i> Explore Categories</h3>
+                <p class="mp-section-sub">Browse verified agricultural feeds, dairy machinery, organic produce & livestock</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="mp-cat-badge-count">{{ categories|length }} Categories</span>
+                {% if selected_category and selected_category != 'all' %}
+                <a href="/marketplace" class="mp-cat-clear-btn" title="Clear filter">
+                    <i class="fa-solid fa-xmark"></i> Clear Filter
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mp-categories-grid">
+            {% for cat in categories %}
+            {% set is_active = (selected_category == cat.slug or selected_category == (cat.id|string)) %}
+            <a href="/marketplace?category={{ cat.slug or cat.id }}" class="mp-cat-card {% if is_active %}active{% endif %}" style="--cat-color: {{ cat.color or '#059669' }};">
+                <div class="mp-cat-icon">
+                    {% if cat.icon and (cat.icon.startswith('http') or cat.icon.startswith('/') or 'media' in cat.icon or 'static' in cat.icon or '.' in cat.icon) %}
+                        <img src="{{ cat.icon }}" alt="{{ cat.name or cat.title }}">
+                    {% else %}
+                        <i class="{{ cat.icon or 'fa-solid fa-layer-group' }}"></i>
+                    {% endif %}
+                </div>
+                <div class="mp-cat-info">
+                    <div class="mp-cat-title">{{ cat.name or cat.title }}</div>
+                    {% if cat.description or cat.subtitle %}
+                    <div class="mp-cat-sub">{{ cat.description or cat.subtitle }}</div>
+                    {% endif %}
+                </div>
+                <i class="fa-solid fa-chevron-right mp-cat-arrow"></i>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- CATTLE ANIMALS SECTION -->
+    <div class="mp-section" id="animals-section">
+        <!-- <div class="mp-section-head">
+            <div>
+                <h3 class="mp-section-title"><i class="fa-solid fa-cow text-purple"></i> Cattle Livestock Bazaar</h3>
+                <p class="mp-section-sub">Direct farmer-to-farmer verified dairy cows, Murrah buffaloes & goats.</p>
+            </div>
+            <div class="mp-type-filter">
+                <a href="/marketplace?animal_type=all" class="mp-filter-btn {% if selected_animal_type == 'all' %}active{% endif %}">All</a>
+                {% for at in animal_types %}
+                <a href="/marketplace?animal_type={{ at.value }}" class="mp-filter-btn {% if selected_animal_type == at.value %}active{% endif %}">
+                    {{ at.value }}
+                </a>
+                {% endfor %}
+            </div>
+        </div> -->
+
+        <div class="mp-cards-grid">
+            {% for anim in animals %}
+            <div class="pashu-card" onclick="window.location.href='/marketplace/detail/animal/{{ anim.id }}'">
+                <!-- Top Image Wrap with Overlays -->
+                <div class="pashu-card-img-wrap">
+                    <img src="{{ anim.image }}" alt="{{ anim.title }}" class="pashu-card-img">
+                    
+                    <!-- Animal Type Overlay Top Left -->
+                    <div class="pashu-type-badge">
+                        <i class="fa-solid fa-cow"></i> {{ (anim.type or 'Cow')|upper }}
+                    </div>
+
+                    <!-- Milk Yield Overlay Top Right -->
+                    <div class="pashu-milk-badge">
+                        <i class="fa-solid fa-bottle-droplet"></i> {{ anim.milk_yield_liters or '14.5' }} Ltr / Day
+                    </div>
+                    
+                    <!-- PashuAssured Badge Bottom Right -->
+                    <div class="pashu-assured-badge">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span class="pashu-assured-text">Pashu<em>Assured</em></span>
+                    </div>
+                </div>
+
+                <!-- Card Body -->
+                <div class="pashu-card-body">
+                    <!-- Pill Badges Row -->
+                    <div class="pashu-pills-row">
+                        <div class="pashu-pill pashu-pill-purple">
+                            <i class="fa-solid fa-cow"></i> {{ anim.type or 'Cow' }}
+                        </div>
+                        <div class="pashu-pill pashu-pill-green">
+                            <i class="fa-solid fa-hourglass-half"></i> {{ anim.breed or 'Desi Breed' }}
+                        </div>
+                        <div class="pashu-pill pashu-pill-blue">
+                            <i class="fa-solid fa-rotate"></i> {{ anim.lactation or '1st Lactation' }}
+                        </div>
+                        <div class="pashu-pill pashu-pill-rating">
+                            4.9 <i class="fa-solid fa-star"></i>
+                        </div>
+                    </div>
+
+                    <!-- Title -->
+                    <h4 class="pashu-card-title">{{ anim.title }}</h4>
+
+                    <!-- Specs Box (Age & Status) -->
+                    <div class="pashu-specs-box">
+                        <div class="pashu-spec-col">
+                            <span class="pashu-spec-label">AGE</span>
+                            <span class="pashu-spec-val">{{ (anim.age_months / 12)|round(1) }} Years</span>
+                        </div>
+                        <div class="pashu-spec-col">
+                            <span class="pashu-spec-label">STATUS</span>
+                            <span class="pashu-spec-val">Freshly Milking (Non-Pregnant)</span>
+                        </div>
+                    </div>
+
+                    <!-- Price & Location Row -->
+                    <div class="pashu-price-row">
+                        <div class="pashu-price-wrap">
+                            <span class="pashu-price">₹{{ '%.0f'|format(anim.price) }}</span>
+                            <span class="pashu-old-price">₹{{ '%.0f'|format(anim.price * 1.1) }}</span>
+                            <span class="pashu-discount">8% off</span>
+                        </div>
+                        <div class="pashu-location">
+                            <i class="fa-solid fa-location-dot"></i> {{ anim.location or 'Rohtak, Haryana' }}
+                        </div>
+                    </div>
+
+                    <!-- Seller Info Box -->
+                    <div class="pashu-seller-box">
+                        <div class="pashu-seller-avatar">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div class="pashu-seller-info">
+                            <div class="pashu-seller-name">{{ anim.seller_name or 'Breeder / Farmer' }}</div>
+                            <div class="pashu-seller-role">Dairy Farmer</div>
+                        </div>
+                    </div>
+
+                    <!-- Add to Cart Action -->
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
+                        <button type="button" class="btn-add-cart-sm"
+                                data-id="{{ anim.id }}"
+                                data-kind="animal"
+                                data-title="{{ anim.title or anim.name }}"
+                                data-price="{{ anim.price or 0 }}"
+                                data-image="{{ anim.image }}"
+                                data-unit="{{ anim.type or 'Cattle' }} Listing"
+                                data-seller="{{ anim.seller_name or 'Farmer' }}"
+                                onclick="handleAddToCartClick(event, this)">
+                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+           
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- FARM PRODUCTS SECTION -->
+    <div class="mp-section" id="products-section">
+        <div class="mp-section-head">
+            <div>
+                <h3 class="mp-section-title"><i class="fa-solid fa-boxes-packing text-teal"></i> Farm Products & Feeds</h3>
+                <p class="mp-section-sub">Fresh dairy produce, organic harvests, bypass feeds & silage bales.</p>
+            </div>
+        </div>
+
+        <div class="mp-cards-grid">
+            {% for prod in products %}
+            <div class="prod-card" onclick="window.location.href='/marketplace/detail/product/{{ prod.id }}'">
+                <!-- Top Image Wrap with Overlays -->
+                <div class="prod-card-img-wrap">
+                    <img src="{{ prod.image }}" alt="{{ prod.name or prod.title }}" class="prod-card-img">
+                    
+                    <!-- Top-Left Green Badge Tag -->
+                    <div class="prod-top-badge">
+                        {{ (prod.badge or '100% ORGANIC')|upper }}
+                    </div>
+
+                    <!-- Bottom-Right QuickYeeAssured Badge -->
+                    <div class="prod-assured-badge">
+                        <i class="fa-solid fa-circle-check"></i>
+                        <span class="prod-assured-text">Vitco<em>Assured</em></span>
+                    </div>
+                </div>
+
+                <!-- Card Body -->
+                <div class="prod-card-body">
+                    <!-- Category Tag -->
+                    <div class="prod-category-tag">
+                        <i class="fa-solid fa-tag"></i> {{ prod.category_name or 'Farm Product' }}
+                    </div>
+
+                    <!-- Title -->
+                    <h4 class="prod-card-title">{{ prod.name or prod.title }}</h4>
+
+                    <!-- Rating & Location Row -->
+                    <div class="prod-meta-row">
+                        <div class="prod-rating-wrap">
+                            <span class="prod-rating-pill">4.9 <i class="fa-solid fa-star"></i></span>
+                            <span class="prod-review-count">(65)</span>
+                        </div>
+                        <div class="prod-location">
+                            <i class="fa-solid fa-location-dot"></i> {{ prod.location or 'Ludhiana, Punjab' }}
+                        </div>
+                    </div>
+
+                    <!-- Price & Discount Row -->
+                    <div class="prod-price-row">
+                        <span class="prod-price">₹{{ '%.0f'|format(prod.price or 850) }}</span>
+                        {% if prod.old_price %}
+                        <span class="prod-old-price">₹{{ '%.0f'|format(prod.old_price or 950) }}</span>
+                        <span class="prod-discount">
+                            {{ (((prod.old_price - prod.price) / prod.old_price) * 100)|round|int if (prod.old_price and prod.old_price > prod.price) else 11 }}% off
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Add to Cart Action -->
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
+                        <button type="button" class="btn-add-cart-sm"
+                                data-id="{{ prod.id }}"
+                                data-kind="product"
+                                data-title="{{ prod.name or prod.title }}"
+                                data-price="{{ prod.price or 0 }}"
+                                data-image="{{ prod.image }}"
+                                data-unit="{{ prod.unit or '50 kg Bag' }}"
+                                data-seller="{{ prod.brand_name or 'Vitco Feeds' }}"
+                                onclick="handleAddToCartClick(event, this)">
+                            <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+           
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+.mp-index-page { padding: 24px; background: #f8fafc; min-height: 100vh; }
+.mp-admin-bar { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 10px 18px; border-radius: 10px; display: flex; align-items: center; margin-bottom: 20px; font-weight: 700; font-size: 13px; }
+
+/* MARKETPLACE SEARCH HEADER STYLES */
+.mp-search-header-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+.mp-search-top-row { margin-bottom: 14px; }
+.mp-search-heading {
+    font-size: 22px;
+    font-weight: 900;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    letter-spacing: -0.3px;
+}
+.mp-search-subheading { font-size: 13px; color: #64748b; margin: 0; font-weight: 500; }
+.mp-search-bar-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.mp-search-input-group { position: relative; flex: 1; min-width: 280px; display: flex; align-items: center; }
+.mp-input-icon { position: absolute; left: 16px; color: #94a3b8; font-size: 15px; pointer-events: none; }
+.mp-search-field {
+    width: 100%;
+    height: 48px;
+    padding: 0 42px 0 46px;
+    border-radius: 12px;
+    border: 1.5px solid #cbd5e1;
+    background: #f8fafc;
+    font-size: 14px;
+    font-weight: 500;
+    color: #0f172a;
+    transition: all 0.2s ease;
+}
+.mp-search-field:focus {
+    outline: none;
+    border-color: #10b981;
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+}
+.mp-search-clear {
+    position: absolute;
+    right: 14px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 14px;
+    padding: 4px;
+    transition: color 0.15s ease;
+}
+.mp-search-clear:hover { color: #ef4444; }
+.mp-search-sort-group { position: relative; display: flex; align-items: center; }
+.mp-sort-icon { position: absolute; left: 14px; color: #059669; font-size: 13px; pointer-events: none; }
+.mp-sort-dropdown {
+    height: 48px;
+    padding: 0 16px 0 38px;
+    border-radius: 12px;
+    border: 1.5px solid #cbd5e1;
+    background: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.mp-sort-dropdown:focus, .mp-sort-dropdown:hover { border-color: #10b981; background: #ffffff; }
+.mp-search-btn {
+    height: 48px;
+    padding: 0 24px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: white;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transition: all 0.2s ease;
+}
+.mp-search-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+}
+.mp-active-filters {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.mp-filter-label { font-size: 12px; font-weight: 800; color: #475569; }
+.mp-filter-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+.mp-tag-close { color: #059669; text-decoration: none; font-size: 11px; margin-left: 2px; transition: color 0.15s ease; }
+.mp-tag-close:hover { color: #ef4444; }
+.mp-clear-all-btn { font-size: 12px; font-weight: 700; color: #64748b; text-decoration: none; margin-left: auto; transition: color 0.15s ease; }
+.mp-clear-all-btn:hover { color: #ef4444; }
+.mp-hero-carousel-wrapper {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    background-color: #4a1e08;
+    transition: box-shadow 0.3s ease;
+}
+.mp-banner-slides-container { position: relative; width: 100%; min-height: 310px; }
+.mp-hero-slide { 
+    display: none; 
+    position: relative; 
+    padding: 44px 52px; 
+    min-height: 310px; 
+    align-items: center; 
+    color: white; 
+    border-radius: 24px; 
+    overflow: hidden; 
+    background-color: var(--bg-color, #4a1e08); 
+    border-top: 1px solid rgba(255, 255, 255, 0.15); 
+}
+.mp-hero-slide.active { display: flex; animation: slideFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes slideFadeIn { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
+.mp-hero-slide-content { position: relative; max-width: 600px; z-index: 3; }
+.mp-hero-pill-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); color: #ffffff; padding: 5px 14px; border-radius: 30px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.mp-badge-pulse-dot { width: 7px; height: 7px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: badgePulse 2s infinite; }
+@keyframes badgePulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+.mp-hero-slide-title { font-size: 34px; font-weight: 900; color: #ffffff; margin: 0 0 12px 0; line-height: 1.18; letter-spacing: -0.5px; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.35); }
+.mp-hero-slide-sub { font-size: 14px; color: rgba(255, 255, 255, 0.9); margin: 0 0 26px 0; line-height: 1.55; max-width: 530px; font-weight: 500; }
+.mp-hero-slide-cta { position: relative; display: inline-flex; align-items: center; gap: 10px; background: linear-gradient(135deg, #ff7a18 0%, #e05300 100%); color: #ffffff; font-weight: 800; font-size: 14px; padding: 13px 28px; border-radius: 30px; text-decoration: none; box-shadow: 0 8px 22px rgba(224, 83, 0, 0.45); transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; }
+.mp-hero-slide-cta:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(224, 83, 0, 0.6); background: linear-gradient(135deg, #ff8c32 0%, #ff6200 100%); color: #ffffff; }
+.mp-cta-arrow { transition: transform 0.25s ease; }
+.mp-hero-slide-cta:hover .mp-cta-arrow { transform: translateX(5px); }
+.mp-hero-slide-bg-img {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 65%;
+    height: 100%;
+    background-size: cover;
+    background-position: center right;
+    z-index: 1;
+    transition: transform 0.5s ease;
+}
+.mp-hero-slide:hover .mp-hero-slide-bg-img {
+    transform: scale(1.03);
+}
+.mp-hero-color-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    background: linear-gradient(to right, 
+        var(--bg-color, #4a1e08) 0%, 
+        var(--bg-color, #4a1e08) 40%, 
+        color-mix(in srgb, var(--bg-color, #4a1e08) 85%, transparent) 55%, 
+        color-mix(in srgb, var(--bg-color, #4a1e08) 35%, transparent) 75%, 
+        transparent 100%);
+    pointer-events: none;
+}
+.mp-banner-progress-track { position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: rgba(255, 255, 255, 0.15); z-index: 12; }
+.mp-banner-progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #ff7a18, #ffffff); transition: width 0.1s linear; }
+.mp-carousel-controls { position: absolute; bottom: 20px; right: 24px; display: flex; align-items: center; gap: 14px; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 6px 16px; border-radius: 30px; z-index: 10; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+.mp-carousel-counter { color: rgba(255, 255, 255, 0.85); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+.mp-carousel-counter strong { color: #ffffff; font-size: 13px; font-weight: 900; }
+.mp-carousel-dots { display: flex; align-items: center; gap: 6px; }
+.mp-carousel-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.4); cursor: pointer; transition: all 0.25s ease; }
+.mp-carousel-dot.active { width: 22px; border-radius: 10px; background: #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+.mp-carousel-arrows { display: flex; align-items: center; gap: 6px; margin-left: 4px; }
+.mp-carousel-arrow-btn { width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.3); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; transition: all 0.2s ease; }
+.mp-carousel-arrow-btn:hover { background: rgba(255, 255, 255, 0.4); transform: scale(1.1); }
+.mp-trending-bar { display: flex; align-items: center; gap: 12px; background: white; padding: 12px 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+.mp-trending-label { font-weight: 800; font-size: 13px; color: #0f172a; white-space: nowrap; }
+.mp-trending-tags { display: flex; gap: 8px; overflow-x: auto; }
+.mp-trending-pill { background: #f1f5f9; color: #334155; font-weight: 700; font-size: 12px; padding: 5px 12px; border-radius: 16px; text-decoration: none; white-space: nowrap; transition: all 0.15s ease; }
+.mp-trending-pill:hover { background: #e2e8f0; color: #0f172a; }
+.mp-section { margin-bottom: 32px; }
+.mp-section-title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; }
+.mp-section-sub { color: #64748b; font-size: 13px; margin: 0 0 16px 0; }
+.mp-section-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+.mp-cat-badge-count { background: #ecfdf5; color: #059669; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 20px; border: 1px solid #a7f3d0; }
+.mp-cat-clear-btn { background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-decoration: none; transition: all 0.15s ease; }
+.mp-cat-clear-btn:hover { background: #e2e8f0; color: #0f172a; }
+.mp-categories-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; }
+.mp-cat-card { position: relative; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 7px 10px; text-decoration: none; color: inherit; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); display: flex; align-items: center; gap: 8px; min-height: 46px; box-shadow: 0 1px 3px rgba(0,0,0,0.03); overflow: hidden; }
+.mp-cat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background-color: var(--cat-color, #059669); border-radius: 3px 0 0 3px; transition: width 0.15s ease; }
+.mp-cat-card:hover { transform: translateY(-2px); border-color: var(--cat-color, #059669); box-shadow: 0 8px 18px -4px rgba(0,0,0,0.08); }
+.mp-cat-card:hover::before { width: 4px; }
+.mp-cat-card.active { border-color: var(--cat-color, #059669); background: #f8fafc; box-shadow: 0 0 0 2px var(--cat-color, #059669)30; }
+.mp-cat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--cat-color, #059669); background-color: color-mix(in srgb, var(--cat-color, #059669) 12%, transparent); border: 1px solid color-mix(in srgb, var(--cat-color, #059669) 25%, transparent); transition: transform 0.2s ease; }
+.mp-cat-card:hover .mp-cat-icon { transform: scale(1.08); }
+.mp-cat-icon img { width: 18px; height: 18px; object-fit: contain; }
+.mp-cat-icon i { font-size: 14px; }
+.mp-cat-info { display: flex; flex-direction: column; overflow: hidden; justify-content: center; flex: 1; }
+.mp-cat-title { font-weight: 700; font-size: 12px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
+.mp-cat-sub { font-size: 10px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; margin-top: 1px; }
+.mp-cat-arrow { font-size: 10px; color: #cbd5e1; transition: all 0.2s ease; opacity: 0.5; margin-left: auto; }
+.mp-cat-card:hover .mp-cat-arrow { color: var(--cat-color, #059669); opacity: 1; transform: translateX(2px); }
+.mp-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+.mp-item-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: all 0.15s ease; display: flex; flex-direction: column; }
+.mp-item-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+
+/* PASHU ANIMAL CARD REFERENCE DESIGN STYLES */
+.pashu-card {
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+}
+.pashu-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+.pashu-card-img-wrap {
+    position: relative;
+    width: 100%;
+    height: 205px;
+    background: #0f172a;
+    overflow: hidden;
+}
+.pashu-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.pashu-card:hover .pashu-card-img {
+    transform: scale(1.03);
+}
+
+.pashu-type-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(4px);
+    color: #ffffff;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 2;
+}
+
+.pashu-milk-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #059669;
+    color: #ffffff;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    z-index: 2;
+}
+
+.pashu-assured-badge {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(6px);
+    color: #1e293b;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    z-index: 2;
+}
+.pashu-assured-badge i {
+    color: #2563eb;
+    font-size: 12px;
+}
+.pashu-assured-text em {
+    font-style: italic;
+    color: #2563eb;
+    margin-left: 1px;
+}
+
+.pashu-card-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.pashu-pills-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.pashu-pill {
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    line-height: 1.2;
+}
+.pashu-pill-purple {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+.pashu-pill-green {
+    background: #ecfdf5;
+    color: #047857;
+}
+.pashu-pill-blue {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+.pashu-pill-rating {
+    background: #16a34a;
+    color: #ffffff;
+    margin-left: auto;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-weight: 800;
+    font-size: 12px;
+}
+.pashu-pill-rating i {
+    font-size: 10px;
+}
+
+.pashu-card-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 12px 0;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.pashu-specs-box {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 12px;
+    margin-bottom: 14px;
+    border: 1px solid #f1f5f9;
+}
+.pashu-spec-col {
+    display: flex;
+    flex-direction: column;
+}
+.pashu-spec-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+}
+.pashu-spec-val {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.25;
+}
+
+.pashu-price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.pashu-price-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.pashu-price {
+    font-size: 22px;
+    font-weight: 900;
+    color: #059669;
+}
+.pashu-old-price {
+    font-size: 13px;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+.pashu-discount {
+    font-size: 12px;
+    font-weight: 800;
+    color: #16a34a;
+}
+.pashu-location {
+    font-size: 13px;
+    font-weight: 800;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pashu-seller-box {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #f1f5f9;
+    margin-top: auto;
+}
+.pashu-seller-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #059669;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.pashu-seller-info {
+    display: flex;
+    flex-direction: column;
+}
+.pashu-seller-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+.pashu-seller-role {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* PRODUCT CARD REFERENCE DESIGN STYLES */
+.prod-card {
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+}
+.prod-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+}
+.prod-card-img-wrap {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background: #f1f5f9;
+    overflow: hidden;
+}
+.prod-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+.prod-card:hover .prod-card-img {
+    transform: scale(1.03);
+}
+
+.prod-top-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: #059669;
+    color: #ffffff;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 2;
+}
+
+.prod-assured-badge {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(6px);
+    color: #1e293b;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    z-index: 2;
+}
+.prod-assured-badge i {
+    color: #2563eb;
+    font-size: 12px;
+}
+.prod-assured-text em {
+    font-style: italic;
+    color: #2563eb;
+    margin-left: 1px;
+}
+
+.prod-card-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.prod-category-tag {
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.prod-card-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 12px 0;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.prod-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 8px;
+}
+.prod-rating-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.prod-rating-pill {
+    background: #16a34a;
+    color: #ffffff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 800;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.prod-rating-pill i {
+    font-size: 10px;
+}
+.prod-review-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+}
+.prod-location {
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.prod-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: auto;
+}
+.prod-price {
+    font-size: 24px;
+    font-weight: 900;
+    color: #0f172a;
+}
+.prod-old-price {
+    font-size: 14px;
+    color: #94a3b8;
+    text-decoration: line-through;
+    font-weight: 600;
+}
+.prod-discount {
+    font-size: 13px;
+    font-weight: 700;
+    color: #16a34a;
+}
+
+.mp-card-img-box { position: relative; width: 100%; height: 160px; background: #f1f5f9; }
+.mp-card-img { width: 100%; height: 100%; object-fit: cover; }
+.mp-card-badge { position: absolute; top: 10px; left: 10px; background: rgba(124, 58, 237, 0.9); color: white; font-weight: 800; font-size: 10px; padding: 3px 8px; border-radius: 12px; }
+.mp-card-badge-green { position: absolute; top: 10px; left: 10px; background: rgba(16, 185, 129, 0.9); color: white; font-weight: 800; font-size: 10px; padding: 3px 8px; border-radius: 12px; }
+.mp-card-body { padding: 14px; display: flex; flex-direction: column; flex: 1; }
+.mp-card-title { font-weight: 800; font-size: 14px; color: #0f172a; margin-bottom: 6px; line-height: 1.35; }
+.mp-card-specs { font-size: 12px; color: #64748b; display: flex; gap: 12px; margin-bottom: 12px; }
+.mp-card-seller { font-size: 12px; color: #64748b; margin-bottom: 12px; }
+.mp-card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+.mp-card-price { font-size: 17px; font-weight: 900; color: #059669; }
+.btn-clean-outline-sm { background: white; color: #334155; border: 1px solid #cbd5e1; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 12px; text-decoration: none; }
+.btn-clean-primary-sm { background: #059669; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-weight: 700; font-size: 12px; text-decoration: none; }
+.mp-type-filter { display: flex; gap: 6px; }
+.mp-filter-btn { background: white; border: 1px solid #e2e8f0; padding: 5px 12px; border-radius: 16px; font-size: 12px; font-weight: 700; color: #475569; text-decoration: none; }
+.mp-filter-btn.active { background: #7c3aed; color: white; border-color: #7c3aed; }
+
+/* RESPONSIVE MEDIA QUERIES FOR HERO BANNER & PAGE */
+
+@media (max-width: 992px) {
+    .mp-banner-slides-container { min-height: 260px; }
+    .mp-hero-slide { padding: 36px 36px 48px 36px; min-height: 260px; }
+    .mp-hero-slide-title { font-size: 26px; margin-bottom: 8px; }
+    .mp-hero-slide-sub { font-size: 13px; margin-bottom: 20px; max-width: 440px; }
+    .mp-hero-slide-cta { padding: 10px 22px; font-size: 13px; }
+    .mp-hero-slide-bg-img { width: 70%; }
+}
+
+@media (max-width: 768px) {
+    .mp-index-page { padding: 14px; }
+    .mp-hero-carousel-wrapper { border-radius: 16px; margin-bottom: 20px; }
+    .mp-banner-slides-container { min-height: 240px; }
+    .mp-hero-slide { padding: 26px 22px 54px 22px; min-height: 240px; border-radius: 16px; }
+    
+    .mp-hero-pill-badge { font-size: 10px; padding: 4px 10px; margin-bottom: 10px; }
+    .mp-hero-slide-title { font-size: 22px; margin-bottom: 6px; line-height: 1.25; }
+    .mp-hero-slide-sub { font-size: 12px; margin-bottom: 16px; line-height: 1.45; max-width: 100%; }
+    .mp-hero-slide-cta { padding: 9px 20px; font-size: 12px; gap: 8px; }
+    
+    .mp-hero-slide-bg-img { width: 85%; opacity: 0.85; }
+    
+    .mp-hero-color-overlay {
+        background: linear-gradient(to right, 
+            var(--bg-color, #4a1e08) 0%, 
+            var(--bg-color, #4a1e08) 45%, 
+            color-mix(in srgb, var(--bg-color, #4a1e08) 85%, transparent) 65%, 
+            color-mix(in srgb, var(--bg-color, #4a1e08) 40%, transparent) 85%, 
+            transparent 100%);
+    }
+
+    .mp-carousel-controls { 
+        bottom: 12px; 
+        right: 14px; 
+        padding: 4px 12px; 
+        gap: 10px; 
+    }
+    .mp-carousel-counter { font-size: 10px; }
+    .mp-carousel-counter strong { font-size: 12px; }
+    .mp-carousel-arrow-btn { width: 26px; height: 26px; font-size: 10px; }
+    .mp-carousel-dot { width: 6px; height: 6px; }
+    .mp-carousel-dot.active { width: 16px; }
+    
+    .mp-section-head { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .mp-type-filter { width: 100%; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+    .mp-categories-grid { grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: 6px; }
+    .mp-cat-card { padding: 5px 8px; min-height: 40px; gap: 6px; }
+    .mp-cat-icon { width: 26px; height: 26px; }
+    .mp-cat-title { font-size: 11px; }
+    .mp-cat-sub { font-size: 9px; }
+    .mp-cat-arrow { display: none; }
+    .mp-cards-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .mp-card-img-box { height: 130px; }
+    .mp-card-body { padding: 10px; }
+    .mp-card-title { font-size: 13px; }
+    .mp-card-price { font-size: 15px; }
+}
+
+@media (max-width: 576px) {
+    .mp-banner-slides-container { min-height: 210px; }
+    .mp-hero-slide { padding: 20px 16px 52px 16px; min-height: 210px; }
+    .mp-hero-slide-title { font-size: 19px; line-height: 1.25; letter-spacing: normal; margin-bottom: 4px; }
+    .mp-hero-slide-sub { font-size: 11px; margin-bottom: 14px; line-height: 1.4; opacity: 0.95; }
+    .mp-hero-slide-cta { padding: 8px 16px; font-size: 11px; border-radius: 20px; }
+    .mp-hero-slide-bg-img { width: 100%; opacity: 0.75; }
+    
+    .mp-hero-color-overlay {
+        background: linear-gradient(to right, 
+            var(--bg-color, #4a1e08) 0%, 
+            var(--bg-color, #4a1e08) 50%, 
+            color-mix(in srgb, var(--bg-color, #4a1e08) 90%, transparent) 75%, 
+            color-mix(in srgb, var(--bg-color, #4a1e08) 45%, transparent) 100%);
+    }
+
+    .mp-carousel-controls { 
+        bottom: 10px; 
+        right: 10px; 
+        padding: 3px 10px; 
+        gap: 6px; 
+        background: rgba(0, 0, 0, 0.65);
+    }
+    .mp-carousel-counter { font-size: 9px; }
+    .mp-carousel-counter strong { font-size: 11px; }
+    .mp-carousel-arrow-btn { width: 24px; height: 24px; font-size: 9px; }
+    .mp-carousel-dot { width: 5px; height: 5px; }
+    .mp-carousel-dot.active { width: 14px; }
+    
+    .mp-search-header-card { padding: 14px 16px; border-radius: 14px; margin-bottom: 16px; }
+    .mp-search-heading { font-size: 18px; gap: 8px; }
+    .mp-search-subheading { font-size: 11.5px; }
+    .mp-search-bar-form { flex-direction: column; align-items: stretch; gap: 10px; }
+    .mp-search-input-group { min-width: 100%; }
+    .mp-search-sort-group { width: 100%; }
+    .mp-sort-dropdown { width: 100%; }
+    .mp-search-btn { width: 100%; justify-content: center; }
+    
+    .pashu-card-img-wrap { height: 180px; }
+    .pashu-card-body { padding: 12px; }
+    .pashu-pills-row { gap: 4px; }
+    .pashu-pill { font-size: 10px; padding: 2px 7px; }
+    .pashu-card-title { font-size: 14px; }
+    .pashu-price { font-size: 18px; }
+    .pashu-specs-box { gap: 8px; padding: 6px 10px; }
+    .pashu-spec-label { font-size: 9px; }
+    .pashu-spec-val { font-size: 11px; }
+
+    .prod-card-img-wrap { height: 170px; }
+    .prod-card-body { padding: 12px; }
+    .prod-card-title { font-size: 14px; }
+    .prod-price { font-size: 20px; }
+
+    .mp-categories-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    .mp-cards-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .mp-trending-bar { padding: 8px 12px; flex-wrap: wrap; }
+    .mp-trending-label { font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+    .mp-index-page { padding: 10px; }
+    .mp-cards-grid { grid-template-columns: 1fr; gap: 14px; }
+    .mp-categories-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .mp-banner-slides-container { min-height: 195px; }
+    .mp-hero-slide { padding: 16px 12px 48px 12px; min-height: 195px; }
+    .mp-hero-pill-badge { font-size: 9px; padding: 3px 8px; margin-bottom: 6px; }
+    .mp-badge-pulse-dot { width: 5px; height: 5px; }
+    .mp-hero-slide-title { font-size: 17px; margin-bottom: 4px; }
+    .mp-hero-slide-sub { font-size: 10.5px; margin-bottom: 12px; }
+    .mp-hero-slide-cta { padding: 7px 14px; font-size: 10.5px; }
+    .mp-carousel-controls { right: 8px; bottom: 8px; gap: 5px; padding: 2px 8px; }
+}
+</style>
+
+<script>
+let currentSlide = 0;
+const slides = document.querySelectorAll('.mp-hero-slide');
+const dots = document.querySelectorAll('.mp-carousel-dot');
+const numDisplay = document.getElementById('slideCurrentNum');
+const progressBar = document.getElementById('bannerProgressBar');
+let progressInterval = null;
+let progressVal = 0;
+const SLIDE_DURATION = 6000; // 6 seconds per slide
+
+function resetProgressBar() {
+    progressVal = 0;
+    if (progressBar) progressBar.style.width = '0%';
+}
+
+function startProgressBar() {
+    if (slides.length <= 1 || !progressBar) return;
+    clearInterval(progressInterval);
+    resetProgressBar();
+    const stepTime = 100;
+    const increment = (stepTime / SLIDE_DURATION) * 100;
+    progressInterval = setInterval(() => {
+        progressVal += increment;
+        if (progressVal >= 100) {
+            progressVal = 100;
+            progressBar.style.width = '100%';
+            clearInterval(progressInterval);
+            nextBannerSlide();
+        } else {
+            progressBar.style.width = progressVal + '%';
+        }
+    }, stepTime);
+}
+
+function showSlide(index) {
+    if (!slides.length) return;
+    if (index >= slides.length) currentSlide = 0;
+    else if (index < 0) currentSlide = slides.length - 1;
+    else currentSlide = index;
+
+    slides.forEach((s, idx) => {
+        s.classList.toggle('active', idx === currentSlide);
+    });
+    dots.forEach((d, idx) => {
+        d.classList.toggle('active', idx === currentSlide);
+    });
+    if (numDisplay) {
+        numDisplay.textContent = String(currentSlide + 1).padStart(2, '0');
+    }
+    startProgressBar();
+}
+
+function nextBannerSlide() {
+    showSlide(currentSlide + 1);
+}
+
+function prevBannerSlide() {
+    showSlide(currentSlide - 1);
+}
+
+function goToBannerSlide(index) {
+    showSlide(index);
+}
+
+// Instant Live Client-side Search Filter
+function liveFilterMarketplace(term) {
+    const val = (term || '').trim().toLowerCase();
+    const heroWrapper = document.querySelector('.mp-hero-carousel-wrapper');
+    const trendingBar = document.querySelector('.mp-trending-bar');
+    const categoriesSection = document.getElementById('categories-section');
+
+    if (val.length > 0) {
+        if (heroWrapper) heroWrapper.style.display = 'none';
+        if (trendingBar) trendingBar.style.display = 'none';
+        if (categoriesSection) categoriesSection.style.display = 'none';
+    } else {
+        if (heroWrapper) heroWrapper.style.display = 'block';
+        if (trendingBar) trendingBar.style.display = 'flex';
+        if (categoriesSection) categoriesSection.style.display = 'block';
+    }
+
+    const animalCards = document.querySelectorAll('.pashu-card');
+    const prodCards = document.querySelectorAll('.prod-card');
+
+    animalCards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (!val || text.includes(val)) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    prodCards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (!val || text.includes(val)) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// Initializing
+if (slides.length > 0) {
+    showSlide(0);
+}
+</script>
+{% endblock %}

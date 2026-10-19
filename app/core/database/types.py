@@ -9,10 +9,39 @@ Python 3.13+
 
 from __future__ import annotations
 
+import uuid
+
+from sqlalchemy import String
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, NewType
+from uuid import UUID
+from sqlalchemy.types import (
+    TypeDecorator,
+)
+
+__all__ = (
+    "GUID",
+)
+
+RequestId = NewType("RequestId", UUID)
+
+TraceId = NewType("TraceId", UUID)
+
+SpanId = NewType("SpanId", UUID)
+
+CorrelationId = NewType("CorrelationId", UUID)
+
+TransactionId = NewType("TransactionId", UUID)
+
+SessionId = NewType("SessionId", UUID)
+
+QueryId = NewType("QueryId", UUID)
+
+TenantId = NewType("TenantId", UUID)
+
+ConnectionId = NewType("ConnectionId", UUID)
 
 
 # ==========================================================
@@ -194,3 +223,71 @@ class RetryInformation:
     delay: float
 
     last_exception: str | None = None
+
+
+
+class GUID(
+    TypeDecorator,
+):
+    """
+    Platform independent UUID type.
+
+    Supports:
+
+    PostgreSQL:
+        UUID
+
+    SQLite/MySQL:
+        CHAR(36)
+    """
+
+
+    impl = String(36)
+
+
+    cache_ok = True
+
+
+    # ---------------------------------------------------------
+
+    def process_bind_param(
+        self,
+        value: uuid.UUID | str | None,
+        dialect: Any,
+    ) -> str | None:
+
+        if value is None:
+
+            return None
+
+
+        if isinstance(
+            value,
+            uuid.UUID,
+        ):
+
+            return str(value)
+
+
+        return str(
+            uuid.UUID(value)
+        )
+
+
+    # ---------------------------------------------------------
+
+    def process_result_value(
+        self,
+        value: str | None,
+        dialect: Any,
+    ) -> uuid.UUID | None:
+
+
+        if value is None:
+
+            return None
+
+
+        return uuid.UUID(
+            value
+        )

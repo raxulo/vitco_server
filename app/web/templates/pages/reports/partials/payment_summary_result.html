@@ -1,0 +1,187 @@
+{# MCC Payment Summary — on-screen result (one row per VLCC) #}
+{% set metadata = result.metadata %}
+{% set rows = result.rows or [] %}
+{% set f = result.footer or {} %}
+
+{% macro num(v, digits=2) -%}{{ ("%." ~ digits ~ "f")|format((v or 0)|float) }}{%- endmacro %}
+
+<div class="ps-card">
+    <style>
+        .ps-card { width: 100%; padding: 28px; background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.03); box-sizing: border-box; }
+        .ps-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+        .ps-badge { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 6px; }
+        .ps-title { margin: 10px 0 4px; font-size: 22px; font-weight: 800; color: #0f172a; }
+        .ps-sub { margin: 0; font-size: 13px; color: #64748b; }
+        .ps-meta-val { font-size: 14px; font-weight: 700; color: #1e293b; }
+        .ps-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .ps-kpi { padding: 16px 18px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+        .ps-kpi-label { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #64748b; display: flex; align-items: center; gap: 6px; }
+        .ps-kpi-val { margin-top: 8px; font-size: 22px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
+        .ps-kpi-note { margin-top: 4px; font-size: 12px; color: #64748b; }
+        .ps-kpi.net { background: linear-gradient(135deg, #f0fdf4, #ffffff); border-color: #bbf7d0; }
+        .ps-kpi.net .ps-kpi-val { color: #15803d; }
+        .ps-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+        .ps-search { position: relative; flex: 0 1 300px; }
+        .ps-search input { width: 100%; box-sizing: border-box; padding: 9px 12px 9px 34px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; color: #1e293b; }
+        .ps-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; }
+        .ps-count { font-size: 12px; color: #64748b; font-weight: 600; }
+        .ps-table-wrap { width: 100%; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .ps-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1350px; font-variant-numeric: tabular-nums; }
+        .ps-table th, .ps-table td { padding: 10px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid #f1f5f9; }
+        .ps-table .l { text-align: left; }
+        .ps-table thead tr.ps-group th { font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; text-align: center; padding: 8px 12px; }
+        .ps-table thead tr.ps-cols th { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; background: #f8fafc; }
+        .ps-g-vlcc { background: #f1f5f9; color: #334155; }
+        .ps-g-bank { background: #eef2ff; color: #4338ca; }
+        .ps-g-milk { background: #eff6ff; color: #1d4ed8; }
+        .ps-g-pay { background: #ecfdf5; color: #047857; }
+        .ps-sep { border-left: 2px solid #e2e8f0 !important; }
+        .ps-table tbody tr:hover td { background: #f8fafc; }
+        .ps-code { font-weight: 800; color: #0f172a; }
+        .ps-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: #334155; }
+        .ps-muted { color: #94a3b8; }
+        .ps-net { font-weight: 800; color: #15803d; }
+        .ps-table tfoot td { font-weight: 800; background: #f1f5f9; border-top: 2px solid #cbd5e1; color: #0f172a; }
+        .ps-empty { text-align: center; padding: 56px 16px; color: #64748b; }
+        @media (max-width: 640px) { .ps-card { padding: 16px; } .ps-title { font-size: 18px; } .ps-kpi-val { font-size: 18px; } .ps-search { flex-basis: 100%; } }
+    </style>
+
+    <!-- Header -->
+    <div class="ps-head">
+        <div>
+            <span class="ps-badge"><i class="fa-solid fa-wallet"></i> Payment</span>
+            <h3 class="ps-title">{{ metadata.report_name or 'MCC Payment Summary' }}</h3>
+            <p class="ps-sub">
+                {{ metadata.start_date }}{% if metadata.start_shift %} ({{ metadata.start_shift }}){% endif %}
+                {% if metadata.end_date %} → {{ metadata.end_date }}{% if metadata.end_shift %} ({{ metadata.end_shift }}){% endif %}{% endif %}
+            </p>
+        </div>
+        <div style="text-align: right;">
+            <div class="ps-meta-val">{{ metadata.name }}{% if metadata.code %} ({{ metadata.code }}){% endif %}</div>
+            {% if metadata.address and metadata.address != '—' %}
+            <div class="ps-sub"><i class="fa-solid fa-location-dot"></i> {{ metadata.address }}</div>
+            {% endif %}
+            <div class="ps-sub">Generated at {{ metadata.time }}</div>
+        </div>
+    </div>
+
+    {% if rows %}
+    <!-- KPI cards -->
+    <div class="ps-kpis">
+        <div class="ps-kpi">
+            <div class="ps-kpi-label"><i class="fa-solid fa-store" style="color:#475569;"></i> VLCCs</div>
+            <div class="ps-kpi-val">{{ f.total_vlcc }}</div>
+            <div class="ps-kpi-note">with collection in period</div>
+        </div>
+        <div class="ps-kpi">
+            <div class="ps-kpi-label"><i class="fa-solid fa-droplet" style="color:#2563eb;"></i> Quantity</div>
+            <div class="ps-kpi-val">{{ num(f.total_quantity) }} <span style="font-size:13px;color:#64748b;">Ltr</span></div>
+            <div class="ps-kpi-note">FAT {{ num(f.average_fat) }} · SNF {{ num(f.average_snf) }}</div>
+        </div>
+        <div class="ps-kpi">
+            <div class="ps-kpi-label"><i class="fa-solid fa-indian-rupee-sign" style="color:#2563eb;"></i> Milk Amount</div>
+            <div class="ps-kpi-val">₹{{ num(f.total_amount) }}</div>
+            <div class="ps-kpi-note">Avg rate ₹{{ num(f.average_rate) }}</div>
+        </div>
+        <div class="ps-kpi">
+            <div class="ps-kpi-label"><i class="fa-solid fa-hand-holding-dollar" style="color:#7c3aed;"></i> Society Commission</div>
+            <div class="ps-kpi-val">₹{{ num(f.total_soc_value) }}</div>
+            <div class="ps-kpi-note">Deductions ₹{{ num((f.total_ded_advance or 0) + (f.total_ded_fg or 0)) }}</div>
+        </div>
+        <div class="ps-kpi net">
+            <div class="ps-kpi-label"><i class="fa-solid fa-circle-check" style="color:#15803d;"></i> Net Payable</div>
+            <div class="ps-kpi-val">₹{{ num(f.total_net_amount) }}</div>
+            <div class="ps-kpi-note">Amount + Soc. Value</div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="ps-toolbar">
+        <div class="ps-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="search" id="ps-search" placeholder="Search VLCC code, name, A/C no…" autocomplete="off">
+        </div>
+        <span class="ps-count" id="ps-count">{{ rows|length }} VLCC(s)</span>
+    </div>
+
+    <!-- Table -->
+    <div class="ps-table-wrap">
+        <table class="ps-table">
+            <thead>
+                <tr class="ps-group">
+                    <th colspan="3" class="ps-g-vlcc">VLCC</th>
+                    <th colspan="2" class="ps-g-bank ps-sep">Bank</th>
+                    <th colspan="4" class="ps-g-milk ps-sep">Milk</th>
+                    <th colspan="6" class="ps-g-pay ps-sep">Payment</th>
+                </tr>
+                <tr class="ps-cols">
+                    {% for h in result.header %}
+                    <th class="{{ 'l' if loop.index <= 5 else '' }}{{ ' ps-sep' if loop.index in [4, 6, 10] else '' }}">{{ h }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="ps-body">
+                {% for r in rows %}
+                <tr data-search="{{ (r.vlcc_code ~ ' ' ~ r.uic_code ~ ' ' ~ r.vlcc_name ~ ' ' ~ r.account_number ~ ' ' ~ r.ifsc_code)|lower }}">
+                    <td class="l ps-code">{{ r.vlcc_code }}</td>
+                    <td class="l ps-mono">{{ r.uic_code }}</td>
+                    <td class="l">{{ r.vlcc_name }}</td>
+                    <td class="l ps-sep ps-mono {{ 'ps-muted' if r.account_number == '—' else '' }}">{{ r.account_number }}</td>
+                    <td class="l ps-mono {{ 'ps-muted' if r.ifsc_code == '—' else '' }}">{{ r.ifsc_code }}</td>
+                    <td class="ps-sep">{{ r.quantity }}</td>
+                    <td>{{ r.fat }}</td>
+                    <td>{{ num(r.snf) }}</td>
+                    <td>{{ num(r.rate) }}</td>
+                    <td class="ps-sep">{{ num(r.amount) }}</td>
+                    <td class="ps-muted">{{ num(r.round_diff) }}</td>
+                    <td>{{ num(r.soc_value) }}</td>
+                    <td class="ps-muted">{{ num(r.ded_advance) }}</td>
+                    <td class="ps-muted">{{ num(r.ded_fg) }}</td>
+                    <td class="ps-net">{{ num(r.net_amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td class="l" colspan="5">Total ({{ f.total_vlcc }} VLCC)</td>
+                    <td class="ps-sep">{{ num(f.total_quantity) }}</td>
+                    <td>{{ num(f.average_fat) }}</td>
+                    <td>{{ num(f.average_snf) }}</td>
+                    <td>{{ num(f.average_rate) }}</td>
+                    <td class="ps-sep">{{ num(f.total_amount) }}</td>
+                    <td>{{ num(f.total_round_diff) }}</td>
+                    <td>{{ num(f.total_soc_value) }}</td>
+                    <td>{{ num(f.total_ded_advance) }}</td>
+                    <td>{{ num(f.total_ded_fg) }}</td>
+                    <td class="ps-net">{{ num(f.total_net_amount) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <p class="ps-sub" style="margin-top: 12px;">Soc. Value = Amount × Soc% / 100 · Net Amount = Amount + Soc. Value · Fat / SNF are quantity-weighted averages · * = manual quantity / fat entry</p>
+
+    <script>
+        (function () {
+            var input = document.getElementById('ps-search');
+            var count = document.getElementById('ps-count');
+            if (!input) return;
+            input.addEventListener('input', function () {
+                var q = input.value.trim().toLowerCase();
+                var shown = 0;
+                document.querySelectorAll('#ps-body tr').forEach(function (tr) {
+                    var hit = !q || tr.getAttribute('data-search').indexOf(q) !== -1;
+                    tr.style.display = hit ? '' : 'none';
+                    if (hit) shown++;
+                });
+                count.textContent = shown + ' VLCC(s)';
+            });
+        })();
+    </script>
+    {% else %}
+    <div class="ps-empty">
+        <i class="fa-regular fa-folder-open" style="font-size: 32px; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
+        <div style="font-weight: 700; color: #475569;">No collections found</div>
+        <div style="font-size: 13px; margin-top: 4px;">Try a different date range, shift or milk type.</div>
+    </div>
+    {% endif %}
+</div>

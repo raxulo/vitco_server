@@ -1,0 +1,48 @@
+<!-- Left: Available Charts Pool -->
+<div class="info-card" style="background:white; border-radius:8px; border:1px solid #e2e8f0; padding:20px; min-height:400px; display:flex; flex-direction:column;">
+    <div class="box-header" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:15px; font-weight:700; color:#1e293b;">
+            <i class="fa-solid fa-layer-group" style="color:#2563eb; margin-right:6px; font-size:13px;"></i> Available Charts
+        </div>
+        <span class="count-pill" id="pool-count" style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700;">{{ pool_charts|length }}</span>
+    </div>
+    <div class="drag-box" id="pool-box" ondragover="onDragOver(event)" ondragleave="onDragLeave('pool-box')" ondrop="onDrop(event, 'pool-box')" style="border:2px dashed #cbd5e1; border-radius:8px; padding:15px; flex:1; display:flex; flex-direction:column; gap:10px; background:#f8fafc; min-height:300px;">
+        {% for chart in pool_charts %}
+        <div class="chart-item" id="chart-{{ chart.id }}" data-id="{{ chart.id }}" draggable="true" ondragstart="onDragStart(event)" style="background:white; padding:12px; border-radius:8px; border:1px solid #cbd5e1; display:flex; align-items:center; gap:10px; cursor:grab;">
+            <i class="fa-solid fa-grip-vertical grip" style="color:#94a3b8; cursor:grab;"></i>
+            <span class="name" style="font-size:13px; font-weight:600; color:#1e293b;">{{ chart.chart_name }}</span>
+        </div>
+        {% endfor %}
+        <div class="empty-state" id="pool-empty" style="padding:40px; text-align:center; color:#94a3b8; margin:auto; {{ 'display:none;' if pool_charts|length > 0 else '' }}">
+            <i class="fa-solid fa-inbox" style="font-size:36px; margin-bottom:10px; display:block;"></i>
+            <div class="title" style="font-weight:600;">No available charts</div>
+        </div>
+    </div>
+</div>
+
+<!-- Right: Assigned Charts -->
+<div class="info-card" style="background:white; border-radius:8px; border:1px solid #e2e8f0; padding:20px; min-height:400px; display:flex; flex-direction:column;">
+    <div class="box-header" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:15px; font-weight:700; color:#1e293b;">
+            <i class="fa-solid fa-check-double" style="color:#10b981; margin-right:6px; font-size:13px;"></i> Assigned Charts
+        </div>
+        <span class="count-pill" id="assigned-count" style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700;">{{ assigned_charts|length }}</span>
+    </div>
+    <div class="drag-box" id="assigned-box" ondragover="onDragOver(event)" ondragleave="onDragLeave('assigned-box')" ondrop="onDrop(event, 'assigned-box')" style="border:2px dashed #cbd5e1; border-radius:8px; padding:15px; flex:1; display:flex; flex-direction:column; gap:10px; background:#f8fafc; min-height:300px;">
+        {% for chart in assigned_charts %}
+        <div class="chart-item" id="chart-{{ chart.id }}" data-id="{{ chart.id }}" draggable="true" ondragstart="onDragStart(event)" style="background:white; padding:12px; border-radius:8px; border:1px solid #cbd5e1; display:flex; align-items:center; gap:10px; cursor:grab;">
+            <i class="fa-solid fa-grip-vertical grip" style="color:#94a3b8; cursor:grab;"></i>
+            <span class="type-chip" style="background:#f1f5f9; color:#475569; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700;">{{ loop.index }}</span>
+            <span class="name" style="font-size:13px; font-weight:600; color:#1e293b;">{{ chart.chart_name }}</span>
+        </div>
+        {% endfor %}
+        <div class="empty-state" id="assigned-empty" style="padding:40px; text-align:center; color:#94a3b8; margin:auto; {{ 'display:none;' if assigned_charts|length > 0 else '' }}">
+            <i class="fa-solid fa-clipboard-list" style="font-size:36px; margin-bottom:10px; display:block;"></i>
+            <div class="title" style="font-weight:600;">No charts assigned yet</div>
+        </div>
+    </div>
+
+    <button onclick="saveAssignments()" class="btn btn-primary" style="width:100%; margin-top:16px; background:#2563eb; color:white; border:none; padding:12px; border-radius:8px; font-weight:600; cursor:pointer;">
+        <i class="fa-solid fa-check"></i> Save Assignments
+    </button>
+</div>

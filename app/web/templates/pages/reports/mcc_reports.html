@@ -1,0 +1,444 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}MCC Reports - VITCO{% endblock %}
+
+{% block content %}
+<div class="mcc-container animate-fadeIn" style="width: 100%; box-sizing: border-box; padding: 20px;">
+    <!-- Page Header -->
+    <div class="mcc-header" style="margin-bottom: 24px;">
+        <h2 style="font-size: 24px; font-weight: 700; color: #1e293b; margin: 0;">MCC Reports</h2>
+        <p style="color: #64748b; font-size: 14px; margin: 4px 0 0 0;">Generate and analyze shift, quality, and billing reports for MCCs.</p>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="filter-card" style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px; width: 100%; box-sizing: border-box;">
+        <form id="report-filter-form" hx-post="/mcc-reports/generate" hx-target="#report-result-container" hx-indicator="#loading-indicator" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; align-items: end; width: 100%;">
+            <!-- Select MCC -->
+            <div>
+                <label for="mcc_id" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Select MCC</label>
+                <select name="mcc_id" id="mcc_id" hx-get="/mcc-reports/mcc-type-reports" hx-target="#report_type" hx-swap="outerHTML" 
+                 hx-trigger="change" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
+                    {% for mcc in mccs %}
+                    <option value="{{ mcc.id }}">{{ mcc.name }} ({{ mcc.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Report Type (HTMX dynamic dropdown) -->
+            <div>
+                <label for="report_type" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Report Type</label>
+                {% include "pages/reports/partials/report_options.html" %}
+            </div>
+
+            <!-- Select VLCC (Milk Bill Comparison only) -->
+            <div id="vlcc-container" style="display: none;">
+                <label for="vlcc_id" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Select VLCC <span style="color: #dc2626;">*</span></label>
+                <select name="vlcc_id" id="vlcc_id" disabled style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
+                    <option value="">— Select VLCC —</option>
+                    {% for vlcc in vlccs %}
+                    <option value="{{ vlcc.id }}">{{ vlcc.vlcc_code }} - {{ vlcc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Start Date -->
+            <div id="start-date-container">
+                <label for="start_date" id="start-date-label" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Start Date</label>
+                <input type="date" name="start_date" id="start_date" value="{{ today }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
+            <!-- End Date -->
+            <div id="end-date-container">
+                <label for="end_date" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">End Date</label>
+                <input type="date" name="end_date" id="end_date" value="{{ today }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
+            <!-- Start Shift -->
+            <div id="start-shift-container">
+                <label for="start_shift" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Start Shift</label>
+                <select name="start_shift" id="start_shift" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
+                    <option value="0">Morning</option>
+                    <option value="1">Evening</option>
+                </select>
+            </div>
+
+            <!-- End Shift -->
+            <div id="end-shift-container">
+                <label for="end_shift" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">End Shift</label>
+                <select name="end_shift" id="end_shift" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
+                    <option value="0">Morning</option>
+                    <option value="1">Evening</option>
+                </select>
+            </div>
+
+            <!-- Milk Type -->
+            <div id="milk-type-container">
+                <label for="milk_type" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Milk Type</label>
+                <select name="milk_type" id="milk_type" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
+                    <option value="">All Milk Types</option>
+                    <option value="0">Cow</option>
+                    <option value="1">Buffalo</option>
+                    <option value="2">Mixed</option>
+                </select>
+            </div>
+
+            <!-- Code From -->
+            <div id="code-from-container" style="display: none;">
+                <label for="code_from" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code From</label>
+                <input type="text" name="code_from" id="code_from" placeholder="e.g. 001" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
+            <!-- Code To -->
+            <div id="code-to-container" style="display: none;">
+                <label for="code_to" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code To</label>
+                <input type="text" name="code_to" id="code_to" placeholder="e.g. 100" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
+            <!-- Route From -->
+            <div id="route-from-container" style="display: none;">
+                <label for="route_from" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Route From</label>
+                <input type="text" name="route_from" id="route_from" placeholder="e.g. 1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
+            <!-- Route To -->
+            <div id="route-to-container" style="display: none;">
+                <label for="route_to" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Route To</label>
+                <input type="text" name="route_to" id="route_to" placeholder="e.g. 10" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
+            <!-- Actions -->
+            <div class="report-actions-wrapper">
+                <button type="submit" class="btn-generate">
+                    <i class="fa-solid fa-gears"></i> Generate
+                </button>
+                <button type="button"
+                    hx-post="/mcc-reports/preview"
+                    hx-target="#mcc-report-preview-content"
+                    onclick="openReportPreview(this)"
+                    class="btn-preview">
+                    <i class="fa-solid fa-eye"></i> Preview
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="htmx-indicator" style="text-align: center; padding: 40px 0;">
+        <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #e2e8f0; border-radius: 50%; border-top-color: #2563eb; animation: spin 1s linear infinite;"></div>
+        <p style="color: #64748b; font-size: 14px; margin-top: 12px; font-weight: 500;">Generating report details, please wait...</p>
+    </div>
+
+    <!-- Report Result Container -->
+    <div id="report-result-container" style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-height: 200px; display: flex; align-items: center; justify-content: center; border: 1px dashed #cbd5e1; background: #f8fafc; margin-bottom: 24px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <div style="text-align: center; padding: 48px; color: #64748b;">
+            <i class="fa-solid fa-file-invoice" style="font-size: 48px; color: #94a3b8; margin-bottom: 16px;"></i>
+            <h3 style="font-size: 16px; font-weight: 600; color: #475569; margin: 0 0 8px 0;">No Report Generated</h3>
+            <p style="margin: 0; font-size: 14px;">Select an MCC and click "Generate" to fetch report data.</p>
+        </div>
+    </div>
+
+    <!-- Report Preview Modal -->
+    <div id="mccReportPreviewModal" class="modal-overlay"
+        style="display:none; position: fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter: blur(8px); z-index:9999; align-items:center; justify-content:center; padding: 20px;">
+        <div class="modal-container"
+            style="background:white; width: 100%; max-width: 1000px; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow: 0 20px 60px rgba(0,0,0,0.15); max-height: 90vh;">
+            <div class="modal-header"
+                style="padding:16px 20px; border-bottom:1px solid #edf2f7; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0; font-size:16px; font-weight:800; color: #1e293b;">Report Print Preview</h3>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <button type="button" onclick="window.print()"
+                        style="padding:6px 16px; font-size:13px; font-weight:bold; background:#000; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+                        <i class="fa-solid fa-print" style="margin-right:6px;"></i> Print
+                    </button>
+                    <button type="button" onclick="closeReportPreviewModal()"
+                        style="border:none; background:none; font-size:24px; cursor:pointer; line-height:1; color:#94a3b8;">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body" id="mcc-report-preview-content"
+                style="padding:20px; overflow-y:auto; flex-grow: 1; background: #f8fafc;">
+                <!-- HTML content will be injected here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .htmx-indicator {
+        display: none;
+    }
+    .htmx-request .htmx-indicator {
+        display: block;
+    }
+    .htmx-request#report-result-container {
+        display: none;
+    }
+    .report-actions-wrapper {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+        min-width: 240px;
+    }
+    .btn-generate {
+        flex: 1;
+        height: 42px;
+        background: #2563eb;
+        color: white;
+        padding: 0 16px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+    .btn-generate:hover:not(:disabled) {
+        background: #1d4ed8;
+    }
+    .btn-generate:disabled {
+        background: #94a3b8 !important;
+        color: #f1f5f9 !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+        opacity: 0.65;
+    }
+    .btn-preview {
+        flex: 1;
+        height: 42px;
+        border: 1.5px solid #cbd5e1;
+        color: #475569;
+        padding: 0 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: white;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+    .btn-preview:hover:not(:disabled) {
+        background: #f8fafc;
+        border-color: #94a3b8;
+    }
+    .btn-preview:disabled {
+        background: #f1f5f9 !important;
+        color: #94a3b8 !important;
+        border-color: #cbd5e1 !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+        opacity: 0.65;
+    }
+    @media (max-width: 768px) {
+        .mcc-container {
+            padding: 12px !important;
+        }
+        .filter-card {
+            padding: 16px !important;
+        }
+        #report-filter-form {
+            grid-template-columns: 1fr !important;
+        }
+        .report-actions-wrapper {
+            grid-column: 1 / -1 !important;
+            flex-direction: row !important;
+            width: 100% !important;
+            margin-top: 4px;
+        }
+        .btn-generate, .btn-preview {
+            width: 50% !important;
+            flex: 1 !important;
+        }
+    }
+    @media (max-width: 480px) {
+        .report-actions-wrapper {
+            flex-direction: column !important;
+        }
+        .btn-generate, .btn-preview {
+            width: 100% !important;
+        }
+    }
+</style>
+
+<script>
+    function updateButtonStates() {
+        const reportTypeSelect = document.getElementById('report_type');
+        const reportType = reportTypeSelect ? reportTypeSelect.value : '';
+        const codeFrom = (document.getElementById('code_from')?.value || '').trim();
+        const codeTo = (document.getElementById('code_to')?.value || '').trim();
+        const routeFrom = (document.getElementById('route_from')?.value || '').trim();
+        const routeTo = (document.getElementById('route_to')?.value || '').trim();
+        const vlccId = (document.getElementById('vlcc_id')?.value || '').trim();
+
+        const btnGenerate = document.querySelector('.btn-generate');
+        const btnPreview = document.querySelector('.btn-preview');
+
+        let shouldDisable = false;
+
+        // 1. MCC weight VLCC wise or MCC VLCC Bill: Code range empty -> disable
+        if (reportType === 'mcc_weight_vlcc_wise' || reportType === 'mcc_vlcc_bill' || reportType === 'mcc_ledger') {
+            if (!codeFrom || !codeTo) {
+                shouldDisable = true;
+            }
+        }
+        // 2. MCC Weight Route wise: Route range empty -> disable
+        else if (reportType === 'mcc_weight_route_wise') {
+            if (!routeFrom || !routeTo) {
+                shouldDisable = true;
+            }
+        }
+        // 3. Milk Bill Comparison: VLCC not selected -> disable
+        else if (reportType === 'mcc_bill_comparison') {
+            if (!vlccId) {
+                shouldDisable = true;
+            }
+        }
+
+        if (btnGenerate) {
+            btnGenerate.disabled = shouldDisable;
+        }
+        if (btnPreview) {
+            btnPreview.disabled = shouldDisable;
+        }
+    }
+
+    function toggleFilterFields(reportType) {
+        const startDateContainer = document.getElementById('start-date-container');
+        const startDateLabel = document.getElementById('start-date-label');
+        const endDateContainer = document.getElementById('end-date-container');
+        const startShiftContainer = document.getElementById('start-shift-container');
+        const endShiftContainer = document.getElementById('end-shift-container');
+        const codeFromContainer = document.getElementById('code-from-container');
+        const codeToContainer = document.getElementById('code-to-container');
+        const routeFromContainer = document.getElementById('route-from-container');
+        const routeToContainer = document.getElementById('route-to-container');
+        const milkTypeContainer = document.getElementById('milk-type-container');
+        const vlccContainer = document.getElementById('vlcc-container');
+        const vlccSelect = document.getElementById('vlcc_id');
+
+        // VLCC picker only for Milk Bill Comparison; disabled when hidden so it is not submitted
+        const needsVlcc = reportType === 'mcc_bill_comparison';
+        if (vlccContainer) vlccContainer.style.display = needsVlcc ? 'block' : 'none';
+        if (vlccSelect) vlccSelect.disabled = !needsVlcc;
+
+        if (reportType === 'mcc_shift_summary' || reportType === 'mcc_weight_shift_summary' || reportType === 'mcc_fixed_rate_summary') {
+            // Single date, single shift
+            if (startDateLabel) startDateLabel.textContent = 'Date';
+            if (endDateContainer) endDateContainer.style.display = 'none';
+            if (startShiftContainer) startShiftContainer.style.display = 'block';
+            if (endShiftContainer) endShiftContainer.style.display = 'none';
+            if (codeFromContainer) codeFromContainer.style.display = 'none';
+            if (codeToContainer) codeToContainer.style.display = 'none';
+            if (routeFromContainer) routeFromContainer.style.display = 'none';
+            if (routeToContainer) routeToContainer.style.display = 'none';
+            if (milkTypeContainer) milkTypeContainer.style.display = 'block';
+        } else {
+            // Date range, shift range
+            if (startDateLabel) startDateLabel.textContent = 'Start Date';
+            if (endDateContainer) endDateContainer.style.display = 'block';
+            if (startShiftContainer) startShiftContainer.style.display = 'block';
+            if (endShiftContainer) endShiftContainer.style.display = 'block';
+            
+            if (reportType === 'mcc_weight_date_wise' || reportType === 'mcc_weight_vlcc_wise' || reportType === 'mcc_vlcc_bill' || reportType === 'mcc_ledger') {
+                if (codeFromContainer) codeFromContainer.style.display = 'block';
+                if (codeToContainer) codeToContainer.style.display = 'block';
+                if (routeFromContainer) routeFromContainer.style.display = 'none';
+                if (routeToContainer) routeToContainer.style.display = 'none';
+                if (milkTypeContainer) milkTypeContainer.style.display = 'none';
+            } else if (reportType === 'mcc_bill_comparison') {
+                if (codeFromContainer) codeFromContainer.style.display = 'none';
+                if (codeToContainer) codeToContainer.style.display = 'none';
+                if (routeFromContainer) routeFromContainer.style.display = 'none';
+                if (routeToContainer) routeToContainer.style.display = 'none';
+                if (milkTypeContainer) milkTypeContainer.style.display = 'none';
+            } else if (reportType === 'mcc_weight_route_wise') {
+                if (codeFromContainer) codeFromContainer.style.display = 'none';
+                if (codeToContainer) codeToContainer.style.display = 'none';
+                if (routeFromContainer) routeFromContainer.style.display = 'block';
+                if (routeToContainer) routeToContainer.style.display = 'block';
+                if (milkTypeContainer) milkTypeContainer.style.display = 'none';
+            } else {
+                if (codeFromContainer) codeFromContainer.style.display = 'none';
+                if (codeToContainer) codeToContainer.style.display = 'none';
+                if (routeFromContainer) routeFromContainer.style.display = 'none';
+                if (routeToContainer) routeToContainer.style.display = 'none';
+                if (milkTypeContainer) milkTypeContainer.style.display = 'block';
+            }
+        }
+
+        updateButtonStates();
+    }
+
+    function openReportPreview(btn) {
+        if (btn && btn.disabled) return;
+        const modal = document.getElementById('mccReportPreviewModal');
+        if (modal) {
+            document.body.appendChild(modal);
+            modal.style.display = 'flex';
+            const content = document.getElementById('mcc-report-preview-content');
+            if (content) {
+                content.innerHTML = '<div style="text-align: center; padding: 40px;"><div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #e2e8f0; border-radius: 50%; border-top-color: #2563eb; animation: spin 1s linear infinite;"></div><p style="margin-top: 12px; color: #64748b; font-size: 14px;">Loading preview...</p></div>';
+            }
+        }
+    }
+
+    // Toggle fields and button states on initial load
+    document.addEventListener('DOMContentLoaded', function() {
+        const reportTypeSelect = document.getElementById('report_type');
+        if (reportTypeSelect) {
+            toggleFilterFields(reportTypeSelect.value);
+        }
+        updateButtonStates();
+    });
+
+    // Toggle fields after dynamic dropdown swap
+    document.addEventListener('htmx:afterSwap', function(e) {
+        if (e.target && e.target.id === 'report_type') {
+            toggleFilterFields(e.target.value);
+            updateButtonStates();
+        }
+    });
+
+    // Toggle fields when dropdown manually changes
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'report_type') {
+            toggleFilterFields(e.target.value);
+        }
+        if (e.target && e.target.id === 'vlcc_id') {
+            updateButtonStates();
+        }
+    });
+
+    // Listen for inputs on code/route fields to toggle button disabled state dynamically
+    document.addEventListener('input', function(e) {
+        if (e.target && (e.target.id === 'code_from' || e.target.id === 'code_to' || e.target.id === 'route_from' || e.target.id === 'route_to')) {
+            updateButtonStates();
+        }
+    });
+
+    // Intercept HTMX if button is disabled
+    document.body.addEventListener('htmx:beforeRequest', function(evt) {
+        if (evt.detail.elt && (evt.detail.elt.classList.contains('btn-preview') || evt.detail.elt.classList.contains('btn-generate'))) {
+            if (evt.detail.elt.disabled) {
+                evt.preventDefault();
+            }
+        }
+    });
+
+    function closeReportPreviewModal() {
+        document.getElementById('mccReportPreviewModal').style.display = 'none';
+    }
+</script>
+{% endblock %}

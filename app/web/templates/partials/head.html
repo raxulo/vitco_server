@@ -1,0 +1,46 @@
+<meta charset="utf-8">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1">
+
+<title>
+    {% block title %}
+        ArrowMilk
+    {% endblock %}
+</title>
+
+<meta
+    name="theme-color"
+    content="#0d6efd">
+
+<meta
+    http-equiv="X-UA-Compatible"
+    content="IE=edge">
+
+<link
+    rel="icon"
+    href="{{ url_for('static', path='images/favicon.ico') }}">
+
+<!-- <link
+    rel="stylesheet"
+    href="{{ url_for('static', path='vendor/bootstrap/bootstrap.min.css') }}">
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', path='vendor/bootstrap-icons/bootstrap-icons.css') }}">
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', path='css/app.min.css') }}"> -->
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', path='css/app.min.css?reload=67') }}">
+<script src="https://unpkg.com/htmx.org@2.0.6" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

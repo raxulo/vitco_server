@@ -1,0 +1,119 @@
+from fastapi import UploadFile
+from typing import Any
+from pydantic import field_validator, model_validator
+from uuid import UUID
+from pydantic import BaseModel, EmailStr, Field
+from app.modules.farmer.domain.enums import MilkType
+
+
+class CreateFarmerRequest(BaseModel):
+    # User / Identity
+    name: str = Field(..., min_length=1, max_length=150)
+    email: EmailStr
+    mobile: str | None = None
+    password: str = Field(..., min_length=8, max_length=128)
+    
+    # Farmer Specific
+    farmer_code: str = Field(..., min_length=1, max_length=30)
+    vlcc_id: UUID
+    assigned_chart_rank: int = 1
+    milk_type: MilkType = Field(default=MilkType.MIXED)
+    profile_image: UploadFile = None
+    sms_enabled: bool = False
+    is_active: bool = True
+
+    # Address Details
+    line: str | None = None
+    city: str | None = None
+    state: str | None = None
+    pincode: str | None = None
+
+    # Bank Details
+    bank_name: str | None = None
+    account_holder: str | None = None
+    account_number: str | None = None
+    ifsc_code: str | None = None
+    upi_id: str | None = None
+
+    @field_validator("assigned_chart_rank", mode="before")
+    @classmethod
+    def validate_assigned_chart_rank(cls, value: Any) -> int:
+        if value == "" or value is None:
+            return 1
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return 1
+
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: any) -> any:
+        if not isinstance(data, dict):
+            try:
+                data = dict(data)
+            except (TypeError, ValueError):
+                return data
+        for key, value in list(data.items()):
+            if value == "":
+                data[key] = None
+        return data
+
+
+class UpdateFarmerRequest(BaseModel):
+    # User / Identity
+    name: str = Field(..., min_length=1, max_length=150)
+    email: EmailStr
+    mobile: str | None = None
+    password: str | None = Field(None, min_length=8, max_length=128)
+    
+    # Farmer Specific
+    farmer_code: str = Field(..., min_length=1, max_length=30)
+    vlcc_id: UUID
+    assigned_chart_rank: int | None = None
+    milk_type: MilkType = Field(default=MilkType.MIXED)
+    profile_image: UploadFile = None
+    sms_enabled: bool = False
+    is_active: bool = True
+
+    # Address Details
+    line: str | None = None
+    city: str | None = None
+    state: str | None = None
+    pincode: str | None = None
+
+    # Bank Details
+    bank_name: str | None = None
+    account_holder: str | None = None
+    account_number: str | None = None
+    ifsc_code: str | None = None
+    upi_id: str | None = None
+
+    @field_validator("assigned_chart_rank", mode="before")
+    @classmethod
+    def validate_assigned_chart_rank(cls, value: Any) -> int | None:
+        if value == "" or value is None:
+            return None
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
+
+    @field_validator("password", mode="before")
+    @classmethod
+    def validate_password(cls, value: str | None) -> str | None:
+        if value == "" or value is None:
+            return None
+        return value
+
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: any) -> any:
+        if not isinstance(data, dict):
+            try:
+                data = dict(data)
+            except (TypeError, ValueError):
+                return data
+        for key, value in list(data.items()):
+            if value == "":
+                data[key] = None
+        return data

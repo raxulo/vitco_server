@@ -1,0 +1,214 @@
+from fastapi import UploadFile
+from pydantic import field_validator
+from uuid import UUID
+from pydantic import BaseModel, EmailStr, Field, model_validator
+from app.modules.mcc.domain.enums import MccType
+from typing import Any
+
+from app.modules.common.settings.domain.enums import (
+    AnalyzerType,
+    CattleType,
+    CollectionMode,
+    PrinterType,
+    ReceiptSize,
+    WeightUnit,
+)
+
+
+class CreateMccRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=30)
+    name: str = Field(..., min_length=1, max_length=150)
+    mobile: str = Field(..., min_length=10, max_length=15)
+    email: EmailStr
+    password: str | None = None
+    mcc_type: MccType = Field(default=MccType.NORMAL)
+
+    line: str | None = None
+    pincode: str | None = None
+    city: str | None = None
+    state: str | None = None
+
+    bank_name: str | None = None
+    account_holder: str | None = None
+    account_number: str | None = None
+    ifsc_code: str | None = None
+    upi_id: str | None = None
+
+    route_code: int | None = None
+    sample_start: int |None = 0
+    sample_end: int |None = 0
+    is_active: bool | None = True
+    profile_image: UploadFile | None = None
+
+    # Settings Config
+    analyzer_type: AnalyzerType | None = AnalyzerType.TYPE_A
+    analyzer_collection_mode: CollectionMode | None = CollectionMode.MANUAL
+    weight_unit: WeightUnit | None = WeightUnit.LITER
+    weight_collection_mode: CollectionMode | None = CollectionMode.MANUAL
+    auto_tare_enabled: bool | None = False
+    morning_collection_start: str | None = "06:00"
+    morning_collection_end: str | None = "10:00"
+    evening_collection_start: str | None = "12:00"
+    evening_collection_end: str | None = "22:00"
+    receipt_size: ReceiptSize | None = ReceiptSize.SMALL
+    printer_type: PrinterType | None = PrinterType.NONE
+    printer_enabled: bool | None = False
+    cattle_type: CattleType | None = CattleType.COW_AND_BUFFALO
+    max_rate_chart_count: int | None = 5
+    settings_edit_enabled: bool | None = False
+    rate_chart_edit_enabled: bool | None = False
+    master_enabled: bool | None = False
+
+    # Milk Quality Config
+    cow_min_fat: float | None = Field(default=0.0, ge=0)
+    cow_max_fat: float | None = Field(default=0.0, ge=0)
+    cow_min_snf: float | None = Field(default=0.0, ge=0)
+    cow_max_snf: float | None = Field(default=0.0, ge=0)
+    buffalo_min_fat: float | None = Field(default=0.0, ge=0)
+    buffalo_max_fat: float | None = Field(default=0.0, ge=0)
+    buffalo_min_snf: float | None = Field(default=0.0, ge=0)
+    buffalo_max_snf: float | None = Field(default=0.0, ge=0)
+
+    # Fixed Rate Config
+    fixed_rate: float | None = Field(default=0.0, ge=0)
+    less_detection: float | None = Field(default=0.0, ge=0)
+    high_detection: float | None = Field(default=0.0, ge=0)
+    min_fat: float | None = Field(default=0.0, ge=0)
+    max_fat: float | None = Field(default=0.0, ge=0)
+    min_snf: float | None = Field(default=0.0, ge=0)
+    max_snf: float | None = Field(default=0.0, ge=0)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if len(value) < 8:
+            raise ValueError("Password must have at least 8 characters.")
+        return value
+
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: any) -> any:
+        if not isinstance(data, dict):
+            try:
+                data = dict(data)
+            except (TypeError, ValueError):
+                return data
+        for key, value in list(data.items()):
+            if value == "":
+                data[key] = None
+        return data
+
+    @property
+    def has_bank_details(self) -> bool:
+        return self.account_holder is not None and any([
+            self.bank_name,
+            self.account_number,
+            self.ifsc_code,
+            self.upi_id,
+        ])
+
+    @property
+    def has_address(self) -> bool:
+        return any([
+            self.line,
+            self.city,
+            self.state,
+            self.pincode,
+        ])
+
+
+class UpdateMccRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=30)
+    name: str = Field(..., min_length=1, max_length=150)
+    mobile: str = Field(..., min_length=10, max_length=15)
+    email: EmailStr
+    password: str | None = None
+    mcc_type: MccType = Field(default=MccType.NORMAL)
+
+    line: str | None = None
+    pincode: str | None = None
+    city: str | None = None
+    state: str | None = None
+
+    bank_name: str | None = None
+    account_holder: str | None = None
+    account_number: str | None = None
+    ifsc_code: str | None = None
+    upi_id: str | None = None
+
+    route_code: int | None = None
+    sample_start: int |None = 0
+    sample_end: int |None = 0
+    is_active: bool | None = True
+    profile_image: UploadFile | None = None
+
+    # Settings Config
+    analyzer_type: AnalyzerType | None = AnalyzerType.TYPE_A
+    analyzer_collection_mode: CollectionMode | None = CollectionMode.MANUAL
+    weight_unit: WeightUnit | None = WeightUnit.LITER
+    weight_collection_mode: CollectionMode | None = CollectionMode.MANUAL
+    auto_tare_enabled: bool | None = False
+    morning_collection_start: str | None = "06:00"
+    morning_collection_end: str | None = "10:00"
+    evening_collection_start: str | None = "12:00"
+    evening_collection_end: str | None = "22:00"
+    receipt_size: ReceiptSize | None = ReceiptSize.SMALL
+    printer_type: PrinterType | None = PrinterType.NONE
+    printer_enabled: bool | None = False
+    cattle_type: CattleType | None = CattleType.COW_AND_BUFFALO
+    max_rate_chart_count: int | None = 5
+    settings_edit_enabled: bool | None = False
+    rate_chart_edit_enabled: bool | None = False
+    master_enabled: bool | None = False
+
+    # Milk Quality Config
+    cow_min_fat: float | None = Field(default=0.0, ge=0)
+    cow_max_fat: float | None = Field(default=0.0, ge=0)
+    cow_min_snf: float | None = Field(default=0.0, ge=0)
+    cow_max_snf: float | None = Field(default=0.0, ge=0)
+    buffalo_min_fat: float | None = Field(default=0.0, ge=0)
+    buffalo_max_fat: float | None = Field(default=0.0, ge=0)
+    buffalo_min_snf: float | None = Field(default=0.0, ge=0)
+    buffalo_max_snf: float | None = Field(default=0.0, ge=0)
+
+    # Fixed Rate Config
+    fixed_rate: float | None = Field(default=0.0, ge=0)
+    less_detection: float | None = Field(default=0.0, ge=0)
+    high_detection: float | None = Field(default=0.0, ge=0)
+    min_fat: float | None = Field(default=0.0, ge=0)
+    max_fat: float | None = Field(default=0.0, ge=0)
+    min_snf: float | None = Field(default=0.0, ge=0)
+    max_snf: float | None = Field(default=0.0, ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def empty_str_to_none(cls, data: any) -> any:
+        if not isinstance(data, dict):
+            try:
+                data = dict(data)
+            except (TypeError, ValueError):
+                return data
+        for key, value in list(data.items()):
+            if value == "":
+                data[key] = None
+        return data
+
+    @property
+    def has_bank_details(self) -> bool:
+        return self.account_holder is not None and any([
+            self.bank_name,
+            self.account_number,
+            self.ifsc_code,
+            self.upi_id,
+        ])
+
+    @property
+    def has_address(self) -> bool:
+        return any([
+            self.line,
+            self.city,
+            self.state,
+            self.pincode,
+        ])

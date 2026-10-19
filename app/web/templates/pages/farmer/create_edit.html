@@ -1,0 +1,681 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}
+    {{ 'Edit' if farmer else 'Create' }} Farmer Master - VITCO
+{% endblock %}
+
+{% block styles %}
+<style>
+    #submit-btn:disabled {
+        opacity: 0.65 !important;
+        background: #9ca3af !important;
+        border-color: #9ca3af !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+        transform: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="animate-fadeIn mcc-page">
+
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+    <div class="page-header">
+        <div class="page-header-content">
+
+            <div class="page-header-icon">
+                <i class="fa-solid {{ 'fa-user-pen' if farmer else 'fa-user-plus' }}"></i>
+            </div>
+
+            <div>
+                <h2 class="page-title">
+                    {{ 'Edit Farmer supplier' if farmer else 'Register New Farmer' }}
+                </h2>
+
+                <p class="page-subtitle">
+                    {{ 
+                        'Update supplier profile, credentials, and bank settlement parameters.'
+                        if farmer
+                        else
+                        'Configure a new milk supplying farmer account.'
+                    }}
+                </p>
+            </div>
+
+        </div>
+
+        <a href="/farmer/" class="btn btn-ghost">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Farmer Master
+        </a>
+    </div>
+
+
+    <!-- =========================================================
+         FORM CONTAINER (HTMX TARGET)
+    ========================================================== -->
+    <div id="farmer-form-container">
+        <!-- =========================================================
+             ERROR
+        ========================================================== -->
+        {% if error %}
+        <div class="alert alert-danger mcc-alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <div>
+                <strong>Unable to save farmer details</strong>
+                <div>{{ error }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <!-- =========================================================
+             MAIN FORM
+        ========================================================== -->
+        <form
+            id="farmerForm"
+            hx-post="/farmer/{{ 'edit/' + farmer.id|string if farmer else 'create' }}"
+            hx-target="#farmer-form-container"
+            hx-select="#farmer-form-container"
+            hx-swap="outerHTML"
+            hx-encoding="multipart/form-data"
+            enctype="multipart/form-data"
+            novalidate
+        >
+
+        <!-- =====================================================
+             01. FARMER SUPPLIER PROFILE
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+                    <div class="section-icon">
+                        <i class="fa-solid fa-id-card"></i>
+                    </div>
+
+                    <div>
+                        <h3>Farmer Profile</h3>
+                        <p>Basic credentials and system identity info.</p>
+                    </div>
+                </div>
+
+                {% if farmer %}
+                <span class="status-pill success">
+                    <i class="fa-solid fa-circle"></i>
+                    Existing Supplier
+                </span>
+                {% else %}
+                <span class="status-pill neutral">
+                    <i class="fa-solid fa-plus"></i>
+                    New registration
+                </span>
+                {% endif %}
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- Assigned VLCC -->
+                <div class="form-field">
+                    <label>Assigned VLCC Center <span class="required">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-building-ngo"></i>
+                        <select id="vlcc-select" name="vlcc_id" class="form-control" required 
+                            onchange="toggleFormFields(this.value)"
+                            hx-get="/farmer/api/ratecharts"
+                            hx-trigger="change"
+                            hx-target="#rate-chart-select"
+                            hx-swap="innerHTML"
+                            hx-select="#rate-chart-select option"
+                        >
+                            <option value="" disable>Select VLCC Center</option>
+                            {% for center in vlccs %}
+                            <option
+                                value="{{ center.id }}"
+                                {{ 'selected' if farmer and farmer.vlcc_id|string == center.id|string else '' }}
+                            >
+                                {{ center.name }} ({{ center.vlcc_code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- FARMER CODE -->
+                <div class="form-field">
+                    <label>
+                        Farmer Code
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-barcode"></i>
+
+                        <input
+                            id="farmer-code"
+                            name="farmer_code"
+                            type="text"
+                            class="form-control"
+                            placeholder="FMR001"
+                            value="{{ farmer.farmer_code if farmer else '' }}"
+                            {% if farmer %} readonly {% else %}
+                            required
+                            hx-get="/farmer/validation-code"
+                            hx-trigger="keyup changed delay:400ms"
+                            hx-target="#farmer-code-validation-message"
+                            hx-swap="innerHTML"
+                            hx-select="unset"
+                            hx-indicator="#farmer-code-loading"
+                            hx-include="#vlcc-select"
+                            {% endif %}
+                        />
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                        <div
+                            id="farmer-code-validation-message"
+                            class="field-feedback"
+                            style="display: block !important; margin: 0;"
+                        ></div>
+                        <span id="farmer-code-loading" class="htmx-indicator" style="font-size: 0.85rem; color: #6b7280; display: none;"><i class="fa-solid fa-spinner fa-spin"></i> Checking...</span>
+                    </div>
+                </div>
+
+
+                <!-- NAME -->
+                <div class="form-field">
+                    <label>
+                        Farmer Name
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user"></i>
+
+                        <input
+                            type="text"
+                            name="name"
+                            class="form-control"
+                            placeholder="Farmer Name"
+                            value="{{ farmer.name if farmer else '' }}"
+                            required
+                        />
+                    </div>
+                </div>
+
+
+                <!-- EMAIL -->
+                <div class="form-field">
+                    <label>
+                        Registered Email
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+
+                        <input
+                            name="email"
+                            type="email"
+                            class="form-control"
+                            placeholder="farmer@example.com"
+                            value="{{ user.email if farmer else '' }}"
+                            required
+                        />
+                    </div>
+                </div>
+
+
+                <!-- MOBILE -->
+                <div class="form-field">
+                    <label>
+                        Registered Mobile
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-phone"></i>
+
+                        <input
+                            name="mobile"
+                            type="tel"
+                            class="form-control"
+                            placeholder="+91 99999 88888"
+                            value="{{ user.mobile if farmer else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- PASSWORD -->
+                <div class="form-field">
+                    <label>
+                        Farmer Account Password
+                        {% if not farmer %}
+                        <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    <div class="password-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+
+                        <input
+                            id="farmer-password"
+                            name="password"
+                            type="password"
+                            class="form-control"
+                            placeholder="{{
+                                'Leave blank to keep existing password'
+                                if farmer
+                                else
+                                'Enter secure password'
+                            }}"
+                            {% if not farmer %}required{% endif %}
+                        />
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            onclick="togglePasswordVisibility('farmer-password', this)"
+                        >
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+
+
+
+
+                <!-- Assigned Rate Chart -->
+                <div class="form-field">
+                    <label>Assigned Rate Chart</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <select id="rate-chart-select" name="assigned_chart_rank" class="form-control">
+                            <option value="1">Select Rate Chart (Optional)</option>
+                            {% for chart in rate_charts %}
+                            <option
+                                value="{{ loop.index }}"
+                                {{ 'selected' if farmer and farmer.assigned_chart_rank|string == loop.index|string else '' }}
+                            >
+                                {{ chart.chart_name if chart.chart_name else chart.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- MILK TYPE -->
+                <div class="form-field">
+                    <label>Preferred Milk Type</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-cow"></i>
+                        <select name="milk_type" class="form-control">
+                            <option value="0" {{ 'selected' if farmer and farmer.milk_type|int == 0 else '' }}>Cow</option>
+                            <option value="1" {{ 'selected' if farmer and farmer.milk_type|int == 1 else '' }}>Buffalo</option>
+                            <option value="2" {{ 'selected' if farmer and not farmer or (farmer and farmer.milk_type|int == 2) else '' }}>Mixed</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- SMS ENABLED -->
+                <div class="form-field">
+                    <label>SMS Notification</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-message"></i>
+                        <select name="sms_enabled" class="form-control">
+                            <option value="false" {{ 'selected' if farmer and not farmer.sms_enabled else '' }}>Disabled</option>
+                            <option value="true" {{ 'selected' if not farmer or farmer.sms_enabled else '' }}>Enabled</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- ACTIVE STATUS -->
+                <div class="form-field">
+                    <label>Account Status</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-toggle-on"></i>
+                        <select name="is_active" class="form-control">
+                            <option value="true" {{ 'selected' if not farmer or farmer.is_active else '' }}>Active</option>
+                            <option value="false" {{ 'selected' if farmer and not farmer.is_active else '' }}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- PROFILE IMAGE -->
+                <div class="form-field full-width">
+                    <label>Profile Image / Supplier Avatar</label>
+
+                    <div class="file-uploader">
+                        <input
+                            type="file"
+                            name="profile_image"
+                            id="profile-image-input"
+                            accept="image/*"
+                            onchange="handleFileSelect(this)"
+                        />
+
+                        <label for="profile-image-input" class="uploader-box">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+
+                            <div>
+                                <strong>Click to upload</strong>
+                                <span>or drag and drop</span>
+                            </div>
+
+                            <small>SVG, PNG, JPG or GIF (max. 800x400px)</small>
+                        </label>
+
+                    </div>
+
+                    {% if farmer and farmer.profile_image %}
+                    <div class="current-file">
+                        <i class="fa-solid fa-paperclip"></i>
+
+                        {% if '/' in farmer.profile_image %}
+                        <a
+                            href="{{ farmer.profile_image }}"
+                            target="_blank"
+                        >
+                            View image
+                        </a>
+                        {% else %}
+                        <a
+                            href="/image/{{ farmer.profile_image }}"
+                            target="_blank"
+                        >
+                            View image
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             02. SUPPLIER ADDRESS DETAILS
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+                    <div class="section-icon teal">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </div>
+
+                    <div>
+                        <h3>Supplier Address Details</h3>
+                        <p>Verify official contact address details.</p>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- ADDRESS LINE -->
+                <div class="form-field full-width">
+                    <label>Street Address Line</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-route"></i>
+
+                        <input
+                            name="line"
+                            type="text"
+                            class="form-control"
+                            placeholder="Address details"
+                            value="{{ address.line if farmer and address and address.line else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- CITY -->
+                <div class="form-field">
+                    <label>City</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-city"></i>
+
+                        <input
+                            name="city"
+                            type="text"
+                            class="form-control"
+                            placeholder="City"
+                            value="{{ address.city if farmer and address and address.city else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- STATE -->
+                <div class="form-field">
+                    <label>State</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-map"></i>
+
+                        <input
+                            name="state"
+                            type="text"
+                            class="form-control"
+                            placeholder="State"
+                            value="{{ address.state if farmer and address and address.state else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- PINCODE -->
+                <div class="form-field">
+                    <label>Area Pincode</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-location-pin"></i>
+
+                        <input
+                            name="pincode"
+                            type="text"
+                            class="form-control"
+                            placeholder="Pincode"
+                            value="{{ address.pincode if farmer and address and address.pincode else '' }}"
+                        />
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             03. SETTLEMENT BANK DETAILS
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon green">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+
+                    <div>
+                        <h3>Settlement Bank Details</h3>
+                        <p>Bank options for direct payment settlements.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <div class="form-field">
+                    <label>Bank Institution Name</label>
+                    <input
+                        name="bank_name"
+                        type="text"
+                        class="form-control"
+                        placeholder="State Bank of India"
+                        value="{{ bank_account.bank_name if farmer else '' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Account Holder Name</label>
+                    <input
+                        name="account_holder"
+                        type="text"
+                        class="form-control"
+                        placeholder="Account holder name"
+                        value="{{ bank_account.account_holder if farmer else '' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>IFSC Branch Code</label>
+                    <input
+                        name="ifsc_code"
+                        type="text"
+                        class="form-control"
+                        placeholder="SBIN0001234"
+                        value="{{ bank_account.ifsc_code if farmer else '' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Bank Account Number</label>
+                    <input
+                        name="account_number"
+                        type="text"
+                        class="form-control"
+                        placeholder="Bank account number"
+                        value="{{ bank_account.account_number if farmer else '' }}"
+                    />
+                </div>
+
+                <div class="form-field full-width">
+                    <label>UPI ID (Optional)</label>
+                    <input
+                        name="upi_id"
+                        type="text"
+                        class="form-control"
+                        placeholder="upi@handle"
+                        value="{{ bank_account.upi_id if farmer else '' }}"
+                    />
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             SUBMIT ACTIONS
+        ====================================================== -->
+        <div class="form-actions">
+            
+            <button
+                id="submit-btn"
+                type="submit"
+                class="btn btn-primary"
+            >
+                <i class="fa-solid fa-check"></i>
+                {{ 'Save Changes' if farmer else 'Register Farmer' }}
+            </button>
+
+            <a href="/farmer/" class="btn btn-ghost">Cancel</a>
+
+        </div>
+
+    </form>
+</div>
+
+</div>
+
+<!-- =========================================================
+     COMPATIBLE SCRIPTS & HELPER ACTIONS
+========================================================== -->
+<script>
+    function toggleFormFields(vlccId) {
+        const form = document.getElementById("farmerForm");
+        if (!form) return;
+        
+        const elements = form.querySelectorAll("input, select, button, textarea");
+        const shouldDisable = !vlccId;
+        
+        elements.forEach(el => {
+            if (el.id === "vlcc-select" || el.classList.contains("btn-ghost") || el.tagName === "A" || el.getAttribute("href") === "/farmer/" || el.id === "submit-btn") {
+                return;
+            }
+            el.disabled = shouldDisable;
+        });
+    }
+
+    function validateForm() {
+        const form = document.getElementById("farmerForm");
+        const submitBtn = document.getElementById("submit-btn");
+        if (!form || !submitBtn) return;
+        submitBtn.disabled = !form.checkValidity();
+    }
+
+    // Call on DOMContentLoaded or immediate execution
+    document.addEventListener("DOMContentLoaded", function() {
+        const selectEl = document.getElementById("vlcc-select");
+        if (selectEl) {
+            toggleFormFields(selectEl.value);
+        }
+
+        const form = document.getElementById("farmerForm");
+        if (form) {
+            form.addEventListener("input", validateForm);
+            form.addEventListener("change", validateForm);
+            validateForm();
+        }
+    });
+
+    function togglePasswordVisibility(fieldId, button) {
+        const input = document.getElementById(fieldId);
+        const icon = button.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    function handleFileSelect(input) {
+        const file = input.files[0];
+        const uploaderBox = input.nextElementSibling;
+        if (file) {
+            uploaderBox.querySelector('span').textContent = file.name;
+            uploaderBox.querySelector('small').textContent = `Size: ${(file.size / 1024).toFixed(1)} KB`;
+        }
+    }
+</script>
+
+{% endblock %}

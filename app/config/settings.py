@@ -8,16 +8,17 @@ Author  : RealTimeTransfer
 Python  : 3.13
 """
 
+from zoneinfo import ZoneInfo
+from dotenv import load_dotenv
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-
 
 class Settings(BaseSettings):
     """
@@ -26,13 +27,17 @@ class Settings(BaseSettings):
     All configuration values are loaded from environment variables.
     """
 
+    ADMIN_NAME: str
+    ADMIN_EMAIL: str
+    ADMIN_PASSWORD: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
     )
-
+    
     # ==========================================================
     # Application
     # ==========================================================
@@ -71,6 +76,7 @@ class Settings(BaseSettings):
 
     RELOAD: bool = False
 
+
     # ==========================================================
     # Database
     # ==========================================================
@@ -84,6 +90,7 @@ class Settings(BaseSettings):
     DATABASE_POOL_SIZE: int = 20
 
     DATABASE_MAX_OVERFLOW: int = 50
+    
 
     # ==========================================================
     # Transfer
@@ -179,6 +186,8 @@ class Settings(BaseSettings):
 
     CHUNK_PATH: Path = BASE_DIR / "storage" / "chunks"
 
+    MEDIA_PATH: Path = BASE_DIR / "storage" / "media"
+    
     LOG_PATH: Path = BASE_DIR / "logs"
 
     # ==========================================================

@@ -1,0 +1,201 @@
+{# Milk Bill Comparison — on-screen result (VLCC dispatch vs MCC receipt, per date & shift) #}
+{% set metadata = result.metadata %}
+{% set block = result.ledger[0] if result.ledger else None %}
+{% set rows = block.rows if block and block.rows else [] %}
+{% set totals = block.footer if block else None %}
+
+{% macro num(v, digits=2) -%}{{ ("%." ~ digits ~ "f")|format((v or 0)|float) }}{%- endmacro %}
+{% macro signed(v, digits=2) -%}{% if (v or 0) > 0 %}+{% endif %}{{ num(v, digits) }}{%- endmacro %}
+{% macro tone(v) -%}{% if (v or 0) < 0 %}bc-neg{% elif (v or 0) > 0 %}bc-pos{% else %}bc-zero{% endif %}{%- endmacro %}
+
+<div class="bc-card">
+    <style>
+        .bc-card { width: 100%; padding: 28px; background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.03); box-sizing: border-box; font-family: inherit; }
+        .bc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; }
+        .bc-badge { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; background: #ede9fe; color: #6d28d9; padding: 4px 10px; border-radius: 6px; }
+        .bc-title { margin: 10px 0 4px; font-size: 22px; font-weight: 800; color: #0f172a; }
+        .bc-sub { margin: 0; font-size: 13px; color: #64748b; }
+        .bc-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; padding: 16px; margin-bottom: 20px; background: #f8fafc; border: 1px solid #edf2f7; border-radius: 12px; }
+        .bc-meta-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; }
+        .bc-meta-val { font-size: 14px; font-weight: 700; color: #1e293b; }
+        .bc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .bc-kpi { padding: 16px 18px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+        .bc-kpi-label { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #64748b; display: flex; align-items: center; gap: 6px; }
+        .bc-kpi-val { margin-top: 8px; font-size: 22px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
+        .bc-kpi-note { margin-top: 4px; font-size: 12px; color: #64748b; }
+        .bc-kpi.dispatch { border-top: 3px solid #2563eb; }
+        .bc-kpi.receive { border-top: 3px solid #059669; }
+        .bc-kpi.diff { border-top: 3px solid #f59e0b; }
+        .bc-table-wrap { width: 100%; overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .bc-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1240px; font-variant-numeric: tabular-nums; }
+        .bc-table th, .bc-table td { padding: 10px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid #f1f5f9; }
+        .bc-table th:first-child, .bc-table td:first-child, .bc-table .bc-left { text-align: left; }
+        .bc-table thead tr.bc-group th { font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; text-align: center; padding: 8px 12px; }
+        .bc-table thead tr.bc-cols th { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; background: #f8fafc; }
+        .bc-g-dispatch { background: #eff6ff; color: #1d4ed8; }
+        .bc-g-receive { background: #ecfdf5; color: #047857; }
+        .bc-g-diff { background: #fffbeb; color: #b45309; }
+        .bc-table td.bc-d { background: #f8fbff; }
+        .bc-table td.bc-r { background: #f7fdfa; }
+        .bc-sep { border-left: 2px solid #e2e8f0 !important; }
+        .bc-table tbody tr:hover td { background: #f1f5f9; }
+        .bc-table tbody tr.bc-missing td.bc-d, .bc-table tbody tr.bc-missing-r td.bc-r { color: #94a3b8; }
+        .bc-table tfoot td { font-weight: 800; background: #f1f5f9; border-top: 2px solid #cbd5e1; color: #0f172a; }
+        .bc-shift { display: inline-block; min-width: 22px; text-align: center; font-size: 11px; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
+        .bc-shift.M { background: #fef3c7; color: #92400e; }
+        .bc-shift.E { background: #e0e7ff; color: #3730a3; }
+        .bc-flag { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #fee2e2; color: #b91c1c; }
+        .bc-neg { color: #dc2626; font-weight: 700; }
+        .bc-pos { color: #059669; font-weight: 700; }
+        .bc-zero { color: #64748b; }
+        .bc-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px; font-size: 12px; color: #64748b; }
+        .bc-empty { text-align: center; padding: 56px 16px; color: #64748b; }
+        @media (max-width: 640px) { .bc-card { padding: 16px; } .bc-title { font-size: 18px; } .bc-kpi-val { font-size: 18px; } }
+    </style>
+
+    <!-- Header -->
+    <div class="bc-head">
+        <div>
+            <span class="bc-badge"><i class="fa-solid fa-scale-balanced"></i> Comparison</span>
+            <h3 class="bc-title">{{ metadata.report_name or 'Milk Bill Comparison' }}</h3>
+            <p class="bc-sub">VLCC dispatch vs MCC receipt — same date, same shift</p>
+        </div>
+        <div style="text-align: right;">
+            <div class="bc-meta-val">{{ metadata.name }}{% if metadata.code %} ({{ metadata.code }}){% endif %}</div>
+            {% if metadata.address and metadata.address != '—' %}
+            <div class="bc-sub"><i class="fa-solid fa-location-dot"></i> {{ metadata.address }}</div>
+            {% endif %}
+            <div class="bc-sub">Generated at {{ metadata.time }}</div>
+        </div>
+    </div>
+
+    <!-- VLCC & Period -->
+    <div class="bc-meta">
+        {% if block and block.head %}
+        <div><span class="bc-meta-label">VLCC</span><span class="bc-meta-val">{{ block.head['Code'] }} — {{ block.head['Name'] }}</span></div>
+        <div><span class="bc-meta-label">Mobile No</span><span class="bc-meta-val">{{ block.head['Mobile No'] }}</span></div>
+        {% endif %}
+        {% if metadata.uic_code %}
+        <div><span class="bc-meta-label">UIC</span><span class="bc-meta-val">{{ metadata.uic_code }}</span></div>
+        {% endif %}
+        <div>
+            <span class="bc-meta-label">Period</span>
+            <span class="bc-meta-val">
+                {{ metadata.start_date }}{% if metadata.start_shift %} ({{ metadata.start_shift }}){% endif %}
+                {% if metadata.end_date %} → {{ metadata.end_date }}{% if metadata.end_shift %} ({{ metadata.end_shift }}){% endif %}{% endif %}
+            </span>
+        </div>
+    </div>
+
+    {% if rows %}
+    <!-- KPI cards -->
+    <div class="bc-kpis">
+        <div class="bc-kpi dispatch">
+            <div class="bc-kpi-label"><i class="fa-solid fa-truck" style="color:#2563eb;"></i> VLCC Dispatched</div>
+            <div class="bc-kpi-val">{{ num(totals.dispatched.quantity) }} <span style="font-size:13px;color:#64748b;">Ltr</span></div>
+            <div class="bc-kpi-note">FAT {{ num(totals.dispatched.fat) }} · SNF {{ num(totals.dispatched.snf) }} · ₹{{ num(totals.dispatched.amount) }}</div>
+        </div>
+        <div class="bc-kpi receive">
+            <div class="bc-kpi-label"><i class="fa-solid fa-warehouse" style="color:#059669;"></i> MCC Received</div>
+            <div class="bc-kpi-val">{{ num(totals.received.quantity) }} <span style="font-size:13px;color:#64748b;">Ltr</span></div>
+            <div class="bc-kpi-note">FAT {{ num(totals.received.fat) }} · SNF {{ num(totals.received.snf) }} · ₹{{ num(totals.received.amount) }}</div>
+        </div>
+        <div class="bc-kpi diff">
+            <div class="bc-kpi-label"><i class="fa-solid fa-arrow-right-arrow-left" style="color:#f59e0b;"></i> Quantity Difference</div>
+            <div class="bc-kpi-val {{ tone(totals.difference.quantity) }}">{{ signed(totals.difference.quantity) }} <span style="font-size:13px;">Ltr</span></div>
+            <div class="bc-kpi-note">FatKG {{ signed(totals.difference.fat_kg, 3) }} · SnfKG {{ signed(totals.difference.snf_kg, 3) }}</div>
+        </div>
+        <div class="bc-kpi diff">
+            <div class="bc-kpi-label"><i class="fa-solid fa-indian-rupee-sign" style="color:#f59e0b;"></i> Amount Difference</div>
+            <div class="bc-kpi-val {{ tone(totals.difference.amount) }}">{{ signed(totals.difference.amount) }}</div>
+            <div class="bc-kpi-note">{{ totals.shifts }} shift(s) compared{% if totals.missing_dispatch %} · <span class="bc-neg">{{ totals.missing_dispatch }} without dispatch</span>{% endif %}{% if totals.missing_receipt %} · <span class="bc-neg">{{ totals.missing_receipt }} without receipt</span>{% endif %}</div>
+        </div>
+    </div>
+
+    <!-- Comparison table -->
+    <div class="bc-table-wrap">
+        <table class="bc-table">
+            <thead>
+                <tr class="bc-group">
+                    <th colspan="2" style="background:#f8fafc;"></th>
+                    <th colspan="7" class="bc-g-dispatch bc-sep"><i class="fa-solid fa-truck"></i> VLCC Dispatch</th>
+                    <th colspan="7" class="bc-g-receive bc-sep"><i class="fa-solid fa-warehouse"></i> MCC Received</th>
+                    <th colspan="3" class="bc-g-diff bc-sep">Difference</th>
+                </tr>
+                <tr class="bc-cols">
+                    <th>Date</th>
+                    <th class="bc-left">Shift</th>
+                    {% for h in result.header %}<th class="{{ 'bc-sep' if loop.first else '' }}">{{ h }}</th>{% endfor %}
+                    {% for h in result.header %}<th class="{{ 'bc-sep' if loop.first else '' }}">{{ h }}</th>{% endfor %}
+                    <th class="bc-sep">Qty</th>
+                    <th>FatKG</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr class="{{ '' if r.is_dispatched else 'bc-missing' }}{{ '' if r.is_received else ' bc-missing-r' }}">
+                    <td>{{ r.date }}</td>
+                    <td class="bc-left">
+                        <span class="bc-shift {{ r.shift }}">{{ r.shift }}</span>
+                        {% if not r.is_dispatched %}<span class="bc-flag">No dispatch</span>{% endif %}
+                        {% if not r.is_received %}<span class="bc-flag">No receipt</span>{% endif %}
+                    </td>
+                    <td class="bc-d bc-sep">{{ num(r.dispatched.quantity) }}</td>
+                    <td class="bc-d">{{ num(r.dispatched.fat) }}</td>
+                    <td class="bc-d">{{ num(r.dispatched.snf) }}</td>
+                    <td class="bc-d">{{ num(r.dispatched.fat_kg, 3) }}</td>
+                    <td class="bc-d">{{ num(r.dispatched.snf_kg, 3) }}</td>
+                    <td class="bc-d">{{ num(r.dispatched.rate) }}</td>
+                    <td class="bc-d">{{ num(r.dispatched.amount) }}</td>
+                    <td class="bc-r bc-sep">{{ num(r.received.quantity) }}</td>
+                    <td class="bc-r">{{ num(r.received.fat) }}</td>
+                    <td class="bc-r">{{ num(r.received.snf) }}</td>
+                    <td class="bc-r">{{ num(r.received.fat_kg, 3) }}</td>
+                    <td class="bc-r">{{ num(r.received.snf_kg, 3) }}</td>
+                    <td class="bc-r">{{ num(r.received.rate) }}</td>
+                    <td class="bc-r">{{ num(r.received.amount) }}</td>
+                    <td class="bc-sep {{ tone(r.difference.quantity) }}">{{ signed(r.difference.quantity) }}</td>
+                    <td class="{{ tone(r.difference.fat_kg) }}">{{ signed(r.difference.fat_kg, 3) }}</td>
+                    <td class="{{ tone(r.difference.amount) }}">{{ signed(r.difference.amount) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2">Total</td>
+                    <td class="bc-sep">{{ num(totals.dispatched.quantity) }}</td>
+                    <td>{{ num(totals.dispatched.fat) }}</td>
+                    <td>{{ num(totals.dispatched.snf) }}</td>
+                    <td>{{ num(totals.dispatched.fat_kg, 3) }}</td>
+                    <td>{{ num(totals.dispatched.snf_kg, 3) }}</td>
+                    <td>{{ num(totals.dispatched.rate) }}</td>
+                    <td>{{ num(totals.dispatched.amount) }}</td>
+                    <td class="bc-sep">{{ num(totals.received.quantity) }}</td>
+                    <td>{{ num(totals.received.fat) }}</td>
+                    <td>{{ num(totals.received.snf) }}</td>
+                    <td>{{ num(totals.received.fat_kg, 3) }}</td>
+                    <td>{{ num(totals.received.snf_kg, 3) }}</td>
+                    <td>{{ num(totals.received.rate) }}</td>
+                    <td>{{ num(totals.received.amount) }}</td>
+                    <td class="bc-sep {{ tone(totals.difference.quantity) }}">{{ signed(totals.difference.quantity) }}</td>
+                    <td class="{{ tone(totals.difference.fat_kg) }}">{{ signed(totals.difference.fat_kg, 3) }}</td>
+                    <td class="{{ tone(totals.difference.amount) }}">{{ signed(totals.difference.amount) }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="bc-legend">
+        <span><span class="bc-neg">−</span> MCC received less than dispatched</span>
+        <span><span class="bc-pos">+</span> MCC received more than dispatched</span>
+        <span>FAT / SNF are quantity-weighted averages · Dispatch rate is taken from the MCC's assigned rate chart for that shift's rank (rank 1 if none)</span>
+    </div>
+    {% else %}
+    <div class="bc-empty">
+        <i class="fa-regular fa-folder-open" style="font-size: 32px; color: #cbd5e1; margin-bottom: 12px; display: block;"></i>
+        <div style="font-weight: 700; color: #475569;">No dispatch or MCC collection found for this VLCC</div>
+        <div style="font-size: 13px; margin-top: 4px;">Try a different date range or shift.</div>
+    </div>
+    {% endif %}
+</div>

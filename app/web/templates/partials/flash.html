@@ -1,0 +1,44 @@
+{% if flash %}
+
+<div id="flash-container">
+
+    {% for message in flash %}
+
+    <div
+        class="alert alert-{{ message.type }} alert-dismissible fade show shadow-sm mb-3"
+        role="alert">
+
+        {% if message.type == "success" %}
+
+        <i class="bi bi-check-circle-fill me-2"></i>
+
+        {% elif message.type == "danger" %}
+
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+
+        {% elif message.type == "warning" %}
+
+        <i class="bi bi-exclamation-circle-fill me-2"></i>
+
+        {% else %}
+
+        <i class="bi bi-info-circle-fill me-2"></i>
+
+        {% endif %}
+
+        {{ message.message }}
+
+        <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="alert"
+            aria-label="Close">
+        </button>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+{% endif %}

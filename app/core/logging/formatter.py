@@ -2,9 +2,7 @@
 RealTimeTransfer
 ================
 
-Enterprise JSON Formatter
-
-Heavy Traffic Ready
+Enterprise Logger Formatter
 
 Python 3.13+
 """
@@ -13,83 +11,92 @@ from __future__ import annotations
 
 import json
 import logging
-import socket
-from datetime import UTC, datetime
-from typing import Any
+from datetime import datetime
+from app.core.clock import now_ist
+
+from app.core.logging.context import LoggerContext
 
 
-_STANDARD_FIELDS = frozenset(
-    logging.makeLogRecord({}).__dict__.keys()
-)
+# ==========================================================
+# Base Formatter
+# ==========================================================
 
-
-class JsonFormatter(logging.Formatter):
+class BaseFormatter(logging.Formatter):
     """
-    Enterprise JSON formatter.
+    Common formatter utilities.
     """
 
-    __slots__ = (
-        "_application",
-        "_hostname",
-    )
+    __slots__ = ()
 
-    def __init__(
-        self,
-        application: str,
-    ) -> None:
+    @staticmethod
+    def timestamp() -> str:
+        return now_ist().isoformat(timespec="milliseconds")
 
-        super().__init__()
 
-        self._application = application
+# ==========================================================
+# Console Formatter
+# ==========================================================
 
-        self._hostname = socket.gethostname()
+class ConsoleFormatter(BaseFormatter):
+    """
+    Human readable formatter.
+    """
+
+    __slots__ = ()
 
     def format(
         self,
         record: logging.LogRecord,
     ) -> str:
 
-        payload: dict[str, Any] = {
+        ctx = LoggerContext.get()
 
-            "timestamp": datetime.now(
-                UTC
-            ).isoformat(),
+        return (
+            f"{self.timestamp()} | "
+            f"{record.levelname:<8} | "
+            f"{ctx.request_id} | "
+            f"{record.name} | "
+            f"{record.getMessage()}"
+        )
 
-            "application": self._application,
 
-            "hostname": self._hostname,
+# ==========================================================
+# JSON Formatter
+# ==========================================================
+
+class JsonFormatter(BaseFormatter):
+    """
+    Structured JSON formatter.
+    """
+
+    __slots__ = ()
+
+    def format(
+        self,
+        record: logging.LogRecord,
+    ) -> str:
+
+        ctx = LoggerContext.get()
+
+        payload = {
+
+            "timestamp": self.timestamp(),
 
             "level": record.levelname,
 
             "logger": record.name,
 
-            "module": record.module,
-
-            "function": record.funcName,
-
-            "line": record.lineno,
-
-            "process": record.process,
-
-            "thread": record.threadName,
-
             "message": record.getMessage(),
+
+            "request_id": ctx.request_id,
+
+            # "trace_id": ctx.trace_id,
+
+            "user_id": ctx.user_id,
+
+            "ip": ctx.ip,
+
         }
-
-        #
-        # Extra fields
-        #
-
-        for key, value in record.__dict__.items():
-
-            if key in _STANDARD_FIELDS:
-                continue
-
-            payload[key] = value
-
-        #
-        # Exception
-        #
 
         if record.exc_info:
 
@@ -98,12 +105,7 @@ class JsonFormatter(logging.Formatter):
             )
 
         return json.dumps(
-
             payload,
-
             ensure_ascii=False,
-
             separators=(",", ":"),
-
-            default=str,
         )

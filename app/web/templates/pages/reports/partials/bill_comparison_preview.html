@@ -1,0 +1,163 @@
+{# Milk Bill Comparison — printable preview: one wide table, grouped column headers #}
+{% set metadata = result.metadata %}
+{% set block = result.ledger[0] if result.ledger else None %}
+{% set rows = block.rows if block and block.rows else [] %}
+{% set totals = block.footer if block else None %}
+{% set side_cols = [('Qty', 'quantity', 2), ('Fat', 'fat', 2), ('SNF', 'snf', 2), ('FatKG', 'fat_kg', 3), ('SnfKG', 'snf_kg', 3), ('Rate', 'rate', 2), ('Amount', 'amount', 2)] %}
+{% set diff_cols = [('Qty', 'quantity', 2), ('Fat', 'fat', 2), ('SNF', 'snf', 2), ('FatKG', 'fat_kg', 3), ('SnfKG', 'snf_kg', 3), ('Amount', 'amount', 2)] %}
+
+{% macro num(v, digits=2) -%}{{ ("%." ~ digits ~ "f")|format((v or 0)|float) }}{%- endmacro %}
+
+{% macro side_cells(values, cols) -%}
+    {% for label, key, digits in cols %}
+    <td class="{{ 'g-start' if loop.first else '' }}">{{ num(values[key], digits) }}</td>
+    {% endfor %}
+{%- endmacro %}
+
+<div class="thermal-receipt bcp" style="font-family: 'Courier New', Courier, monospace; color: #000; background: #fff; padding: 24px; max-width: 100%; box-sizing: border-box; margin: 0 auto;">
+    <style>
+        .bcp-scroll { width: 100%; overflow-x: auto; }
+        .bcp table { width: 100%; min-width: 1180px; border-collapse: collapse; font-size: 13px; font-family: 'Courier New', Courier, monospace; }
+        .bcp th, .bcp td { padding: 6px 6px; text-align: right; white-space: nowrap; }
+        .bcp th.left, .bcp td.left { text-align: left; }
+        .bcp thead tr.groups th { text-align: center; font-weight: bold; padding-bottom: 2px; }
+        .bcp thead tr.groups th.meta { text-align: left; }
+        .bcp thead tr.cols th { font-weight: bold; border-bottom: 1px dashed #000; }
+        .bcp .g-start { border-left: 1px solid #000; }
+        .bcp tbody tr:first-child td { padding-top: 10px; }
+        @media print {
+            @page { size: landscape; margin: 8mm; }
+            body * { visibility: hidden; }
+            .thermal-receipt, .thermal-receipt * { visibility: visible; }
+            .thermal-receipt { position: absolute; left: 0; top: 0; width: 100% !important; border: none !important; padding: 0 !important; }
+            .bcp-scroll { overflow: visible; }
+            .bcp table { min-width: 0; font-size: 11px; }
+            .bcp th, .bcp td { padding: 3px 4px; }
+            .bcp tbody tr { break-inside: avoid; page-break-inside: avoid; }
+        }
+    </style>
+
+    <!-- Header (same layout as report_preview.html) -->
+    <div style="text-align: center; margin-bottom: 24px; line-height: 1.4;">
+        <h2 style="margin: 0; font-size: 22px; font-weight: bold; letter-spacing: 1px;">VITCO</h2>
+        {% if metadata.owner_name %}
+        <h2 style="margin: 0; font-size: 18px; font-weight: bold; letter-spacing: 1px;">{{ metadata.owner_name }}</h2>
+        {% endif %}
+        <h3 style="margin: 3px 0; font-size: 16px; font-weight: bold; text-transform: uppercase;">
+            {{ metadata.report_name or 'Provisional Report' }}
+        </h3>
+        <p style="margin: 0px 0; font-size: 14px; font-weight: bold;">
+            DATE: {{ today }}
+        </p>
+        <p style="margin: 0px 0; font-size: 14px; font-weight: bold;">
+            {{ metadata.name }}
+        </p>
+        {% if metadata.code %}
+        <p style="margin: 0px 0; font-size: 14px;">
+            UIC-{{ metadata.code }}
+        </p>
+        {% endif %}
+        {% if metadata.address %}
+        <p style="margin: 0px 0; font-size: 14px;">
+            {{ metadata.address }}
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Metadata Fields -->
+    <div style="display: flex; gap: 20px; font-size: 13px; font-weight: bold; margin-bottom: 0px;">
+        <div>Start Date {% if metadata.start_shift %}/ Shift{% endif%} :&nbsp; </div>
+        <div>{{ metadata.start_date }} {% if metadata.start_shift%}&nbsp;/ {{ metadata.start_shift}}{%endif%}</div>
+    </div>
+    <div style="display: flex; gap: 20px; font-size: 13px; font-weight: bold; margin-bottom: 6px;">
+        <div>End Date {% if metadata.end_shift %}&nbsp;&nbsp;/ Shift{% endif%} :&nbsp; </div>
+        <div>{{ metadata.end_date }} {% if metadata.end_shift%}&nbsp;/ {{ metadata.end_shift}}{%endif%}</div>
+    </div>
+
+    <!-- Ledger head -->
+    {% if block and block.head %}
+        {% for k, v in block.head.items() %}
+        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 5px;">
+            <div>{{ k }}: {{ v }}</div>
+        </div>
+        {% endfor %}
+    {% endif %}
+    <!-- Dashed Line separator -->
+    <div style="border-top: 1px dashed #000; margin-bottom: 2px;"></div>
+
+    <div class="bcp-scroll">
+        <table>
+            <thead>
+                <tr class="groups">
+                    <th colspan="2" class="meta">Meta</th>
+                    <th colspan="{{ side_cols|length }}" class="g-start">Dispatch From VLCC</th>
+                    <th colspan="{{ side_cols|length }}" class="g-start">Received at MCC</th>
+                    <th colspan="{{ diff_cols|length }}" class="g-start">Difference</th>
+                </tr>
+                <tr class="cols">
+                    <th class="left">Date</th>
+                    <th class="left">Shift</th>
+                    {% for label, key, digits in side_cols %}<th class="{{ 'g-start' if loop.first else '' }}">{{ label }}</th>{% endfor %}
+                    {% for label, key, digits in side_cols %}<th class="{{ 'g-start' if loop.first else '' }}">{{ label }}</th>{% endfor %}
+                    {% for label, key, digits in diff_cols %}<th class="{{ 'g-start' if loop.first else '' }}">{{ label }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td class="left">{{ r.date }}</td>
+                    <td class="left">{{ r.shift }}</td>
+                    {{ side_cells(r.dispatched, side_cols) }}
+                    {{ side_cells(r.received, side_cols) }}
+                    {{ side_cells(r.difference, diff_cols) }}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{{ 2 + side_cols|length * 2 + diff_cols|length }}" style="text-align: center; padding: 24px 0; font-style: italic;">No entries</td>
+                </tr>
+                {% endfor %}
+                <!-- Dashed Line separator -->
+                <tr>
+                    <td colspan="{{ 2 + side_cols|length * 2 + diff_cols|length }}" style="border-top: 1px dashed #000; padding: 4px 0 0 0;"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Footer Summary Totals (same label : value layout as report_preview.html) -->
+    {% if rows %}
+    {% set footer_lines = [
+        ('Total Quantity', 'quantity', 2),
+        ('Average Fat', 'fat', 2),
+        ('Average SNF', 'snf', 2),
+        ('Total Fat KG', 'fat_kg', 3),
+        ('Total SNF KG', 'snf_kg', 3),
+        ('Average Rate', 'rate', 2),
+        ('Total Amount', 'amount', 2),
+    ] %}
+    <div style="margin-top: 5px; font-size: 14px; font-weight: bold; line-height: 1.8;">
+        <div style="display: flex; margin: 0px; width: 100%;">
+            <div style="width: 200px;"></div>
+            <div style="margin-right: 12px; visibility: hidden;">:</div>
+            <div style="width: 130px; text-align: right;">Dispatch</div>
+            <div style="width: 130px; text-align: right;">Received</div>
+            <div style="width: 130px; text-align: right;">Difference</div>
+        </div>
+        {% for label, key, digits in footer_lines %}
+        <div style="display: flex; margin: 0px; width: 100%;">
+            <div style="width: 200px;">{{ label }}</div>
+            <div style="margin-right: 12px;">:</div>
+            <div style="width: 130px; text-align: right;">{{ num(totals.dispatched[key], digits) }}</div>
+            <div style="width: 130px; text-align: right;">{{ num(totals.received[key], digits) }}</div>
+            <div style="width: 130px; text-align: right;">{% if key in totals.difference %}{{ num(totals.difference[key], digits) }}{% else %}—{% endif %}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <div style="margin-top: 1px; border-top: 1px dashed #000; padding-top: 2px; font-size: 12px; color: #333; font-weight: bold;"></div>
+    {% endif %}
+
+    <!-- Footer Note -->
+    <div style="margin-top: 20px; font-size: 12px; color: #333; font-weight: bold;">
+        Note: Difference = Received - Dispatch. Dispatch rate from MCC rate chart (by rank).
+    </div>
+</div>

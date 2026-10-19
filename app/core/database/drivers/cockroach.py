@@ -7,8 +7,6 @@ Enterprise CockroachDB Driver
 Python 3.13+
 """
 
-from __future__ import annotations
-
 from sqlalchemy import event
 from app.core.config import config
 from app.core.database.drivers.base import BaseDatabaseDriver

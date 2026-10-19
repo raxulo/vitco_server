@@ -1,0 +1,858 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}{{ 'Edit' if chart else 'Create' }} Rate Chart - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="padding: 20px;">
+    <div class="page-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="page-title">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                <a href="/ratecharts" class="btn btn-ghost btn-icon-sm" style="height:32px; width:32px; border: 1px solid #cbd5e1; display: flex; align-items: center; justify-content: center; border-radius: 6px; color:#475569; text-decoration: none;">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <h2 style="margin:0; font-size:22px; font-weight:700; color:#1e293b;">{{ 'Edit Pricing Model' if chart else 'New Pricing Model' }}</h2>
+            </div>
+            <p style="color:#64748b; font-size:14px; margin:4px 0 0 0;">Configure advanced calculation parameters for automated milk billing</p>
+        </div>
+        <div class="page-actions">
+            {% if not chart %}
+            <div class="input-icon-wrapper" style="width:240px; position:relative;">
+                <i class="fa-solid fa-code-branch" style="color:#2563eb; position:absolute; left:12px; top:50%; transform:translateY(-50%);"></i>
+                <select id="rc-creation-type" class="form-control" onchange="toggleRCForms()" style="padding-left:35px; width:100%; height:38px; border:1px solid #cbd5e1; border-radius:6px; background:white;">
+                    <option value="0">Formula Based</option>
+                    <option value="1">CSV File Based</option>
+                    <option value="2">Prodata Based</option>
+                    <option value="3">Text File Based</option>
+                </select>
+            </div>
+            {% else %}
+            <span class="badge" style="background:#eff6ff; color:#2563eb; font-size:12px; padding:8px 15px; font-weight:700; border-radius:20px;">
+                MODEL: {{ chart.chart_type|chart_type_name }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card glass-card" style="padding:0; overflow:hidden; background:white; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div class="card-toolbar" style="padding:15px 25px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+            <h3 style="font-size:14px; font-weight:800; color:#1e293b; margin:0;"><i class="fa-solid fa-sliders" style="margin-right:8px; color:#2563eb;"></i> Global Configuration</h3>
+        </div>
+
+        <form onsubmit="handleSaveRateChart(event)" id="form-rc-create" style="padding:25px;">
+            <!-- Primary Config Section -->
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:20px; margin-bottom:30px;">
+                <div>
+                    <label class="form-label" style="font-size:13px; font-weight:600; color:#475569; display:block; margin-bottom:6px;">Pricing Display Name</label>
+                    <div class="input-icon-wrapper" style="position:relative;">
+                        <i class="fa-solid fa-signature" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                        <input type="text" id="rc-name" class="form-control" style="width:100%; padding:10px 10px 10px 36px; border:1px solid #cbd5e1; border-radius:8px;" placeholder="e.g. Buffalo - Standard Fat + SNF" required value="{{ chart.chart_name if chart else '' }}">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:13px; font-weight:600; color:#475569; display:block; margin-bottom:6px;">Effective From</label>
+                    <input type="date" id="rc-date" class="form-control" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px;" required value="{{ today }}">
+                </div>
+                <div style="display:flex; flex-direction:column; justify-content:flex-end;">
+                    <label style="display:flex; align-items:center; gap:10px; padding:10px 15px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; cursor:pointer;" class="hover-scale">
+                        <input type="checkbox" id="rc-default" {{ 'checked' if chart and chart.is_default }} style="height:18px; width:18px;">
+                        <span style="font-size:13px; font-weight:600; color:#1e293b;">System Default Model</span>
+                    </label>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:40px;">
+                <div>
+                    <label class="form-label" style="font-size:13px; font-weight:600; color:#475569; display:block; margin-bottom:6px;">Calculation Mode</label>
+                    <select id="rc-ratetype" class="form-control" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; background:white;">
+                        <option value="0" {{ 'selected' if chart and chart.rate_type==0 }}>FAT + SNF</option>
+                        <option value="1" {{ 'selected' if chart and chart.rate_type==1 }}>FAT Only</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:13px; font-weight:600; color:#475569; display:block; margin-bottom:6px;">Chart Status</label>
+                    <select id="rc-status" class="form-control" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:8px; background:white;">
+                        <option value="true" {{ 'selected' if chart and chart.status==True or not chart }}>Active</option>
+                        <option value="false" {{ 'selected' if chart and chart.status==False }}>Draft / Disabled</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- DYNAMIC SECTIONS -->
+
+            <!-- 1. FORMULA SECTION -->
+            <div id="rc-ui-formula" class="{{ 'section-box' if not chart or chart.chart_type == 0 else 'section-box hidden' }}">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:25px;">
+                    <!-- COW Formula Card -->
+                    <div class="animal-card cow">
+                        <div class="animal-header" style="font-weight:700; font-size:15px; margin-bottom:15px;"><i class="fa-solid fa-cow"></i> COW MODEL</div>
+                        <div class="param-input-grid">
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">FAT SHARE %</label>
+                                <input type="number" step="0.5" id="rc-cow-fat-pct" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.cow_fat_pct or 0 }}" oninput="updateFormulaSNF('cow')">
+                            </div>
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">SNF SHARE %</label>
+                                <input type="number" id="rc-cow-snf-pct" class="form-control-readonly" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.cow_snf_pct or 100 }}" readonly>
+                            </div>
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">STD FAT</label>
+                                <input type="number" step="0.1" id="rc-cow-std-fat" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.cow_std_fat if chart else '' }}" placeholder="0.0">
+                            </div>
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">STD SNF</label>
+                                <input type="number" step="0.1" id="rc-cow-std-snf" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.cow_std_snf if chart else '' }}" placeholder="0.0">
+                            </div>
+                            <div class="p-field full">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">MARKET RATE (₹ / LTR)</label>
+                                <input type="number" step="0.01" id="rc-cow-std-rate" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.cow_std_rate if chart else '' }}" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BUFFALO Formula Card -->
+                    <div class="animal-card buffalo">
+                        <div class="animal-header" style="font-weight:700; font-size:15px; margin-bottom:15px;">🐃 BUFFALO MODEL</div>
+                        <div class="param-input-grid">
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">FAT SHARE %</label>
+                                <input type="number" step="0.5" id="rc-buf-fat-pct" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.buf_fat_pct or 0 }}" oninput="updateFormulaSNF('buf')">
+                            </div>
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">SNF SHARE %</label>
+                                <input type="number" id="rc-buf-snf-pct" class="form-control-readonly" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.buf_snf_pct or 100 }}" readonly>
+                            </div>
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">STD FAT</label>
+                                <input type="number" step="0.1" id="rc-buf-std-fat" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.buf_std_fat if chart else '' }}" placeholder="0.0">
+                            </div>
+                            <div class="p-field">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">STD SNF</label>
+                                <input type="number" step="0.1" id="rc-buf-std-snf" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.buf_std_snf if chart else '' }}" placeholder="0.0">
+                            </div>
+                            <div class="p-field full">
+                                <label style="font-size:11px; font-weight:700; color:#475569;">MARKET RATE (₹ / LTR)</label>
+                                <input type="number" step="0.01" id="rc-buf-std-rate" class="form-control" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;" value="{{ chart.buf_std_rate if chart else '' }}" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:25px; display:flex; justify-content:flex-end;">
+                    <button type="submit" id="btn-save-formula" class="btn btn-primary" style="background:#2563eb; color:white; border:none; padding:10px 24px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer;">
+                        <i class="fa-solid fa-save"></i> Save Formula
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. GRID / CSV SECTION -->
+            <div id="rc-ui-csv" class="{{ 'section-box' if chart and chart.chart_type == 1 else 'section-box hidden' }}">
+                <div class="import-panel" style="align-items: center; justify-content: space-between;">
+                    <div style="flex:1;">
+                        <h4 style="font-size:14px; margin-bottom:12px; font-weight:800; color:#1e293b; margin-top:0;">
+                            <i class="fa-solid fa-file-csv" style="color:#10b981; margin-right: 8px;"></i>
+                            Pricing Matrix
+                        </h4>
+                        <div style="display:flex; gap:10px;">
+                            <input type="file" id="rc-file" style="display:none;" accept=".csv">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('rc-file').click()" style="padding:8px 16px; border:1px solid #cbd5e1; background:white; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-upload"></i> Import CSV
+                            </button>
+                            <button type="submit" id="btn-save-matrix-csv" class="btn btn-primary btn-sm" style="background:#2563eb; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;" disabled>
+                                <i class="fa-solid fa-save"></i> Save Chart
+                            </button>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span id="matrix-stats-badge" class="badge" style="background:#f1f5f9; color:#475569; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600;">0 Pairs</span>
+                    </div>
+                </div>
+
+                <div id="matrix-loading-csv" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; height:200px; display:none; flex-direction:column; align-items:center; justify-content:center; gap:15px; margin-bottom: 20px;">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:32px; color:#2563eb;"></i>
+                    <p style="font-size:13px; color:#64748b; font-weight:600;">Building Matrix...</p>
+                </div>
+
+                <div id="matrix-container-csv" class="matrix-wrapper" style="display:none; margin-bottom: 20px;">
+                    <!-- Matrix will be injected here -->
+                </div>
+
+                <div id="empty-matrix-msg-csv" style="padding:60px; text-align:center; background:#f8fafc; border-radius:12px; border:2px dashed #cbd5e1; margin-bottom: 20px;">
+                    <i class="fa-solid fa-table-cells" style="font-size:32px; color:#94a3b8; margin-bottom:15px; display:block; margin-inline:auto;"></i>
+                    <div style="font-weight:700; color:#64748b;">No data imported yet.</div>
+                </div>
+            </div>
+
+            <!-- 3. PRODATA SECTION -->
+            <div id="rc-ui-prodata" class="{{ 'section-box' if chart and chart.chart_type == 2 else 'section-box hidden' }}">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h4 style="font-size:15px; font-weight:800; color:#1e293b; margin:0;">
+                        <i class="fa-solid fa-database" style="color:#2563eb; margin-right:8px;"></i> Prodata Configuration Table
+                    </h4>
+                    <button type="button" onclick="addProdataRow()" class="btn btn-primary btn-sm" style="background:#2563eb; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;"><i class="fa-solid fa-plus"></i> Add Range Row</button>
+                </div>
+
+                <div class="data-table-wrapper" style="border:1px solid #e2e8f0; border-radius:12px; overflow-x:auto;">
+                    <table class="data-table" style="width:100%; border-collapse:collapse; min-width:1100px; font-size:13px;">
+                        <thead>
+                            <tr style="background:#f8fafc; border-bottom:1px solid #e2e8f0; text-align:left; color:#475569;">
+                                <th style="width:40px; padding:12px;">#</th>
+                                <th style="padding:12px;">FAT MIN</th>
+                                <th style="padding:12px;">FAT MAX</th>
+                                <th style="padding:12px;">SNF MIN</th>
+                                <th style="padding:12px;">SNF MAX</th>
+                                <th style="color:#2563eb; padding:12px;">KG FAT RATE</th>
+                                <th style="color:#2563eb; padding:12px;">KG SNF RATE</th>
+                                <th style="color:#f97316; padding:12px;">CUT-OFF</th>
+                                <th style="color:#f97316; padding:12px;">DED.</th>
+                                <th style="text-align:center; padding:12px;">ACT</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prodata-tbody">
+                            <!-- Rows added dynamically -->
+                        </tbody>
+                    </table>
+                    <div id="prodata-empty" style="padding:60px; text-align:center; display:none;">
+                        <i class="fa-solid fa-folder-open" style="font-size:32px; color:#94a3b8; margin-bottom:15px; display:block; margin-inline:auto;"></i>
+                        <div style="font-weight:700; color:#64748b;">No prodata entries defined.</div>
+                    </div>
+                    <div id="loading-spinner" style="padding:40px; text-align:center; display:none;">
+                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size:24px; color:#2563eb;"></i>
+                        <p style="margin-top:10px; font-weight:600; color:#64748b;">Hydrating data pool...</p>
+                    </div>
+                </div>
+                <div style="margin-top:25px; display:flex; justify-content:flex-end;">
+                    <button type="submit" id="btn-save-prodata" class="btn btn-primary" style="background:#2563eb; color:white; border:none; padding:10px 24px; border-radius:6px; font-weight:600; cursor:pointer;">
+                        <i class="fa-solid fa-save"></i> Save Prodata Configuration
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4. Text / File SECTION -->
+            <div id="rc-ui-txt" class="{{ 'section-box' if chart and chart.chart_type == 3 else 'section-box hidden' }}">
+                <div class="import-panel" style="align-items: center; justify-content: space-between;">
+                    <div style="flex:1;">
+                        <h4 style="font-size:14px; margin-bottom:12px; font-weight:800; color:#1e293b; margin-top:0;">
+                            <i class="fa-solid fa-file-lines" style="color:#2563eb; margin-right: 8px;"></i> Text File Grid
+                        </h4>
+                        <div style="display:flex; gap:10px;">
+                            <input type="file" id="rc-file-txt" style="display:none;" accept=".txt">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('rc-file-txt').click()" style="padding:8px 16px; border:1px solid #cbd5e1; background:white; border-radius:6px; cursor:pointer;">
+                                <i class="fa-solid fa-upload"></i> Import TXT
+                            </button>
+                            <button type="submit" id="btn-save-matrix-txt" class="btn btn-primary btn-sm" style="background:#2563eb; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;" disabled>
+                                <i class="fa-solid fa-save"></i> Save Chart
+                            </button>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span id="matrix-stats-badge-txt" class="badge" style="background:#f1f5f9; color:#475569; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:600;">0 Pairs</span>
+                    </div>
+                </div>
+
+                <div id="matrix-loading-txt" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; height:200px; display:none; flex-direction:column; align-items:center; justify-content:center; gap:15px; margin-bottom: 20px;">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:32px; color:#2563eb;"></i>
+                    <p style="font-size:13px; color:#64748b; font-weight:600;">Building Matrix...</p>
+                </div>
+
+                <div id="matrix-container-txt" class="matrix-wrapper" style="display:none; margin-bottom: 20px;">
+                    <!-- Matrix will be injected here -->
+                </div>
+
+                <div id="empty-matrix-msg-txt" style="padding:60px; text-align:center; background:#f8fafc; border-radius:12px; border:2px dashed #cbd5e1; margin-bottom: 20px;">
+                    <i class="fa-solid fa-table-list" style="font-size:32px; color:#94a3b8; margin-bottom:15px; display:block; margin-inline:auto;"></i>
+                    <div style="font-weight:700; color:#64748b;">No data imported yet.</div>
+                </div>
+            </div>
+
+            <!-- Bottom Action Fallback -->
+            <div style="margin-top:40px; padding-top:30px; border-top:2px solid #f1f5f9; display:flex; justify-content:flex-end; gap:15px;">
+                <a href="/ratecharts" class="btn btn-ghost" style="padding:12px 30px; color:#64748b; text-decoration:none;">Discard Changes</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Processing Overlay -->
+    <div id="processing-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="loader-content" style="background: white; padding: 50px; border-radius: 24px; text-align: center; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3); border: 1px solid #e2e8f0;">
+            <i class="fa-solid fa-gear fa-spin" style="font-size: 40px; color: #2563eb; margin-bottom: 20px;"></i>
+            <h3 id="overlay-text" style="margin:0; font-size:16px; color:#1e293b;">Syncing with system...</h3>
+        </div>
+    </div>
+</div>
+
+<style>
+    .matrix-wrapper {
+        max-height: 650px;
+        overflow: auto;
+        border: 1px solid #cbd5e1;
+        border-radius: 16px;
+        position: relative;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+    }
+
+    .matrix-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        width: max-content;
+        table-layout: fixed;
+    }
+
+    .matrix-corner {
+        background: #f1f5f9;
+        position: sticky;
+        top: 0;
+        left: 0;
+        z-index: 30;
+        padding: 12px 5px;
+        border-right: 2px solid #2563eb;
+        border-bottom: 2px solid #2563eb;
+        font-size: 10px;
+        font-weight: 900;
+        color: #1e293b;
+        text-transform: uppercase;
+        width: 55px;
+        min-width: 55px;
+    }
+
+    .matrix-header {
+        background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        padding: 12px 2px;
+        border-bottom: 2px solid #2563eb;
+        border-right: 1px solid #e2e8f0;
+        font-size: 12px;
+        font-weight: 800;
+        color: #2563eb;
+        text-align: center;
+        width: 55px;
+        min-width: 55px;
+        max-width: 55px;
+    }
+
+    .matrix-side {
+        background: linear-gradient(to right, #f8fafc, #f1f5f9);
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        padding: 10px 2px;
+        font-weight: 800;
+        color: #1e293b;
+        border-right: 2px solid #2563eb;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: center;
+        width: 55px;
+        min-width: 55px;
+        max-width: 55px;
+        font-size: 12px;
+    }
+
+    .matrix-cell {
+        padding: 0;
+        border-bottom: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
+        text-align: center;
+        transition: all 0.2s;
+        width: 55px;
+        min-width: 55px;
+        max-width: 55px;
+        background: white;
+    }
+
+    .matrix-cell-input {
+        width: 100%;
+        border: none;
+        padding: 12px 1px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .matrix-cell-input:focus {
+        background: #eff6ff;
+        color: #2563eb;
+        outline: none;
+    }
+
+    .section-box {
+        margin-top: 15px;
+    }
+
+    .section-box.hidden {
+        display: none;
+    }
+
+    .animal-card {
+        padding: 25px;
+        border-radius: 18px;
+        border: 1px solid transparent;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    }
+
+    .animal-card.cow {
+        background: #f0f9ff;
+        border-color: #bae6fd;
+    }
+
+    .animal-card.buffalo {
+        background: #fff7ed;
+        border-color: #fed7aa;
+    }
+
+    .animal-header {
+        font-size: 15px;
+        font-weight: 800;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .animal-card.cow .animal-header {
+        color: #0369a1;
+    }
+
+    .animal-card.buffalo .animal-header {
+        color: #9a3412;
+    }
+
+    .param-input-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .p-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .p-field.full {
+        grid-column: span 2;
+        margin-top: 10px;
+    }
+
+    .p-field label {
+        font-size: 10px;
+        font-weight: 800;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+
+    .form-control-readonly {
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .import-panel {
+        display: flex;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        padding: 24px;
+        border-radius: 18px;
+        margin-bottom: 24px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn:disabled {
+        background: #e2e8f0 !important;
+        color: #94a3b8 !important;
+        border-color: #e2e8f0 !important;
+        cursor: not-allowed !important;
+        opacity: 0.7;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const isEdit = {{ 'true' if chart else 'false' }};
+    const chartId = "{{ chart.id if chart else '' }}";
+    const chartType = {{ chart.chart_type if chart else -1 }};
+
+    // Pre-serialized data from backend
+    const gridsData = {{ grids_data | tojson | safe }};
+    const prodataData = {{ prodata_data | tojson | safe }};
+
+    function showProcessingOverlay(msg) {
+        document.getElementById('overlay-text').innerText = msg || "Proccessing request...";
+        document.getElementById('processing-overlay').style.display = 'flex';
+    }
+
+    function hideProcessingOverlay() {
+        document.getElementById('processing-overlay').style.display = 'none';
+    }
+
+    function toggleRCForms() {
+        const type = isEdit ? chartType : parseInt(document.getElementById('rc-creation-type').value);
+        const uis = ['rc-ui-formula', 'rc-ui-csv', 'rc-ui-prodata', 'rc-ui-txt'];
+
+        // Clear previous grid data if switching types in creation mode
+        if (!isEdit) {
+            allGrids = [];
+            const matrixContainers = ['matrix-container-csv', 'matrix-container-txt'];
+            matrixContainers.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.innerHTML = '';
+                    el.style.display = 'none';
+                }
+            });
+            const emptyMsgs = ['empty-matrix-msg-csv', 'empty-matrix-msg-txt'];
+            emptyMsgs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'block';
+            });
+        }
+
+        uis.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+
+        syncSaveButtonsState();
+
+        if (type == 0) document.getElementById('rc-ui-formula').classList.remove('hidden');
+        else if (type == 1) {
+            document.getElementById('rc-ui-csv').classList.remove('hidden');
+            renderMatrixView();
+        }
+        else if (type == 2) document.getElementById('rc-ui-prodata').classList.remove('hidden');
+        else if (type == 3) {
+            document.getElementById('rc-ui-txt').classList.remove('hidden');
+            renderMatrixView();
+        }
+    }
+
+    function syncSaveButtonsState() {
+        const type = isEdit ? chartType : parseInt(document.getElementById('rc-creation-type').value);
+        const btnCsv = document.getElementById('btn-save-matrix-csv');
+        const btnTxt = document.getElementById('btn-save-matrix-txt');
+        const btnFormula = document.getElementById('btn-save-formula');
+        const btnProdata = document.getElementById('btn-save-prodata');
+
+        const isMatrixMode = (type == 1 || type == 3);
+        const hasData = (allGrids && allGrids.length > 0);
+
+        if (isMatrixMode) {
+            const isDisabled = !hasData;
+            if (btnCsv) btnCsv.disabled = isDisabled;
+            if (btnTxt) btnTxt.disabled = isDisabled;
+        } else if (type == 0) {
+            if (btnFormula) btnFormula.disabled = false;
+        } else if (type == 2) {
+            if (btnProdata) btnProdata.disabled = false;
+        }
+    }
+
+    function updateFormulaSNF(animal) {
+        let fatVal = parseFloat(document.getElementById(`rc-${animal}-fat-pct`).value) || 0;
+        if (fatVal > 100) { fatVal = 100; document.getElementById(`rc-${animal}-fat-pct`).value = 100; }
+        document.getElementById(`rc-${animal}-snf-pct`).value = (100 - fatVal).toFixed(1);
+    }
+
+    let allGrids = [];
+
+    function addCSVRow(fat = '', snf = '', rate = '') {
+        allGrids.push({ fat: parseFloat(fat) || 0, snf: parseFloat(snf) || 0, rate: parseFloat(rate) || 0 });
+    }
+
+    function updateMatrixRate(fat, snf, value) {
+        const row = allGrids.find(g => g.fat.toFixed(1) === fat && g.snf.toFixed(1) === snf);
+        if (row) {
+            row.rate = parseFloat(value) || 0;
+        } else {
+            allGrids.push({ fat: parseFloat(fat), snf: parseFloat(snf), rate: parseFloat(value) || 0 });
+        }
+    }
+
+    function renderMatrixView() {
+        const type = isEdit ? chartType : document.getElementById('rc-creation-type').value;
+        const suffix = (type == 3) ? 'txt' : 'csv';
+        const container = document.getElementById(`matrix-container-${suffix}`);
+        const loader = document.getElementById(`matrix-loading-${suffix}`);
+        const empty = document.getElementById(`empty-matrix-msg-${suffix}`);
+        const stats = document.getElementById(`matrix-stats-badge${suffix == 'txt' ? '-txt' : ''}`);
+
+        if (!allGrids || allGrids.length === 0) {
+            if (container) container.style.display = 'none';
+            if (empty) empty.style.display = 'block';
+            if (stats) stats.innerText = '0 Pairs';
+            syncSaveButtonsState();
+            return;
+        }
+
+        if (empty) empty.style.display = 'none';
+        if (loader) loader.style.display = 'flex';
+
+        setTimeout(() => {
+            const fatSet = new Set();
+            const snfSet = new Set();
+            const rateMap = new Map();
+
+            allGrids.forEach(g => {
+                fatSet.add(parseFloat(g.fat));
+                snfSet.add(parseFloat(g.snf));
+                rateMap.set(`${parseFloat(g.fat).toFixed(1)}_${parseFloat(g.snf).toFixed(1)}`, g.rate);
+            });
+
+            const fats = Array.from(fatSet).sort((a, b) => a - b);
+            const snfs = Array.from(snfSet).sort((a, b) => a - b);
+
+            let html = '<table class="matrix-table">';
+            html += `<thead><tr><th class="matrix-corner">
+                        <div style="font-size:8px; opacity:0.6; margin-bottom:2px;">FAT ↓</div>
+                        <div style="border-top:1px solid rgba(0,0,0,0.1); padding-top:2px;">SNF →</div>
+                    </th>`;
+            snfs.forEach(s => {
+                html += `<th class="matrix-header">${s.toFixed(1)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            fats.forEach(f => {
+                const fatStr = f.toFixed(1);
+                html += `<tr><th class="matrix-side">${fatStr}</th>`;
+                snfs.forEach(s => {
+                    const snfStr = s.toFixed(1);
+                    const rate = rateMap.get(`${fatStr}_${snfStr}`);
+                    const val = rate !== undefined ? parseFloat(rate).toFixed(2) : '0.00';
+                    html += `<td class="matrix-cell">
+                                <input type="number" step="0.01" class="matrix-cell-input" value="${val}" 
+                                    onchange="updateMatrixRate('${fatStr}', '${snfStr}', this.value)">
+                             </td>`;
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+
+            if (container) {
+                container.innerHTML = html;
+                container.style.display = 'block';
+            }
+            if (loader) loader.style.display = 'none';
+            const statsText = `${allGrids.length} Pairs`;
+            if (stats) stats.innerText = statsText;
+
+            syncSaveButtonsState();
+        }, 10);
+    }
+
+    function addProdataRow(fatMin = '', fatMax = '', snfMin = '', snfMax = '', kgFat = '', kgSnf = '', cutOff = '', deduction = '') {
+        const tbody = document.getElementById('prodata-tbody');
+        const empty = document.getElementById('prodata-empty');
+        empty.style.display = 'none';
+
+        if (fatMin === '') {
+            const rows = tbody.querySelectorAll('tr');
+            if (rows.length > 0) {
+                const lastFatMax = parseFloat(rows[rows.length - 1].querySelector('.pd-fat-max').value);
+                if (!isNaN(lastFatMax)) fatMin = (lastFatMax + 0.1).toFixed(1);
+            }
+        }
+
+        const tr = document.createElement('tr');
+        const inp = (cls, val, step = '0.01') => `<input type="number" step="${step}" class="form-control-sm ${cls}" value="${val}" style="padding:4px; border:1px solid #cbd5e1; border-radius:4px; width:80px;">`;
+
+        tr.innerHTML = `
+            <td class="pro-index" style="color:#64748b; font-weight:700; padding:12px;">${tbody.children.length + 1}</td>
+            <td style="padding:12px;">${inp('pd-fat-min', fatMin, '0.1')}</td>
+            <td style="padding:12px;">${inp('pd-fat-max', fatMax, '0.1')}</td>
+            <td style="padding:12px;">${inp('pd-snf-min', snfMin, '0.1')}</td>
+            <td style="padding:12px;">${inp('pd-snf-max', snfMax, '0.1')}</td>
+            <td style="padding:12px;">${inp('pd-kg-fat-rate', kgFat)}</td>
+            <td style="padding:12px;">${inp('pd-kg-snf-rate', kgSnf)}</td>
+            <td style="padding:12px;">${inp('pd-snf-cut-off', cutOff, '0.1')}</td>
+            <td style="padding:12px;">${inp('pd-snf-deduction', deduction)}</td>
+            <td style="text-align:center; padding:12px;"><button type="button" onclick="this.closest('tr').remove()" class="btn btn-danger btn-icon-sm" style="color:#ef4444; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    async function handleSaveRateChart(e) {
+        e.preventDefault();
+        const type = isEdit ? chartType : document.getElementById('rc-creation-type').value;
+        const payload = {
+            chart_name: document.getElementById('rc-name').value,
+            rate_type: parseInt(document.getElementById('rc-ratetype').value),
+            chart_type: parseInt(type),
+            effective_date: document.getElementById('rc-date').value,
+            status: document.getElementById('rc-status').value === "true",
+            is_default: document.getElementById('rc-default').checked
+        };
+
+        if (payload.chart_type == 0) {
+            Object.assign(payload, {
+                cow_std_rate: parseFloat(document.getElementById('rc-cow-std-rate').value) || 0,
+                cow_std_fat: parseFloat(document.getElementById('rc-cow-std-fat').value) || 0,
+                cow_std_snf: parseFloat(document.getElementById('rc-cow-std-snf').value) || 0,
+                cow_fat_pct: parseFloat(document.getElementById('rc-cow-fat-pct').value) || 0,
+                cow_snf_pct: parseFloat(document.getElementById('rc-cow-snf-pct').value) || 100,
+                buf_std_rate: parseFloat(document.getElementById('rc-buf-std-rate').value) || 0,
+                buf_std_fat: parseFloat(document.getElementById('rc-buf-std-fat').value) || 0,
+                buf_std_snf: parseFloat(document.getElementById('rc-buf-std-snf').value) || 0,
+                buf_fat_pct: parseFloat(document.getElementById('rc-buf-fat-pct').value) || 0,
+                buf_snf_pct: parseFloat(document.getElementById('rc-buf-snf-pct').value) || 100
+            });
+        } else if (payload.chart_type == 1 || payload.chart_type == 3) {
+            if (allGrids.length === 0) { alert("No grid data found"); return; }
+            payload.grids = allGrids;
+        } else if (payload.chart_type == 2) {
+            const prodata = [];
+            document.querySelectorAll('#prodata-tbody tr').forEach(row => {                
+                const r = {
+                    fat_min: parseFloat(row.querySelector('.pd-fat-min').value),
+                    fat_max: parseFloat(row.querySelector('.pd-fat-max').value),
+                    snf_min: parseFloat(row.querySelector('.pd-snf-min').value),
+                    snf_max: parseFloat(row.querySelector('.pd-snf-max').value),
+                    kg_fat_rate: parseFloat(row.querySelector('.pd-kg-fat-rate').value || 0.0),
+                    kg_snf_rate: parseFloat(row.querySelector('.pd-kg-snf-rate').value || 0.0),
+                    snf_cut_off: parseFloat(row.querySelector('.pd-snf-cut-off').value || 0.0),
+                    snf_deduction: parseFloat(row.querySelector('.pd-snf-deduction').value || 0.0)
+                };
+                if ((row.querySelector('.pro-index').innerText == "1") || (r.fat_min && r.fat_max && r.snf_min && r.snf_max)) prodata.push(r);
+            });
+            payload.prodata_rows = prodata;
+        }
+
+        showProcessingOverlay("Uploading changes to master pool...");
+        try {
+            const url = isEdit ? `/ratecharts/edit/${chartId}` : `/ratecharts/add`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                window.location.href = '/ratecharts';
+            } else {
+                const err = await res.json();
+                alert(err.detail || "Validation Error");
+                hideProcessingOverlay();
+            }
+        } catch (e) {
+            alert("System connectivity error");
+            hideProcessingOverlay();
+        }
+    }
+
+    document.getElementById('rc-file').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+            showProcessingOverlay("Parsing Industry Data...");
+            setTimeout(() => {
+                const text = evt.target.result;
+                const rows = text.split(/\r?\n/).filter(r => r.trim() !== '');
+                if (rows.length < 2) return hideProcessingOverlay();
+
+                const snfHeaders = rows[0].split(',').slice(1).map(v => parseFloat(v.trim()));
+
+                for (let i = 1; i < rows.length; i++) {
+                    const tokens = rows[i].split(',').map(v => v.trim());
+                    const fat = parseFloat(tokens[0]);
+                    if (isNaN(fat)) continue;
+                    for (let j = 1; j < tokens.length; j++) {
+                        const rate = parseFloat(tokens[j]);
+                        if (!isNaN(rate) && !isNaN(snfHeaders[j - 1])) {
+                            addCSVRow(fat.toFixed(1), snfHeaders[j - 1].toFixed(1), rate.toFixed(2));
+                        }
+                    }
+                }
+                renderMatrixView();
+                hideProcessingOverlay();
+                e.target.value = '';
+            }, 500);
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('rc-file-txt').addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+            showProcessingOverlay("Parsing Text Data...");
+            setTimeout(() => {
+                const text = evt.target.result;
+                const rows = text.split(/\r?\n/).filter(r => r.trim() !== '');
+
+                // Skip 1st line, split by space
+                for (let i = 1; i < rows.length; i++) {
+                    const line = rows[i].trim();
+                    if (!line) continue;
+                    const tokens = line.split(/\s+/).map(v => v.trim());
+                    if (tokens.length >= 3) {
+                        const fat = parseFloat(tokens[0]);
+                        const snf = parseFloat(tokens[1]);
+                        const rate = parseFloat(tokens[2]);
+                        if (!isNaN(fat) && !isNaN(snf) && !isNaN(rate)) {
+                            addCSVRow(fat.toFixed(1), snf.toFixed(1), rate.toFixed(3));
+                        }
+                    }
+                }
+                renderMatrixView();
+                hideProcessingOverlay();
+                e.target.value = '';
+            }, 500);
+        };
+        reader.readAsText(file);
+    });
+
+    // Progressive Hydration Engine
+    function progressiveHydrate(data, renderFn, chunkSize = 100) {
+        if (!data || data.length === 0) return;
+
+        let index = 0;
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) spinner.style.display = 'block';
+
+        function processBatch() {
+            const end = Math.min(index + chunkSize, data.length);
+            for (; index < end; index++) {
+                renderFn(data[index]);
+            }
+
+            if (index < data.length) {
+                setTimeout(processBatch, 0); // Non-blocking
+            } else {
+                if (spinner) spinner.style.display = 'none';
+                if (chartType === 1 || chartType === 3) renderMatrixView();
+            }
+        }
+        processBatch();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (isEdit) {
+            if (chartType === 1 || chartType === 3) {
+                progressiveHydrate(gridsData, (g) => addCSVRow(g.fat, g.snf, g.rate), 50);
+            } else if (chartType === 2) {
+                if (prodataData.length === 0) {
+                    document.getElementById('prodata-empty').style.display = 'block';
+                } else {
+                    progressiveHydrate(prodataData, (r) => {
+                        addProdataRow(r.fat_min, r.fat_max, r.snf_min, r.snf_max, r.kg_fat_rate, r.kg_snf_rate, r.snf_cut_off, r.snf_deduction);
+                    }, 50);
+                }
+            }
+        } else {
+            if (chartType === 2 && prodataData.length === 0) {
+                document.getElementById('prodata-empty').style.display = 'block';
+            }
+        }
+
+        toggleRCForms();
+    });
+</script>
+{% endblock %}

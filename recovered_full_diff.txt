@@ -1,0 +1,94 @@
+Created At: 2026-08-15T23:50:24Z
+Completed At: 2026-08-15T23:50:24Z
+File Path: `file:///c:/ProjectMe/quickyee/recovered_js.js`
+Total Lines: 86
+Total Bytes: 4206
+Showing lines 1 to 86
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: The following changes were made by the USER to: c:\ProjectMe\quickyee\app\web\templates\pages\mcc_collection\create_edit.html. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+2: [diff_block_start]
+3: @@ -100,1002 +100,7 @@
+4:  
+5:  {% block scripts %}
+6:  <script>
+7: -    let previewConfirmed = false;
+8: -    
+9: -    function openReceiptPreview() {
+10: -        const form = document.getElementById("form-collection");
+11: -        if (!form.checkValidity()) {
+12: -            form.reportValidity();
+13: -            return;
+14: -        }
+15: -        
+16: -        const mccSelect = document.getElementById('cf-mccid');
+17: -        const mccName = mccSelect && mccSelect.selectedIndex >= 0 ? mccSelect.options[mccSelect.selectedIndex].text : '';
+18: -        const selectedMccOpt = mccSelect ? mccSelect.options[mccSelect.selectedIndex] : null;
+19: -        const mccType = selectedMccOpt ? selectedMccOpt.getAttribute('data-mcc-type') : '';
+20: -
+21: -        const shopSelect = document.getElementById('cf-shopid');
+22: -        const shopName = shopSelect && shopSelect.selectedIndex >= 0 ? shopSelect.options[shopSelect.selectedIndex].text : '';
+23: -        
+24: -        const date = document.getElementById('cf-date').value;
+25: -        
+26: -        const shiftSelect = document.getElementById('cf-shift');
+27: -        const shift = shiftSelect && shiftSelect.selectedIndex >= 0 ? shiftSelect.options[shiftSelect.selectedIndex].text : '';
+28: -        
+29: -        const typeSelect = document.getElementById('cf-type');
+30: -        const milkType = typeSelect && typeSelect.selectedIndex >= 0 ? typeSelect.options[typeSelect.selectedIndex].text : '';
+31: -        
+32: -        const qty = parseFloat(document.getElementById('cf-qty').value) || 0;
+33: -        const fat = document.getElementById('cf-fat').value;
+34: -        const snf = document.getElementById('cf-snf').value;
+35: -        const rate = parseFloat(document.getElementById('cf-rate').value) || 0;
+36: -        const samples = document.getElementById('cf-samples').value;
+37: -        const cans = document.getElementById('cf-cans').value
+38: <truncated 45212 bytes>
+39: rr);
+40: -            }
+41: -
+42: -            // Fetch next sample if Type 2
+43: -            if (mccType === '2') {
+44: -                updateNextSample();
+45: -            }
+46: -
+47: -            validateSaveButton();
+48: -        });
+49: -
+50: -        // Trigger change event if MCC is already selected
+51: -        if (mccSelect.value) {
+52: -            mccSelect.dispatchEvent(new Event('change'));
+53: -        } else {
+54: -            toggleFieldsByMccType('');
+55: -        }
+56: -
+57: -        // Recalculate total and re-evaluate save button when HTMX updates the rate field
+58: -        document.body.addEventListener('htmx:afterSwap', function (evt) {
+59: -            if (evt.detail.target.id === 'cf-rate') {
+60: -                calcTotal();
+61: -                validateSaveButton();
+62: -            }
+63: -        });
+64: -
+65: -        // Prevent HTMX requests for rate calculation when using Fixed Rate MCC (Type 3)
+66: -        document.body.addEventListener('htmx:configRequest', function (evt) {
+67: -            const mccSelect = document.getElementById('cf-mccid');
+68: -            const selectedOpt = mccSelect ? mccSelect.options[mccSelect.selectedIndex] : null;
+69: -            const mccType = selectedOpt ? selectedOpt.getAttribute('data-mcc-type') : '';
+70: -            if (mccType === '3' && evt.detail.path.includes('calculate-rate')) {
+71: -                evt.preventDefault();
+72: -            }
+73: -        });
+74: -
+75: -        // Listen for populate-fields from HTMX response headers
+76: -        document.body.addEventListener('populate-fields', function(evt) {
+77: +    document.body.addEventListener('populate-fields', function(evt) {
+78:              console.log(evt.detail);
+79:              const data = evt.detail;
+80:              const qtyInput = document.getElementById('cf-qty');
+81: [diff_block_end]
+82: 
+83: Please note that the above snippet only shows the MODIFIED lines from the last change. It shows up to 3 lines of unchanged lines before and after the modified lines. The actual file contents may hav
+84: <truncated 28 bytes>
+85: 
+86: NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.
+The above content shows the entire, complete file contents of the requested file.

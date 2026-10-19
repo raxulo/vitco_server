@@ -1,0 +1,74 @@
+<!-- Left: Available Charts Pool -->
+<div class="info-card" style="background:white; border-radius:12px; border:1px solid #e2e8f0; padding:20px; min-height:420px; display:flex; flex-direction:column; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+    <div class="box-header" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div style="font-size:15px; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-layer-group" style="color:#2563eb; font-size:14px;"></i> Available Charts
+            <span class="count-pill" id="pool-count" style="background:#eff6ff; color:#2563eb; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700;">{{ pool_charts|length }}</span>
+        </div>
+        <button type="button" onclick="assignAllCharts()" class="btn-bulk-action" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; transition:0.2s;">
+            <i class="fa-solid fa-angles-right"></i> Assign All
+        </button>
+    </div>
+
+    <!-- Quick Search Input -->
+    <div style="margin-bottom: 12px; position: relative;">
+        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px;"></i>
+        <input type="text" placeholder="Search available charts..." oninput="filterPoolCharts(this.value)" style="width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px 8px 34px; font-size: 13px; outline: none; background: #fafafa; transition: border 0.2s;">
+    </div>
+
+    <div class="drag-box" id="pool-box" ondragover="onDragOver(event)" ondragleave="onDragLeave('pool-box')" ondrop="onDrop(event, 'pool-box')" style="border:2px dashed #cbd5e1; border-radius:10px; padding:12px; flex:1; display:flex; flex-direction:column; gap:10px; background:#f8fafc; min-height:300px; max-height: 500px; overflow-y: auto;">
+        {% for chart in pool_charts %}
+        <div class="chart-item" id="chart-{{ chart.id }}" data-id="{{ chart.id }}" data-name="{{ chart.chart_name|lower }}" draggable="true" ondragstart="onDragStart(event)" style="background:white; padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:grab; transition:all 0.15s;">
+            <div style="display:flex; align-items:center; gap:10px; overflow:hidden;">
+                <i class="fa-solid fa-grip-vertical grip" style="color:#94a3b8; cursor:grab;"></i>
+                <span class="name" style="font-size:13px; font-weight:600; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ chart.chart_name }}</span>
+            </div>
+            <button type="button" onclick="assignSingleChart('chart-{{ chart.id }}')" class="btn-tap-action btn-add-chart" title="Assign Chart" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px; flex-shrink:0;">
+                <i class="fa-solid fa-plus"></i> <span class="action-text">Assign</span>
+            </button>
+        </div>
+        {% endfor %}
+        <div class="empty-state" id="pool-empty" style="padding:40px; text-align:center; color:#94a3b8; margin:auto; {{ 'display:none;' if pool_charts|length > 0 else '' }}">
+            <i class="fa-solid fa-inbox" style="font-size:36px; margin-bottom:10px; display:block; color: #cbd5e1;"></i>
+            <div class="title" style="font-weight:600; font-size:13px;">No available charts</div>
+        </div>
+    </div>
+</div>
+
+<!-- Right: Assigned Charts -->
+<div class="info-card" style="background:white; border-radius:12px; border:1px solid #e2e8f0; padding:20px; min-height:420px; display:flex; flex-direction:column; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+    <div class="box-header" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div style="font-size:15px; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-check-double" style="color:#10b981; font-size:14px;"></i> Assigned Charts
+            <span class="count-pill" id="assigned-count" style="background:#ecfdf5; color:#059669; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700;">{{ assigned_charts|length }}</span>
+        </div>
+        <button type="button" onclick="removeAllCharts()" class="btn-bulk-action" style="background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; transition:0.2s;">
+            <i class="fa-solid fa-trash-can"></i> Clear All
+        </button>
+    </div>
+
+    <div class="drag-box" id="assigned-box" ondragover="onDragOver(event)" ondragleave="onDragLeave('assigned-box')" ondrop="onDrop(event, 'assigned-box')" style="border:2px dashed #cbd5e1; border-radius:10px; padding:12px; flex:1; display:flex; flex-direction:column; gap:10px; background:#f8fafc; min-height:300px; max-height: 500px; overflow-y: auto;">
+        {% for chart in assigned_charts %}
+        <div class="chart-item" id="chart-{{ chart.id }}" data-id="{{ chart.id }}" data-name="{{ chart.chart_name|lower }}" draggable="true" ondragstart="onDragStart(event)" style="background:white; padding:10px 12px; border-radius:8px; border:1px solid #cbd5e1; display:flex; align-items:center; justify-content:space-between; gap:10px; cursor:grab; transition:all 0.15s;">
+            <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                <i class="fa-solid fa-grip-vertical grip" style="color:#94a3b8; cursor:grab;"></i>
+                <span class="type-chip" style="background:#f1f5f9; color:#475569; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700; flex-shrink:0;">{{ loop.index }}</span>
+                <span class="name" style="font-size:13px; font-weight:600; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ chart.chart_name }}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+                <button type="button" onclick="moveChartOrder('chart-{{ chart.id }}', 'up')" class="btn-order" title="Move Up" style="background:#f8fafc; color:#64748b; border:1px solid #cbd5e1; border-radius:4px; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:11px;"><i class="fa-solid fa-chevron-up"></i></button>
+                <button type="button" onclick="moveChartOrder('chart-{{ chart.id }}', 'down')" class="btn-order" title="Move Down" style="background:#f8fafc; color:#64748b; border:1px solid #cbd5e1; border-radius:4px; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; font-size:11px;"><i class="fa-solid fa-chevron-down"></i></button>
+                <button type="button" onclick="removeSingleChart('chart-{{ chart.id }}')" class="btn-tap-action btn-remove-chart" title="Remove Chart" style="background:#fef2f2; color:#ef4444; border:1px solid #fca5a5; border-radius:6px; padding:4px 8px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+        </div>
+        {% endfor %}
+        <div class="empty-state" id="assigned-empty" style="padding:40px; text-align:center; color:#94a3b8; margin:auto; {{ 'display:none;' if assigned_charts|length > 0 else '' }}">
+            <i class="fa-solid fa-clipboard-list" style="font-size:36px; margin-bottom:10px; display:block; color: #cbd5e1;"></i>
+            <div class="title" style="font-weight:600; font-size:13px;">No charts assigned yet</div>
+        </div>
+    </div>
+
+    <button type="button" onclick="saveAssignments()" class="btn btn-primary btn-save-assignments" style="width:100%; margin-top:16px; background:#2563eb; color:white; border:none; padding:12px; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
+        <i class="fa-solid fa-floppy-disk"></i> Save Assignments
+    </button>
+</div>

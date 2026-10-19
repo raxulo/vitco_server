@@ -1,0 +1,1187 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}
+    {{ 'Edit' if vlcc else 'Create' }} VLCC Master - VITCO
+{% endblock %}
+
+{% block content %}
+
+<div class="animate-fadeIn mcc-page">
+
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+    <div class="page-header">
+        <div class="page-header-content">
+
+            <div class="page-header-icon">
+                <i class="fa-solid {{ 'fa-pen-to-square' if vlcc else 'fa-building-ngo' }}"></i>
+            </div>
+
+            <div>
+                <h2 class="page-title">
+                    {{ 'Edit VLCC Master' if vlcc else 'Create VLCC Master' }}
+                </h2>
+
+                <p class="page-subtitle">
+                    {{ 
+                        'Update village collection center profile, operational settings and permissions.'
+                        if vlcc
+                        else
+                        'Configure a new Village Level Milk Collection Center (VLCC).'
+                    }}
+                </p>
+            </div>
+
+        </div>
+
+        <a href="/vlcc/" class="btn btn-ghost">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to VLCC Master
+        </a>
+    </div>
+
+
+    <!-- =========================================================
+         FORM CONTAINER (HTMX TARGET)
+    ========================================================== -->
+    <div id="vlcc-form-container">
+        <!-- =========================================================
+             ERROR
+        ========================================================== -->
+        {% if error %}
+        <div class="alert alert-danger mcc-alert">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <div>
+                <strong>Unable to save VLCC</strong>
+                <div>{{ error }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <!-- =========================================================
+             MAIN FORM
+        ========================================================== -->
+        <form
+            id="vlccForm"
+            hx-post="/vlcc/{{ 'edit/' + vlcc.id|string if vlcc else 'create' }}"
+            hx-target="#vlcc-form-container"
+            hx-select="#vlcc-form-container"
+            hx-swap="outerHTML"
+            hx-encoding="multipart/form-data"
+            enctype="multipart/form-data"
+            novalidate
+        >
+
+        <!-- =====================================================
+             01. VLCC PROFILE
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+                    <div class="section-icon">
+                        <i class="fa-solid fa-id-card"></i>
+                    </div>
+
+                    <div>
+                        <h3>VLCC Profile</h3>
+                        <p>Basic identity and registration information.</p>
+                    </div>
+                </div>
+
+                {% if vlcc %}
+                <span class="status-pill success">
+                    <i class="fa-solid fa-circle"></i>
+                    Existing VLCC
+                </span>
+                {% else %}
+                <span class="status-pill neutral">
+                    <i class="fa-solid fa-plus"></i>
+                    New Registration
+                </span>
+                {% endif %}
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- VLCC CODE -->
+                <div class="form-field">
+                    <label>
+                        VLCC Code
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-barcode"></i>
+
+                        <input
+                            id="vlcc-code"
+                            name="vlcc_code"
+                            type="text"
+                            class="form-control"
+                            placeholder="VLCC001"
+                            value="{{ vlcc.vlcc_code if vlcc else '' }}"
+                            {% if vlcc %} readonly {% else %}
+                            required
+                            hx-get="/vlcc/validation-code"
+                            hx-trigger="keyup changed delay:400ms"
+                            hx-target="#vlcc-code-validation-message"
+                            hx-swap="innerHTML"
+                            hx-select="unset"
+                            hx-indicator="#vlcc-code-loading"
+                            {% endif %}
+                        />
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                        <div
+                            id="vlcc-code-validation-message"
+                            class="field-feedback"
+                            style="display: block !important; margin: 0;"
+                        ></div>
+                        <span id="vlcc-code-loading" class="htmx-indicator" style="font-size: 0.85rem; color: #6b7280; display: none;"><i class="fa-solid fa-spinner fa-spin"></i> Checking...</span>
+                    </div>
+                </div>
+
+
+                <!-- UIC CODE -->
+                <div class="form-field">
+                    <label>
+                        UIC Code
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-qrcode"></i>
+
+                        <input
+                            id="vlcc-uic-code"
+                            name="uic_code"
+                            type="text"
+                            class="form-control"
+                            placeholder="UIC001"
+                            value="{{ vlcc.uic_code if vlcc else '' }}"
+                            required
+                            hx-get="/vlcc/validate-uic-code"
+                            hx-trigger="keyup changed delay:400ms"
+                            hx-target="#uic-code-validation-message"
+                            hx-swap="innerHTML"
+                            hx-select="unset"
+                            hx-indicator="#uic-code-loading"
+                        />
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                        <div
+                            id="uic-code-validation-message"
+                            class="field-feedback"
+                            style="display: block !important; margin: 0;"
+                        ></div>
+                        <span id="uic-code-loading" class="htmx-indicator" style="font-size: 0.85rem; color: #6b7280; display: none;"><i class="fa-solid fa-spinner fa-spin"></i> Checking...</span>
+                    </div>
+                </div>
+
+
+                <!-- NAME -->
+                <div class="form-field">
+                    <label>
+                        VLCC Center Name
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-industry"></i>
+
+                        <input
+                            id="vlcc-name"
+                            type="text"
+                            name="name"
+                            class="form-control"
+                            placeholder="VLCC Collection Center"
+                            value="{{ vlcc.name if vlcc else '' }}"
+                            required
+                        />
+                    </div>
+                </div>
+
+
+                <!-- CONTACT PERSON -->
+                <div class="form-field">
+                    <label>
+                        Contact Person
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-user"></i>
+
+                        <input
+                            type="text"
+                            name="contact_person"
+                            class="form-control"
+                            placeholder="Authorized Representative Name"
+                            value="{{ vlcc.contact_person if vlcc else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- MOBILE -->
+                <div class="form-field">
+                    <label>
+                        Registered Mobile
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-phone"></i>
+
+                        <input
+                            id="vlcc-mobile"
+                            name="mobile"
+                            type="tel"
+                            class="form-control"
+                            placeholder="+91 99999 88888"
+                            value="{{ user.mobile if vlcc else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- EMAIL -->
+                <div class="form-field">
+                    <label>
+                        Registered Email
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+
+                        <input
+                            id="vlcc-email"
+                            name="email"
+                            type="email"
+                            class="form-control"
+                            placeholder="vlcc@example.com"
+                            value="{{ user.email if vlcc else '' }}"
+                            required
+                        />
+                    </div>
+                </div>
+
+
+                <!-- PASSWORD -->
+                <div class="form-field">
+                    <label>
+                        VLCC Password
+                        {% if not vlcc %}
+                        <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    <div class="password-wrapper">
+                        <i class="fa-solid fa-lock"></i>
+
+                        <input
+                            id="mcc-password"
+                            name="password"
+                            type="password"
+                            class="form-control"
+                            placeholder="{{
+                                'Leave blank to keep existing password'
+                                if vlcc
+                                else
+                                'Enter secure password'
+                            }}"
+                            {% if not vlcc %}required{% endif %}
+                        />
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            onclick="togglePasswordVisibility('mcc-password', this)"
+                        >
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+
+
+
+                <!-- ROUTE CODE -->
+                <div class="form-field">
+                    <label>
+                        Route Assignment
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-route"></i>
+
+                        <select name="route_code" class="form-control">
+                            <option value="">Select Route Option</option>
+
+                            {% for route in routes %}
+                            <option
+                                value="{{ route.route_code }}"
+                                {{ 'selected' if vlcc and vlcc.route_code|string == route.route_code|string else '' }}
+                            >
+                                {{ route.route_code }} - {{ route.route_name }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- ENTRY MODE -->
+                <div class="form-field">
+                    <label>Collection Entry Mode</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-keyboard"></i>
+                        <select name="entry_mode" class="form-control">
+                            <option value="0" {{ 'selected' if vlcc and vlcc.entry_mode|int == 0 else '' }}>Manual</option>
+                            <option value="1" {{ 'selected' if vlcc and vlcc.entry_mode|int == 1 else '' }}>Automatic</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- SOC PERCENTAGE -->
+                <div class="form-field">
+                    <label>SOC Percentage (%)</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-percent"></i>
+                        <input
+                            name="soc_percentage"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            class="form-control"
+                            placeholder="0.00"
+                            value="{{ vlcc.soc_percentage if vlcc else 0.0 }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- FARMER ENABLED -->
+                <div class="form-field">
+                    <label>Farmer Module Access</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <select name="farmer_enabled" class="form-control">
+                            <option value="true" {{ 'selected' if not vlcc or vlcc.farmer_enabled else '' }}>Enabled</option>
+                            <option value="false" {{ 'selected' if vlcc and not vlcc.farmer_enabled else '' }}>Disabled</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- ACTIVE STATUS -->
+                <div class="form-field">
+                    <label>Account Status</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-toggle-on"></i>
+                        <select name="is_active" class="form-control">
+                            <option value="true" {{ 'selected' if not vlcc or vlcc.is_active else '' }}>Active</option>
+                            <option value="false" {{ 'selected' if vlcc and not vlcc.is_active else '' }}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- Assigned Chart Rank -->
+                <div class="form-field">
+                    <label>Assigned Chart Rank <span class="required">*</span></label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-list-ol"></i>
+                        <select name="assigned_chart_rank" class="form-control" required>
+                            {% for rank in range(1, 16) %}
+                            <option value="{{ rank }}" {{ 'selected' if (vlcc and vlcc.assigned_chart_rank|int == rank) or (not vlcc and rank == 1) else '' }}>
+                                R-{{ rank }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- PROFILE IMAGE -->
+                <div class="form-field full-width">
+                    <label>Profile Avatar / Seal Image</label>
+
+                    <div class="file-uploader">
+                        <input
+                            type="file"
+                            name="profile_image"
+                            id="profile-image-input"
+                            accept="image/*"
+                            onchange="handleFileSelect(this)"
+                        />
+
+                        <label for="profile-image-input" class="uploader-box">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+
+                            <div>
+                                <strong>Click to upload</strong>
+                                <span>or drag and drop</span>
+                            </div>
+
+                            <small>SVG, PNG, JPG or GIF (max. 800x400px)</small>
+                        </label>
+
+                    </div>
+
+                    {% if vlcc and vlcc.profile_image %}
+                    <div class="current-file">
+                        <i class="fa-solid fa-paperclip"></i>
+
+                        {% if '/' in vlcc.profile_image %}
+                        <a
+                            href="{{ vlcc.profile_image }}"
+                            target="_blank"
+                        >
+                            View image
+                        </a>
+                        {% else %}
+                        <a
+                            href="/image/{{ vlcc.profile_image }}"
+                            target="_blank"
+                        >
+                            View image
+                        </a>
+                        {% endif %}
+
+                        <span class="file-meta">Click link to verify uploaded seal.</span>
+                    </div>
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             02. REGISTERED ADDRESS DETAILS
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+                    <div class="section-icon teal">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </div>
+
+                    <div>
+                        <h3>Registered Address Details</h3>
+                        <p>Verify official corporate billing address.</p>
+                    </div>
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- ADDRESS LINE -->
+                <div class="form-field full-width">
+                    <label>Street Address Line</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-route"></i>
+
+                        <input
+                            name="line"
+                            type="text"
+                            class="form-control"
+                            placeholder="Registered address line"
+                            value="{{ address.line if vlcc and address and address.line else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- CITY -->
+                <div class="form-field">
+                    <label>City</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-city"></i>
+
+                        <input
+                            name="city"
+                            type="text"
+                            class="form-control"
+                            placeholder="City"
+                            value="{{ address.city if vlcc and address and address.city else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- STATE -->
+                <div class="form-field">
+                    <label>State</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-map"></i>
+
+                        <input
+                            name="state"
+                            type="text"
+                            class="form-control"
+                            placeholder="State"
+                            value="{{ address.state if vlcc and address and address.state else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- PINCODE -->
+                <div class="form-field">
+                    <label>Area Pincode</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-location-pin"></i>
+
+                        <input
+                            name="pincode"
+                            type="text"
+                            class="form-control"
+                            placeholder="Pincode"
+                            value="{{ address.pincode if vlcc and address and address.pincode else '' }}"
+                        />
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             03. SETTLEMENT BANK DETAILS
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon green">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+
+                    <div>
+                        <h3>Settlement Bank Details</h3>
+                        <p>Settlement options for vendor collections.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <div class="form-field">
+                    <label>Bank Institution Name</label>
+                    <input
+                        name="bank_name"
+                        type="text"
+                        class="form-control"
+                        placeholder="State Bank of India"
+                        value="{{ bank_account.bank_name if vlcc else '' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Account Holder Name</label>
+                    <input
+                        name="account_holder"
+                        type="text"
+                        class="form-control"
+                        placeholder="Account holder name"
+                        value="{{ bank_account.account_holder if vlcc else '' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>IFSC Branch Code</label>
+                    <input
+                        name="ifsc_code"
+                        type="text"
+                        class="form-control"
+                        placeholder="SBIN0001234"
+                        value="{{ bank_account.ifsc_code if vlcc else '' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Bank Account Number</label>
+                    <input
+                        name="account_number"
+                        type="text"
+                        class="form-control"
+                        placeholder="Bank account number"
+                        value="{{ bank_account.account_number if vlcc else '' }}"
+                    />
+                </div>
+
+                <div class="form-field full-width">
+                    <label>Merchant UPI ID (Optional)</label>
+                    <input
+                        name="upi_id"
+                        type="text"
+                        class="form-control"
+                        placeholder="merchant@upi"
+                        value="{{ bank_account.upi_id if vlcc else '' }}"
+                    />
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             04. HARDWARE & DEVICE CONFIGURATION
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon orange">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+
+                    <div>
+                        <h3>Hardware Configurations</h3>
+                        <p>Establish default settings for weighing machines and analyzers.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- ANALYZER TYPE -->
+                <div class="form-field">
+                    <label>Analyzer Type</label>
+
+                    <select name="analyzer_type" class="form-control">
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.analyzer_type == 0 else '' }}>UITRA</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.analyzer_type == 1 else '' }}>ECO BOND</option>
+                        <option value="2" {{ 'selected' if vlcc and setting and setting.analyzer_type == 2 else '' }}>ULTRA PRO</option>
+                        <option value="3" {{ 'selected' if vlcc and setting and setting.analyzer_type == 3 else '' }}>ESSAE</option>
+                        <option value="4" {{ 'selected' if vlcc and setting and setting.analyzer_type == 4 else '' }}>LACTO SCANE</option>
+                        <option value="5" {{ 'selected' if vlcc and setting and setting.analyzer_type == 5 else '' }}>LACTOSURE EKO</option>
+                    </select>
+                </div>
+
+
+                <!-- ANALYZER MODE -->
+                <div class="form-field">
+                    <label>Analyzer Collection Mode</label>
+
+                    <select name="analyzer_collection_mode" class="form-control">
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.analyzer_collection_mode == 0 else '' }}>Manual</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.analyzer_collection_mode == 1 else '' }}>Automatic</option>
+                    </select>
+                </div>
+
+
+                <!-- MEASUREMENT UNIT -->
+                <div class="form-field">
+                    <label>Measurement Weight Unit</label>
+
+                    <select name="weight_unit" class="form-control">
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.weight_unit|int == 0 else '' }}>Litres (Ltr)</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.weight_unit|int == 1 else '' }}>Kilograms (Kg)</option>
+                    </select>
+                </div>
+
+
+                <!-- WEIGHT MODE -->
+                <div class="form-field">
+                    <label>Weighing Machine Mode</label>
+
+                    <select name="weight_collection_mode" class="form-control">
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.weight_collection_mode == 0 else '' }}>Manual</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.weight_collection_mode == 1 else '' }}>Automatic</option>
+                    </select>
+                </div>
+
+
+                <!-- AUTO TARE -->
+                <div class="form-field">
+                    <label>Auto Tare Status</label>
+
+                    <select name="auto_tare_enabled" class="form-control">
+                        <option value="false" {{ 'selected' if vlcc and setting and not setting.auto_tare_enabled else '' }}>Disabled</option>
+                        <option value="true" {{ 'selected' if vlcc and setting and setting.auto_tare_enabled else '' }}>Enabled</option>
+                    </select>
+                </div>
+
+
+                <!-- RECEIPT SIZE -->
+                <div class="form-field">
+                    <label>Slip Printer Receipt Size</label>
+                    <select name="receipt_size" class="form-control">
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.receipt_size == 0 else '' }}>Small</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.receipt_size == 1 else '' }}>Large</option>
+                    </select>
+                </div>
+
+
+                <!-- PRINTER TYPE -->
+                <div class="form-field">
+                    <label>Thermal Printer Model</label>
+                    <select name="printer_type" class="form-control">
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.printer_type == 0 else '' }}>Printer A</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.printer_type == 1 else '' }}>Printer B</option>
+                    </select>
+                </div>
+
+
+                <!-- PRINTER ENABLED -->
+                <div class="form-field">
+                    <label>Printer Default Status</label>
+                    <select name="printer_enabled" class="form-control">
+                        <option value="false" {{ 'selected' if vlcc and setting and not setting.printer_enabled else '' }}>Disabled</option>
+                        <option value="true" {{ 'selected' if vlcc and setting and setting.printer_enabled else '' }}>Enabled</option>
+                    </select>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             05. OPERATIONS & ACCESS LIMITS
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon indigo">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+
+                    <div>
+                        <h3>Collection Shifts & Limits</h3>
+                        <p>Define shift timings, rate charts, and edit permissions.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- MORNING SHIFT -->
+                <div class="form-field">
+                    <label>Morning Collection Start</label>
+                    <input
+                        name="morning_collection_start"
+                        type="time"
+                        class="form-control"
+                        value="{{ setting.morning_collection_start if vlcc and setting and setting.morning_collection_start else '06:00' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Morning Collection End</label>
+                    <input
+                        name="morning_collection_end"
+                        type="time"
+                        class="form-control"
+                        value="{{ setting.morning_collection_end if vlcc and setting and setting.morning_collection_end else '10:00' }}"
+                    />
+                </div>
+
+
+                <!-- EVENING SHIFT -->
+                <div class="form-field">
+                    <label>Evening Collection Start</label>
+                    <input
+                        name="evening_collection_start"
+                        type="time"
+                        class="form-control"
+                        value="{{ setting.evening_collection_start if vlcc and setting and setting.evening_collection_start else '12:00' }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Evening Collection End</label>
+                    <input
+                        name="evening_collection_end"
+                        type="time"
+                        class="form-control"
+                        value="{{ setting.evening_collection_end if vlcc and setting and setting.evening_collection_end else '22:00' }}"
+                    />
+                </div>
+
+
+                <!-- PERMISSIONS -->
+                <div class="form-field">
+                    <label>Device Settings Modification</label>
+                    <select name="settings_edit_enabled" class="permission-select">
+                        <option value="false" {{ 'selected' if vlcc and setting and not setting.settings_edit_enabled else '' }}>Disabled</option>
+                        <option value="true" {{ 'selected' if vlcc and setting and setting.settings_edit_enabled else '' }}>Enabled</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label>Edit Local Rate Charts</label>
+                    <select name="rate_chart_edit_enabled" class="permission-select">
+                        <option value="false" {{ 'selected' if vlcc and setting and not setting.rate_chart_edit_enabled else '' }}>Disabled</option>
+                        <option value="true" {{ 'selected' if vlcc and setting and setting.rate_chart_edit_enabled else '' }}>Enabled</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label>Item & Unit Masters Permission</label>
+                    <select name="master_enabled" class="permission-select">
+                        <option value="false" {{ 'selected' if vlcc and setting and not setting.master_enabled else '' }}>Disabled</option>
+                        <option value="true" {{ 'selected' if vlcc and setting and setting.master_enabled else '' }}>Enabled</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
+                    <label>Max Rate Charts count</label>
+                    <input
+                        name="max_rate_chart_count"
+                        type="number"
+                        class="permission-number"
+                        value="{{ setting.max_rate_chart_count if vlcc and setting and setting.max_rate_chart_count else 5 }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Cattle Type Allowance</label>
+                    <select name="cattle_type" class="form-control">
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.cattle_type == 0 else '' }}>Cow / Buffalo</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.cattle_type == 1 else '' }}>Mixed</option>
+                    </select>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             06. FAT / SNF LIMITS
+        ====================================================== -->
+        <section id="fat-snf-section" class="settings-card">
+
+            <div class="section-header">
+                <div class="section-header-left">
+                    <div class="section-icon blue">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <h3>FAT / SNF Limits</h3>
+                        <p>Define acceptable milk quality ranges.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COW -->
+            <div id="cow-limits" class="limit-panel cow-panel">
+                <div class="limit-panel-header">
+                    <div>
+                        <strong>Cow Limits</strong>
+                        <span>Quality range for cow milk.</span>
+                    </div>
+                    <i class="fa-solid fa-cow"></i>
+                </div>
+
+                <div class="form-grid four">
+                    <div class="form-field">
+                        <label>Minimum FAT</label>
+                        <input
+                            name="cow_min_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_min_fat if vlcc else 0.0 }}"
+                        />
+                    </div>
+                    <div class="form-field">
+                        <label>Maximum FAT</label>
+                        <input
+                            name="cow_max_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_max_fat if vlcc else 0.0 }}"
+                        />
+                    </div>
+                    <div class="form-field">
+                        <label>Minimum SNF</label>
+                        <input
+                            name="cow_min_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_min_snf if vlcc else 0.0 }}"
+                        />
+                    </div>
+                    <div class="form-field">
+                        <label>Maximum SNF</label>
+                        <input
+                            name="cow_max_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_max_snf if vlcc else 0.0 }}"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- BUFFALO -->
+            <div id="buffalo-limits" class="limit-panel buffalo-panel" style="margin-top: 24px;">
+                <div class="limit-panel-header">
+                    <div>
+                        <strong>Buffalo Limits</strong>
+                        <span>Quality range for buffalo milk.</span>
+                    </div>
+                    <i class="fa-solid fa-cow"></i>
+                </div>
+
+                <div class="form-grid four">
+                    <div class="form-field">
+                        <label>Minimum FAT</label>
+                        <input
+                            name="buffalo_min_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_fat if vlcc else 0.0 }}"
+                        />
+                    </div>
+                    <div class="form-field">
+                        <label>Maximum FAT</label>
+                        <input
+                            name="buffalo_max_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_fat if vlcc else 0.0 }}"
+                        />
+                    </div>
+                    <div class="form-field">
+                        <label>Minimum SNF</label>
+                        <input
+                            name="buffalo_min_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_snf if vlcc else 0.0 }}"
+                        />
+                    </div>
+                    <div class="form-field">
+                        <label>Maximum SNF</label>
+                        <input
+                            name="buffalo_max_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_snf if vlcc else 0.0 }}"
+                        />
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- =====================================================
+             07. DEVICE APP VERSIONS
+        ====================================================== -->
+        <section class="settings-card">
+            <div class="section-header">
+                <div class="section-header-left">
+                    <div class="section-icon" style="background: var(--primary-light); color: var(--primary);">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                    </div>
+                    <div>
+                        <h3>Items Version</h3>
+                        <p>Configure dynamic software items and version codes for this center.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="addDeviceVersionRow()" style="color: var(--primary); border: 1px solid var(--primary-light); cursor: pointer; padding: 4px 8px; border-radius: 4px;">
+                    <i class="fa-solid fa-plus"></i> Add Version
+                </button>
+            </div>
+
+            <div id="device-versions-container" style="display: flex; flex-direction: column; gap: 12px; padding: 20px 24px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 50px; gap: 16px; font-weight: bold; font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px;">
+                    <div>Item / Application Name</div>
+                    <div>Version Code</div>
+                    <div style="text-align: center;">Action</div>
+                </div>
+                
+                <div id="device-versions-rows" style="display: flex; flex-direction: column; gap: 10px;">
+                    {% if device_item_versions %}
+                        {% for version in device_item_versions %}
+                        <div class="device-version-row" style="display: grid; grid-template-columns: 1fr 1fr 50px; gap: 16px; align-items: center;">
+                            <input type="text" name="item_names[]" class="form-control" placeholder="e.g. Milk Collection App" value="{{ version.item_name }}" required />
+                            <input type="text" name="versions[]" class="form-control" placeholder="e.g. 1.0.2" value="{{ version.version }}" required />
+                            <button type="button" class="btn btn-ghost" onclick="removeDeviceVersionRow(this)" style="color: var(--danger); padding: 8px; border: none; background: transparent; cursor: pointer; text-align: center;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="device-version-row" style="display: grid; grid-template-columns: 1fr 1fr 50px; gap: 16px; align-items: center;">
+                            <input type="text" name="item_names[]" class="form-control" placeholder="e.g. Milk Collection App" value="" />
+                            <input type="text" name="versions[]" class="form-control" placeholder="e.g. 1.0.2" value="" />
+                            <button type="button" class="btn btn-ghost" onclick="removeDeviceVersionRow(this)" style="color: var(--danger); padding: 8px; border: none; background: transparent; cursor: pointer; text-align: center;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             SUBMIT ACTIONS
+        ====================================================== -->
+        <div class="form-actions">
+            
+            <button
+                id="vlccSubmitBtn"
+                type="submit"
+                class="btn btn-primary"
+                {% if not vlcc %}
+                disabled="true"
+                style="opacity: 0.6; cursor: not-allowed;"
+                {% endif %}
+            >
+                <i class="fa-solid fa-check"></i>
+                {{ 'Save Changes' if vlcc else 'Create VLCC Master' }}
+            </button>
+
+            <a href="/vlcc/" class="btn btn-ghost">Cancel</a>
+
+        </div>
+
+    </form>
+</div>
+
+</div>
+
+<!-- =========================================================
+     COMPATIBLE SCRIPTS & HELPER ACTIONS
+ ========================================================== -->
+<script>
+    function togglePasswordVisibility(fieldId, button) {
+        const input = document.getElementById(fieldId);
+        const icon = button.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    {% if not vlcc %}
+    document.addEventListener("DOMContentLoaded", function() {
+        const codeInput = document.getElementById("vlcc-code");
+        const uicInput = document.getElementById("vlcc-uic-code");
+        const nameInput = document.getElementById("vlcc-name");
+        const mobileInput = document.getElementById("vlcc-mobile");
+        const emailInput = document.getElementById("vlcc-email");
+        const passwordInput = document.getElementById("mcc-password");
+        const submitBtn = document.getElementById("vlccSubmitBtn");
+
+        function validateVlccForm() {
+            const codeVal = codeInput ? codeInput.value.trim() : "";
+            const uicVal = uicInput ? uicInput.value.trim() : "";
+            const nameVal = nameInput ? nameInput.value.trim() : "";
+            const mobileVal = mobileInput ? mobileInput.value.trim() : "";
+            const emailVal = emailInput ? emailInput.value.trim() : "";
+            const passwordVal = passwordInput ? passwordInput.value.trim() : "";
+
+            if (codeVal && uicVal && nameVal && mobileVal && emailVal && passwordVal) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = "1";
+                submitBtn.style.cursor = "pointer";
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = "0.6";
+                submitBtn.style.cursor = "not-allowed";
+            }
+        }
+
+        const inputs = [codeInput, uicInput, nameInput, mobileInput, emailInput, passwordInput];
+        inputs.forEach(input => {
+            if (input) {
+                input.addEventListener("input", validateVlccForm);
+            }
+        });
+        validateVlccForm();
+    });
+    {% endif %}
+
+    function handleFileSelect(input) {
+        const file = input.files[0];
+        const uploaderBox = input.nextElementSibling;
+        if (file) {
+            uploaderBox.querySelector('span').textContent = file.name;
+            uploaderBox.querySelector('small').textContent = `Size: ${(file.size / 1024).toFixed(1)} KB`;
+        }
+    }
+
+    window.addDeviceVersionRow = function () {
+        const container = document.getElementById("device-versions-rows");
+        const row = document.createElement("div");
+        row.className = "device-version-row";
+        row.style.display = "grid";
+        row.style.gridTemplateColumns = "1fr 1fr 50px";
+        row.style.gap = "16px";
+        row.style.alignItems = "center";
+        row.innerHTML = `
+            <input type="text" name="item_names[]" class="form-control" placeholder="e.g. Milk Collection App" required />
+            <input type="text" name="versions[]" class="form-control" placeholder="e.g. 1.0.2" required />
+            <button type="button" class="btn btn-ghost" onclick="removeDeviceVersionRow(this)" style="color: var(--danger); padding: 8px; border: none; background: transparent; cursor: pointer; text-align: center;">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        `;
+        container.appendChild(row);
+    };
+
+    window.removeDeviceVersionRow = function (button) {
+        const row = button.closest(".device-version-row");
+        const rows = document.querySelectorAll(".device-version-row");
+        if (rows.length > 1) {
+            row.remove();
+        } else {
+            row.querySelectorAll("input").forEach(input => input.value = "");
+        }
+    };
+</script>
+
+{% endblock %}

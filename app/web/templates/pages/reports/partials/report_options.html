@@ -1,0 +1,5 @@
+<select name="report_type" id="report_type" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
+    {% for report in reports %}
+    <option value="{{ report.value }}">{{ report.label }}</option>
+    {% endfor %}
+</select>

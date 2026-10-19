@@ -1,0 +1,2074 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}
+    {{ 'Edit' if mcc else 'Create' }} MCC Master - VITCO
+{% endblock %}
+
+{% block content %}
+
+<div class="animate-fadeIn mcc-page">
+
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+    <div class="page-header">
+        <div class="page-header-content">
+
+            <div class="page-header-icon">
+                <i class="fa-solid {{ 'fa-pen-to-square' if mcc else 'fa-sitemap' }}"></i>
+            </div>
+
+            <div>
+                <h2 class="page-title">
+                    {{ 'Edit MCC Master' if mcc else 'Create MCC Master' }}
+                </h2>
+
+                <p class="page-subtitle">
+                    {{ 
+                        'Update collection center profile, operational settings and permissions.'
+                        if mcc
+                        else
+                        'Configure a new Milk Collection Center and its operational settings.'
+                    }}
+                </p>
+            </div>
+
+        </div>
+
+        <a href="/mcc/" class="btn btn-ghost">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to MCC Master
+        </a>
+    </div>
+
+
+    <!-- =========================================================
+         ERROR
+    ========================================================== -->
+    {% if error %}
+    <div class="alert alert-danger mcc-alert">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <div>
+            <strong>Unable to save MCC</strong>
+            <div>{{ error }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- =========================================================
+         MAIN FORM
+    ========================================================== -->
+    <form
+        id="mccForm"
+        hx-post="/mcc/{{ 'edit/' + mcc.id|string if mcc else 'create' }}"
+        hx-swap="none"
+        enctype="multipart/form-data"
+        novalidate
+    >
+
+        <!-- =====================================================
+             01. MCC PROFILE
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+                    <div class="section-icon">
+                        <i class="fa-solid fa-id-card"></i>
+                    </div>
+
+                    <div>
+                        <h3>MCC Profile</h3>
+                        <p>Basic identity and registration information.</p>
+                    </div>
+                </div>
+
+                {% if mcc %}
+                <span class="status-pill success">
+                    <i class="fa-solid fa-circle"></i>
+                    Existing MCC
+                </span>
+                {% else %}
+                <span class="status-pill neutral">
+                    <i class="fa-solid fa-plus"></i>
+                    New Registration
+                </span>
+                {% endif %}
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- MCC CODE -->
+                <div class="form-field">
+                    <label>
+                        MCC Code
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-barcode"></i>
+
+                        <input
+                            id="mcc-code"
+                            name="code"
+                            type="text"
+                            class="form-control"
+                            placeholder="MCC001"
+                            value="{{ mcc.code if mcc else '' }}"
+                            {% if mcc %}
+                            readonly
+                            {% else %}
+                            required
+                            hx-get="/mcc/validate-code"
+                            hx-trigger="keyup changed delay:400ms"
+                            hx-target="#mcc-code-validation-message"
+                            hx-swap="innerHTML"
+                            {% endif %}
+                        />
+                    </div>
+
+                    {% if not mcc %}
+                    <div
+                        id="mcc-code-validation-message"
+                        class="field-feedback"
+                    ></div>
+                    {% endif %}
+                </div>
+
+
+                <!-- NAME -->
+                <div class="form-field">
+                    <label>
+                        MCC Center Name
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-building"></i>
+
+                        <input
+                            id="mcc-name"
+                            name="name"
+                            type="text"
+                            class="form-control"
+                            placeholder="MCC Collection Center"
+                            value="{{ mcc.name if mcc else '' }}"
+                            required
+                        />
+                    </div>
+                </div>
+
+
+                <!-- MCC TYPE -->
+                <div class="form-field">
+                    <label>
+                        MCC Type
+                        <span class="required">*</span>
+                    </label>
+
+                    <select
+                        name="mcc_type"
+                        id="mcc-type"
+                        class="form-control"
+                        required
+                    >
+                        <option value="0"
+                            {{ 'selected' if mcc and mcc.mcc_type|int == 0 else '' }}>
+                            Normal
+                        </option>
+
+                        <option value="1"
+                            {{ 'selected' if mcc and mcc.mcc_type|int == 1 else '' }}>
+                            FAT / SNF
+                        </option>
+
+                        <option value="2"
+                            {{ 'selected' if mcc and mcc.mcc_type|int == 2 else '' }}>
+                            Weight
+                        </option>
+
+                        <option value="3"
+                            {{ 'selected' if mcc and mcc.mcc_type|int == 3 else '' }}>
+                            Fixed Rate
+                        </option>
+                    </select>
+
+                    <small class="field-help">
+                        Determines which collection configuration is available.
+                    </small>
+                </div>
+
+
+                <!-- PHONE -->
+                <div class="form-field">
+                    <label>Phone Number</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-phone"></i>
+
+                        <input
+                            name="mobile"
+                            type="tel"
+                            class="form-control"
+                            placeholder="+91 99999 88888"
+                            value="{{ user.mobile if mcc else '' }}"
+                        />
+                    </div>
+                </div>
+
+
+                <!-- EMAIL -->
+                <div class="form-field">
+                    <label>
+                        MCC Email
+                        <span class="required">*</span>
+                    </label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-envelope"></i>
+
+                        <input
+                            id="mcc-email"
+                            name="email"
+                            type="email"
+                            class="form-control"
+                            placeholder="mcc@example.com"
+                            value="{{ user.email if mcc else '' }}"
+                            required
+                        />
+                    </div>
+                </div>
+
+
+                <!-- PASSWORD -->
+                <div class="form-field">
+                    <label>
+                        MCC Password
+                        {% if not mcc %}
+                        <span class="required">*</span>
+                        {% endif %}
+                    </label>
+
+                    <div class="password-wrapper">
+
+                        <i class="fa-solid fa-lock"></i>
+
+                        <input
+                            id="mcc-password"
+                            name="password"
+                            type="password"
+                            class="form-control"
+                            placeholder="{{
+                                'Leave blank to keep existing password'
+                                if mcc
+                                else
+                                'Enter secure password'
+                            }}"
+                            {% if not mcc %}required{% endif %}
+                        />
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            onclick="togglePasswordVisibility('mcc-password', this)"
+                        >
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+
+                    </div>
+                </div>
+
+
+
+                <!-- ROUTE -->
+                <div class="form-field">
+                    <label>Route Code</label>
+
+                    <select name="route_code" class="form-control">
+
+                        <option value="0">
+                            Select Route
+                        </option>
+
+                        {% for route in routes %}
+                        <option
+                            value="{{ route.route_code }}"
+                            {{ 'selected' if mcc and mcc.route_code == route.route_code else '' }}
+                        >
+                            {{ route.route_code }} - {{ route.route_name }}
+                        </option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+
+                <!-- PROFILE IMAGE -->
+                <div class="form-field">
+                    <label>MCC Profile Image</label>
+
+                    <div class="file-input-wrapper">
+
+                        <i class="fa-solid fa-image"></i>
+
+                        <input
+                            name="profile_image"
+                            type="file"
+                            accept="image/*"
+                            class="form-control"
+                            onchange="checkImageSize(this)"
+                        />
+
+                    </div>
+
+                    {% if mcc and mcc.profile_image %}
+                    <div class="current-file">
+                        <i class="fa-solid fa-paperclip"></i>
+
+                        Current image:
+
+                        {% if '/' in mcc.profile_image %}
+                        <a
+                            href="{{ mcc.profile_image }}"
+                            target="_blank"
+                        >
+                            View image
+                        </a>
+                        {% else %}
+                        <a
+                            href="/image/{{ mcc.profile_image }}"
+                            target="_blank"
+                        >
+                            View image
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             02. REGISTERED ADDRESS Details
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+                <div class="section-header-left">
+
+                    <div class="section-icon info">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                    </div>
+
+                    <div>
+                        <h3>Registered Address Details</h3>
+                        <p>Physical location and pincode verification details.</p>
+                    </div>
+
+                </div>
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- ADDRESS -->
+                <div class="form-field field-span-2">
+                    <label>Registered Address Line</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-location-dot"></i>
+
+                        <input
+                            name="line"
+                            type="text"
+                            class="form-control"
+                            placeholder="Registered address line"
+                            value="{{ address.line if mcc and address and address.line else '' }}"
+                        />
+                    </div>
+                </div>
+
+                <!-- CITY -->
+                <div class="form-field">
+                    <label>City</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-city"></i>
+
+                        <input
+                            name="city"
+                            type="text"
+                            class="form-control"
+                            placeholder="City"
+                            value="{{ address.city if mcc and address and address.city else '' }}"
+                        />
+                    </div>
+                </div>
+
+                <!-- STATE -->
+                <div class="form-field">
+                    <label>State</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-map"></i>
+
+                        <input
+                            name="state"
+                            type="text"
+                            class="form-control"
+                            placeholder="State"
+                            value="{{ address.state if mcc and address and address.state else '' }}"
+                        />
+                    </div>
+                </div>
+
+                <!-- PINCODE -->
+                <div class="form-field">
+                    <label>Pincode</label>
+
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-map-pin"></i>
+
+                        <input
+                            name="pincode"
+                            type="text"
+                            class="form-control"
+                            placeholder="Pincode"
+                            value="{{ address.pincode if mcc and address and address.pincode else '' }}"
+                        />
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             02. COLLECTION CONFIGURATION
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+                <div class="section-header-left">
+
+                    <div class="section-icon purple">
+                        <i class="fa-solid fa-droplet"></i>
+                    </div>
+
+                    <div>
+                        <h3>Collection Configuration</h3>
+                        <p>Configure sample collection and measurement behavior.</p>
+                    </div>
+
+                </div>
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- SAMPLE START -->
+                <div
+                    class="form-field"
+                    id="group-sample-start"
+                >
+                    <label>Sample Start Code</label>
+
+                    <input
+                        id="sample-start"
+                        name="sample_start"
+                        type="number"
+                        min="0"
+                        class="form-control"
+                        placeholder="1"
+                        value="{{
+                            mcc.sample_start
+                            if mcc and mcc.sample_start is not none
+                            else ''
+                        }}"
+                    />
+                </div>
+
+
+                <!-- SAMPLE END -->
+                <div
+                    class="form-field"
+                    id="group-sample-end"
+                >
+                    <label>Sample End Code</label>
+
+                    <input
+                        id="sample-end"
+                        name="sample_end"
+                        type="number"
+                        min="0"
+                        class="form-control"
+                        placeholder="100"
+                        value="{{
+                            mcc.sample_end
+                            if mcc and mcc.sample_end is not none
+                            else ''
+                        }}"
+                    />
+                </div>
+
+
+                <!-- MEASUREMENT UNIT -->
+                <div class="form-field">
+
+                    <label>Measurement Unit</label>
+
+                    <select name="weight_unit" class="form-control">
+
+                        <option
+                            value="0"
+                            {{ 'selected' if mcc and setting and setting.weight_unit|int == 0 else '' }}
+                        >
+                            Litres (Ltr)
+                        </option>
+
+                        <option
+                            value="1"
+                            {{ 'selected' if mcc and setting and setting.weight_unit|int == 1 else '' }}
+                        >
+                            Kilograms (Kg)
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- CATTLE -->
+                <div
+                    class="form-field"
+                    id="field-cattle-type"
+                >
+
+                    <label>Cattle Type</label>
+
+                    <select name="cattle_type" class="form-control">
+
+                        <option
+                            value="0"
+                            {{ 'selected' if mcc and setting and setting.cattle_type == 0 else '' }}
+                        >
+                            Cow / Buffalo
+                        </option>
+
+                        <option
+                            value="1"
+                            {{ 'selected' if mcc and setting and setting.cattle_type == 1 else '' }}
+                        >
+                            Mixed
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- AUTO TARE -->
+                <div
+                    class="form-field"
+                    id="field-auto-tare"
+                >
+
+                    <label>Auto Tare</label>
+
+                    <select name="auto_tare_enabled" class="form-control">
+
+                        <option
+                            value="false"
+                            {{ 'selected' if mcc and setting and not setting.auto_tare_enabled else '' }}
+                        >
+                            Disabled
+                        </option>
+
+                        <option
+                            value="true"
+                            {{ 'selected' if mcc and setting and setting.auto_tare_enabled else '' }}
+                        >
+                            Enabled
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- WEIGHT COLLECTION -->
+                <div
+                    class="form-field"
+                    id="field-weight-collection"
+                >
+
+                    <label>Weight Collection</label>
+
+                    <select
+                        name="weight_collection_mode"
+                        class="form-control"
+                    >
+
+                        <option value="0"
+                            {{ 'selected' if mcc and setting and setting.weight_collection_mode == 0 else '' }}>
+                            Manual
+                        </option>
+
+                        <option value="1"
+                            {{ 'selected' if mcc and setting and setting.weight_collection_mode == 1 else '' }}>
+                            Automatic
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             03. ANALYZER CONFIGURATION
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon orange">
+                        <i class="fa-solid fa-flask"></i>
+                    </div>
+
+                    <div>
+                        <h3>Analyzer Configuration</h3>
+                        <p>Configure milk analyzer and collection behavior.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <!-- ANALYZER -->
+                <div class="form-field">
+
+                    <label>Analyzer Type</label>
+
+                    <select
+                        name="analyzer_type"
+                        class="form-control"
+                    >
+
+                        <option value="0"
+                            {{ 'selected' if mcc and setting and setting.analyzer_type == 0 else '' }}>
+                            UITRA
+                        </option>
+
+                        <option value="1"
+                            {{ 'selected' if mcc and setting and setting.analyzer_type == 1 else '' }}>
+                            ECO BOND
+                        </option>
+
+                        <option value="2"
+                            {{ 'selected' if mcc and setting and setting.analyzer_type == 2 else '' }}>
+                            ULTRA PRO
+                        </option>
+
+                        <option value="3"
+                            {{ 'selected' if mcc and setting and setting.analyzer_type == 3 else '' }}>
+                            ESSAE
+                        </option>
+
+                        <option value="4"
+                            {{ 'selected' if mcc and setting and setting.analyzer_type == 4 else '' }}>
+                            LACTO SCANE
+                        </option>
+
+                        <option value="5"
+                            {{ 'selected' if mcc and setting and setting.analyzer_type == 5 else '' }}>
+                            LACTOSURE EKO
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- ANALYZER COLLECTION -->
+                <div
+                    class="form-field"
+                    id="field-analyzer-collection"
+                >
+
+                    <label>Analyzer Collection</label>
+
+                    <select
+                        name="analyzer_collection_mode"
+                        class="form-control"
+                    >
+
+                        <option value="0"
+                            {{ 'selected' if mcc and setting and setting.analyzer_collection_mode == 0 else '' }}>
+                            Manual
+                        </option>
+
+                        <option value="1"
+                            {{ 'selected' if mcc and setting and setting.analyzer_collection_mode == 1 else '' }}>
+                            Automatic
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- SLIP -->
+                <div class="form-field">
+
+                    <label>Slip Size</label>
+
+                    <select name="receipt_size" class="form-control">
+
+                        <option value="0"
+                            {{ 'selected' if mcc and setting and setting.receipt_size == 0 else '' }}>
+                            Small
+                        </option>
+
+                        <option value="1"
+                            {{ 'selected' if mcc and setting and setting.receipt_size == 1 else '' }}>
+                            Large
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- PRINTER -->
+                <div class="form-field">
+
+                    <label>Printer Type</label>
+
+                    <select name="printer_type" class="form-control">
+
+                        <option value="0"
+                            {{ 'selected' if mcc and setting and setting.printer_type == 0 else '' }}>
+                            Printer A
+                        </option>
+
+                        <option value="1"
+                            {{ 'selected' if mcc and setting and setting.printer_type == 1 else '' }}>
+                            Printer B
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- PRINTER STATUS -->
+                <div class="form-field">
+
+                    <label>Printer</label>
+
+                    <select name="printer_enabled" class="form-control">
+
+                        <option value="false"
+                            {{ 'selected' if mcc and setting and not setting.printer_enabled else '' }}>
+                            Disabled
+                        </option>
+
+                        <option value="true"
+                            {{ 'selected' if mcc and setting and setting.printer_enabled else '' }}>
+                            Enabled
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             04. PERMISSIONS
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon green">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+
+                    <div>
+                        <h3>Permissions & Controls</h3>
+                        <p>Control which operations are available at this MCC.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="permission-grid">
+
+                <div class="permission-item">
+
+                    <div>
+                        <strong>Setting Permission</strong>
+                        <span>Allow MCC operators to modify system settings.</span>
+                    </div>
+
+                    <select
+                        name="settings_edit_enabled"
+                        class="permission-select"
+                    >
+                        <option value="false"
+                            {{ 'selected' if mcc and setting and not setting.settings_edit_enabled else '' }}>
+                            Disabled
+                        </option>
+
+                        <option value="true"
+                            {{ 'selected' if mcc and setting and setting.settings_edit_enabled else '' }}>
+                            Enabled
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div
+                    class="permission-item"
+                    id="permission-rate-chart"
+                >
+
+                    <div>
+                        <strong>Rate Chart Permission</strong>
+                        <span>Allow rate chart management from MCC.</span>
+                    </div>
+
+                    <select
+                        name="rate_chart_edit_enabled"
+                        class="permission-select"
+                    >
+                        <option value="false"
+                            {{ 'selected' if mcc and setting and not setting.rate_chart_edit_enabled else '' }}>
+                            Disabled
+                        </option>
+
+                        <option value="true"
+                            {{ 'selected' if mcc and setting and setting.rate_chart_edit_enabled else '' }}>
+                            Enabled
+                        </option>
+                    </select>
+
+                </div>
+
+                <div
+                    class="permission-item"
+                    id="permission-master-enabled"
+                >
+
+                    <div>
+                        <strong>Item & Unit Masters Permission</strong>
+                        <span>Allow Unit Master and Item Master management from MCC.</span>
+                    </div>
+
+                    <select
+                        name="master_enabled"
+                        class="permission-select"
+                    >
+                        <option value="false"
+                            {{ 'selected' if mcc and setting and not setting.master_enabled else '' }}>
+                            Disabled
+                        </option>
+
+                        <option value="true"
+                            {{ 'selected' if mcc and setting and setting.master_enabled else '' }}>
+                            Enabled
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div
+                    class="permission-item"
+                    id="permission-max-rate-chart"
+                >
+
+                    <div>
+                        <strong>Maximum Rate Charts</strong>
+                        <span>Maximum rate charts allowed for this MCC.</span>
+                    </div>
+
+                    <input
+                        name="max_rate_chart_count"
+                        type="number"
+                        class="permission-number"
+                        value="{{ setting.max_rate_chart_count if mcc and setting and setting.max_rate_chart_count else 5 }}"
+                    />
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             05. FAT / SNF LIMITS
+        ====================================================== -->
+        <section
+            id="fat-snf-section"
+            class="settings-card"
+        >
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon blue">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+
+                    <div>
+                        <h3>FAT / SNF Limits</h3>
+                        <p>Define acceptable milk quality ranges.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- COW -->
+            <div
+                id="cow-limits"
+                class="limit-panel cow-panel"
+            >
+
+                <div class="limit-panel-header">
+                    <div>
+                        <strong>Cow Limits</strong>
+                        <span>Quality range for cow milk.</span>
+                    </div>
+
+                    <i class="fa-solid fa-cow"></i>
+                </div>
+
+
+                <div class="form-grid four">
+
+                    <div class="form-field">
+                        <label>Minimum FAT</label>
+
+                        <input
+                            id="cow-min-fat"
+                            name="cow_min_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_min_fat if mcc else 0.0 }}"
+                        />
+                    </div>
+
+
+                    <div class="form-field">
+                        <label>Maximum FAT</label>
+
+                        <input
+                            id="cow-max-fat"
+                            name="cow_max_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_max_fat if mcc else 0.0 }}"
+                        />
+                    </div>
+
+
+                    <div class="form-field">
+                        <label>Minimum SNF</label>
+
+                        <input
+                            id="cow-min-snf"
+                            name="cow_min_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_min_snf if mcc else 0.0 }}"
+                        />
+                    </div>
+
+
+                    <div class="form-field">
+                        <label>Maximum SNF</label>
+
+                        <input
+                            id="cow-max-snf"
+                            name="cow_max_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.cow_max_snf if mcc else 0.0 }}"
+                        />
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- BUFFALO -->
+            <div
+                id="buffalo-limits"
+                class="limit-panel buffalo-panel"
+            >
+
+                <div class="limit-panel-header">
+
+                    <div>
+                        <strong>Buffalo Limits</strong>
+                        <span>Quality range for buffalo milk.</span>
+                    </div>
+
+                    <i class="fa-solid fa-bowl-food"></i>
+
+                </div>
+
+
+                <div class="form-grid four">
+
+                    <div class="form-field">
+                        <label>Minimum FAT</label>
+
+                        <input
+                            id="buffalo-min-fat"
+                            name="buffalo_min_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_fat if mcc else 0.0 }}"
+                            readonly
+                        />
+                    </div>
+
+
+                    <div class="form-field">
+                        <label>Maximum FAT</label>
+
+                        <input
+                            id="buffalo-max-fat"
+                            name="buffalo_max_fat"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_fat if mcc else 0.0 }}"
+                        />
+                    </div>
+
+
+                    <div class="form-field">
+                        <label>Minimum SNF</label>
+
+                        <input
+                            id="buffalo-min-snf"
+                            name="buffalo_min_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_snf if mcc else 0.0 }}"
+                        />
+                    </div>
+
+
+                    <div class="form-field">
+                        <label>Maximum SNF</label>
+
+                        <input
+                            id="buffalo-max-snf"
+                            name="buffalo_max_snf"
+                            type="number"
+                            step="0.1"
+                            class="form-control"
+                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_snf if mcc else 0.0 }}"
+                        />
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             06. FIXED RATE CONFIGURATION
+        ====================================================== -->
+        <section
+            id="fixed-rate-section"
+            class="settings-card"
+        >
+
+            <div class="section-header">
+                <div class="section-header-left">
+
+                    <div class="section-icon red">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                    </div>
+
+                    <div>
+                        <h3>Fixed Rate Configuration</h3>
+                        <p>Configure fixed milk rate and detection rules.</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="form-grid">
+
+                <div class="form-field">
+                    <label>Base Rate (₹ / Ltr)</label>
+
+                    <input
+                        name="fixed_rate"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="form-control"
+                        value="{{ fixed_rate_config and fixed_rate_config.fixed_rate if mcc else 0.0 }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Less Detection</label>
+
+                    <input
+                        name="less_detection"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="form-control"
+                        value="{{ fixed_rate_config and fixed_rate_config.less_detection if mcc else 0.0 }}"
+                    />
+                    <small class="field-help">Quantity deduction per 0.1 FAT.</small>
+                </div>
+
+                <div class="form-field">
+                    <label>High Detection</label>
+
+                    <input
+                        name="high_detection"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="form-control"
+                        value="{{ fixed_rate_config and fixed_rate_config.high_detection if mcc else 0.0 }}"
+                    />
+                    <small class="field-help">Quantity addition per 0.1 FAT.</small>
+                </div>
+
+                <!-- FAT & SNF Limits -->
+                <div class="form-field">
+                    <label>Minimum FAT</label>
+
+                    <input
+                        id="fixed-min-fat"
+                        name="min_fat"
+                        type="number"
+                        step="0.1"
+                        class="form-control"
+                        value="{{ fixed_rate_config and fixed_rate_config.min_fat if mcc else 0.0 }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Maximum FAT</label>
+
+                    <input
+                        id="fixed-max-fat"
+                        name="max_fat"
+                        type="number"
+                        step="0.1"
+                        class="form-control"
+                        value="{{ fixed_rate_config and fixed_rate_config.max_fat if mcc else 0.0 }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Minimum SNF</label>
+
+                    <input
+                        id="fixed-min-snf"
+                        name="min_snf"
+                        type="number"
+                        step="0.1"
+                        class="form-control"
+                        value="{{ fixed_rate_config and fixed_rate_config.min_snf if mcc else 0.0 }}"
+                    />
+                </div>
+
+                <div class="form-field">
+                    <label>Maximum SNF</label>
+
+                    <input
+                        id="fixed-max-snf"
+                        name="max_snf"
+                        type="number"
+                        step="0.1"
+                        class="form-control"
+                        value="{{ fixed_rate_config and fixed_rate_config.max_snf if mcc else 0.0 }}"
+                    />
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             06. SHIFT CONFIGURATION
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon indigo">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+
+                    <div>
+                        <h3>Collection Shifts</h3>
+                        <p>Define morning and evening collection windows.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="shift-grid">
+
+                <!-- MORNING -->
+                <div class="shift-card morning">
+
+                    <div class="shift-header">
+
+                        <div class="shift-icon">
+                            <i class="fa-solid fa-sun"></i>
+                        </div>
+
+                        <div>
+                            <strong>Morning Shift</strong>
+                            <span>Morning collection window</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="shift-fields">
+
+                        <div class="form-field">
+
+                            <label>Start Time</label>
+
+                            <input
+                                name="morning_collection_start"
+                                type="time"
+                                class="form-control"
+                                value="{{ setting.morning_collection_start if setting and setting.morning_collection_start else '06:00' }}"
+                            />
+
+                        </div>
+
+
+                        <div class="form-field">
+
+                            <label>End Time</label>
+
+                            <input
+                                name="morning_collection_end"
+                                type="time"
+                                class="form-control"
+                                value="{{ setting.morning_collection_end if setting and setting.morning_collection_end else '10:00' }}"
+                            />
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- EVENING -->
+                <div class="shift-card evening">
+
+                    <div class="shift-header">
+
+                        <div class="shift-icon">
+                            <i class="fa-solid fa-moon"></i>
+                        </div>
+
+                        <div>
+                            <strong>Evening Shift</strong>
+                            <span>Evening collection window</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="shift-fields">
+
+                        <div class="form-field">
+
+                            <label>Start Time</label>
+
+                            <input
+                                name="evening_collection_start"
+                                type="time"
+                                class="form-control"
+                                value="{{ setting.evening_collection_start if setting and setting.evening_collection_start else '12:00' }}"
+                            />
+
+                        </div>
+
+
+                        <div class="form-field">
+
+                            <label>End Time</label>
+
+                            <input
+                                name="evening_collection_end"
+                                type="time"
+                                class="form-control"
+                                value="{{ setting.evening_collection_end if setting and setting.evening_collection_end else '22:00' }}"
+                            />
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             07. BANKING
+        ====================================================== -->
+        <section class="settings-card">
+
+            <div class="section-header">
+
+                <div class="section-header-left">
+
+                    <div class="section-icon teal">
+                        <i class="fa-solid fa-building-columns"></i>
+                    </div>
+
+                    <div>
+                        <h3>Banking Details</h3>
+                        <p>Optional settlement and account information.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="form-grid">
+
+                <div class="form-field">
+                    <label>Bank Name</label>
+
+                    <input
+                        name="bank_name"
+                        type="text"
+                        class="form-control"
+                        placeholder="State Bank of India"
+                        value="{{ bank_account.bank_name if mcc else '' }}"
+                    />
+                </div>
+
+
+                <div class="form-field">
+                    <label>Account Holder Name</label>
+
+                    <input
+                        name="account_holder"
+                        type="text"
+                        class="form-control"
+                        placeholder="Account holder name"
+                        value="{{ bank_account.account_holder if mcc else '' }}"
+                    />
+                </div>
+
+
+                <div class="form-field">
+                    <label>IFSC Code</label>
+
+                    <input
+                        name="ifsc_code"
+                        type="text"
+                        class="form-control"
+                        placeholder="SBIN0001234"
+                        value="{{ bank_account.ifsc_code if mcc else '' }}"
+                    />
+                </div>
+
+
+                <div class="form-field field-span-2">
+                    <label>Account Number</label>
+
+                    <input
+                        name="account_number"
+                        type="text"
+                        class="form-control"
+                        placeholder="Bank account number"
+                        value="{{ bank_account.account_number if mcc else '' }}"
+                    />
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================================
+             06. DEVICE APP VERSIONS
+        ====================================================== -->
+        <section class="settings-card" style="padding-bottom: 12px;">
+            <div class="section-header" style="padding: 12px 16px; margin-bottom: 0; border-bottom: 1px solid var(--border-light);">
+                <div class="section-header-left" style="gap: 8px;">
+                    <div class="section-icon" style="background: var(--primary-light); color: var(--primary); width: 28px; height: 28px; min-width: 28px; font-size: 13px;">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 14px; margin: 0;">Items Version</h3>
+                        <p style="font-size: 11px; margin: 0; color: var(--text-faint);">Configure software items and version codes.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-ghost btn-sm" onclick="addDeviceVersionRow()" style="color: var(--primary); border: 1px solid var(--primary-light); cursor: pointer; padding: 2px 8px; border-radius: 4px; font-size: 12px; height: 28px;">
+                    <i class="fa-solid fa-plus"></i> Add Version
+                </button>
+            </div>
+
+            <div id="device-versions-container" style="display: flex; flex-direction: column; gap: 8px; padding: 12px 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 40px; gap: 12px; font-weight: bold; font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; padding-bottom: 4px;">
+                    <div>Item / Application Name</div>
+                    <div>Version Code</div>
+                    <div style="text-align: center;">Action</div>
+                </div>
+                
+                <div id="device-versions-rows" style="display: flex; flex-direction: column; gap: 6px;">
+                    {% if device_item_versions %}
+                        {% for version in device_item_versions %}
+                        <div class="device-version-row" style="display: grid; grid-template-columns: 1fr 1fr 40px; gap: 12px; align-items: center;">
+                            <input type="text" name="item_names[]" class="form-control" placeholder="e.g. Milk Collection App" value="{{ version.item_name }}" style="height: 32px; padding: 4px 10px; font-size: 13px;" required />
+                            <input type="text" name="versions[]" class="form-control" placeholder="e.g. 1.0.2" value="{{ version.version }}" style="height: 32px; padding: 4px 10px; font-size: 13px;" required />
+                            <button type="button" class="btn btn-ghost" onclick="removeDeviceVersionRow(this)" style="color: var(--danger); padding: 4px; border: none; background: transparent; cursor: pointer; text-align: center; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fa-solid fa-trash-can" style="font-size: 13px;"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="device-version-row" style="display: grid; grid-template-columns: 1fr 1fr 40px; gap: 12px; align-items: center;">
+                            <input type="text" name="item_names[]" class="form-control" placeholder="e.g. Milk Collection App" value="" style="height: 32px; padding: 4px 10px; font-size: 13px;" />
+                            <input type="text" name="versions[]" class="form-control" placeholder="e.g. 1.0.2" value="" style="height: 32px; padding: 4px 10px; font-size: 13px;" />
+                            <button type="button" class="btn btn-ghost" onclick="removeDeviceVersionRow(this)" style="color: var(--danger); padding: 4px; border: none; background: transparent; cursor: pointer; text-align: center; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fa-solid fa-trash-can" style="font-size: 13px;"></i>
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+
+        <!-- =====================================================
+             FORM ACTIONS
+        ====================================================== -->
+        <div class="form-actions">
+
+            <a
+                href="/mcc/"
+                class="btn btn-ghost"
+            >
+                <i class="fa-solid fa-xmark"></i>
+                Cancel
+            </a>
+
+
+            <button
+                id="mccSubmitBtn"
+                type="submit"
+                class="btn btn-primary save-button"
+                {% if not mcc %}
+                disabled="true"
+                style="opacity: 0.6; cursor: not-allowed;"
+                {% endif %}
+            >
+
+                <i class="fa-solid fa-check"></i>
+
+                {{ 'Save Changes' if mcc else 'Create MCC Master' }}
+
+            </button>
+
+        </div>
+
+    </form>
+
+</div>
+
+
+{% block scripts %}
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+
+    const form = document.getElementById("mccForm");
+    const typeSelect = document.getElementById("mcc-type");
+
+    console.log("JJJJJJ", typeSelect.value)
+
+
+    if (!form || !typeSelect) {
+        return;
+    }
+
+
+    /* =========================================================
+       ELEMENTS
+    ========================================================= */
+
+    const sampleStart = document.getElementById("sample-start");
+    const sampleEnd = document.getElementById("sample-end");
+    const groupSampleStart = document.getElementById("group-sample-start");
+    const groupSampleEnd = document.getElementById("group-sample-end");
+
+    const fatSection = document.getElementById("fat-snf-section");
+
+    const cowLimits = document.getElementById("cow-limits");
+    const buffaloLimits = document.getElementById("buffalo-limits");
+    const fixedRateSection = document.getElementById("fixed-rate-section");
+
+    const cattleType = document.getElementById("field-cattle-type");
+    const autoTare = document.getElementById("field-auto-tare");
+    const weightCollection = document.getElementById("field-weight-collection");
+    const analyzerCollection = document.getElementById("field-analyzer-collection");
+
+    const rateChartPermission =
+        document.getElementById("permission-rate-chart");
+
+    const maxRateChart =
+        document.getElementById("permission-max-rate-chart");
+
+
+    /* =========================================================
+       DISPLAY HELPERS
+    ========================================================= */
+
+    function show(element) {
+
+        if (!element) return;
+
+        element.style.display = "";
+
+    }
+
+
+    function hide(element) {
+
+        if (!element) return;
+
+        element.style.display = "none";
+
+    }
+
+
+    function disableField(field) {
+
+        if (!field) return;
+
+        field.disabled = true;
+
+    }
+
+
+    function enableField(field) {
+
+        if (!field) return;
+
+        field.disabled = false;
+
+    }
+
+
+    /* =========================================================
+       MCC TYPE
+    ========================================================= */
+
+    function updateMccType() {
+
+        const type = String(typeSelect.value);
+
+
+        /*
+         * NORMAL
+         * -----------------------------------------------------
+         * Full collection configuration.
+         */
+
+        if (type === "0") {
+
+            show(fatSection);
+            show(cowLimits);
+            show(buffaloLimits);
+
+            hide(fixedRateSection);
+
+            show(cattleType);
+            show(autoTare);
+            show(weightCollection);
+            show(analyzerCollection);
+
+            show(rateChartPermission);
+            show(maxRateChart);
+
+            hide(groupSampleStart);
+            hide(groupSampleEnd);
+            disableField(sampleStart);
+            disableField(sampleEnd);
+
+            return;
+        }
+
+        /*
+         * FAT / SNF
+         * -----------------------------------------------------
+         */
+        if (type == 1) {
+
+            show(fatSection);
+            show(cowLimits);
+            show(buffaloLimits);
+
+            hide(fixedRateSection);
+
+            show(cattleType);
+            hide(autoTare);
+            hide(weightCollection);
+            show(analyzerCollection);
+
+            show(rateChartPermission);
+            show(maxRateChart);
+
+            hide(groupSampleStart);
+            hide(groupSampleEnd);
+            disableField(sampleStart);
+            disableField(sampleEnd);
+
+            return;
+        }
+
+
+        /*
+         * WEIGHT
+         * -----------------------------------------------------
+         */
+
+        if (type === "2") {
+
+            hide(fatSection);
+            hide(cowLimits);
+            hide(buffaloLimits);
+            hide(fixedRateSection);
+
+            hide(cattleType);
+            show(autoTare);
+            show(weightCollection);
+            hide(analyzerCollection);
+
+            hide(rateChartPermission);
+            hide(maxRateChart);
+
+            show(groupSampleStart);
+            show(groupSampleEnd);
+            enableField(sampleStart);
+            enableField(sampleEnd);
+
+            return;
+        }
+
+
+        /*
+         * FIXED RATE
+         * -----------------------------------------------------
+         */
+
+        if (type === "3") {
+
+            hide(fatSection);
+            show(fixedRateSection);
+            show(cattleType);
+
+            hide(autoTare);
+            hide(weightCollection);
+
+            show(analyzerCollection);
+
+            hide(rateChartPermission);
+            hide(maxRateChart);
+
+            hide(groupSampleStart);
+            hide(groupSampleEnd);
+            disableField(sampleStart);
+            disableField(sampleEnd);
+
+        }
+
+    }
+
+
+    /* =========================================================
+       RANGE VALIDATION
+    ========================================================= */
+
+    function validateRange(minElement, maxElement) {
+
+        if (!minElement || !maxElement) {
+            return true;
+        }
+
+        const min = parseFloat(minElement.value);
+        const max = parseFloat(maxElement.value);
+
+        if (
+            Number.isNaN(min) ||
+            Number.isNaN(max)
+        ) {
+            return true;
+        }
+
+        return max > min;
+    }
+
+
+    function validateAllRanges() {
+
+        const type = String(typeSelect.value);
+
+        if (type === "3") {
+
+            const validFat = validateRange(
+                document.getElementById("fixed-min-fat"),
+                document.getElementById("fixed-max-fat")
+            );
+
+            const validSnf = validateRange(
+                document.getElementById("fixed-min-snf"),
+                document.getElementById("fixed-max-snf")
+            );
+
+            if (!validFat) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Invalid FAT Range",
+                    text: "Minimum FAT must be less than Maximum FAT."
+                });
+
+                return false;
+            }
+
+            if (!validSnf) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Invalid SNF Range",
+                    text: "Minimum SNF must be less than Maximum SNF."
+                });
+
+                return false;
+            }
+
+            return true;
+        }
+
+        if (
+            type === "0" ||
+            type === "1"
+        ) {
+
+            const ranges = [
+                [
+                    "Cow FAT",
+                    "cow-min-fat",
+                    "cow-max-fat"
+                ],
+                [
+                    "Cow SNF",
+                    "cow-min-snf",
+                    "cow-max-snf"
+                ],
+                [
+                    "Buffalo FAT",
+                    "buffalo-min-fat",
+                    "buffalo-max-fat"
+                ],
+                [
+                    "Buffalo SNF",
+                    "buffalo-min-snf",
+                    "buffalo-max-snf"
+                ]
+            ];
+
+            for (const [name, minId, maxId] of ranges) {
+
+                const min = document.getElementById(minId);
+                const max = document.getElementById(maxId);
+
+                if (!validateRange(min, max)) {
+
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Invalid Range",
+                        text: `${name}: Minimum must be less than Maximum.`
+                    });
+
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /* =========================================================
+       BUFFALO MIN FAT
+       Automatically follows Cow MAX FAT + 0.1
+    ========================================================= */
+
+    function syncBuffaloFat() {
+
+        const cowMax =
+            document.getElementById("cow-max-fat");
+
+        const buffaloMin =
+            document.getElementById("buffalo-min-fat");
+
+        if (!cowMax || !buffaloMin) {
+            return;
+        }
+
+        const value = parseFloat(cowMax.value);
+
+        if (Number.isNaN(value)) {
+            return;
+        }
+
+        buffaloMin.value =
+            (value + 0.1).toFixed(1);
+
+    }
+
+    const cowMaxFat = document.getElementById("cow-max-fat");
+
+    if (cowMaxFat) {
+        cowMaxFat.addEventListener("input", syncBuffaloFat);
+        cowMaxFat.addEventListener("change", syncBuffaloFat);
+    }
+
+    /* =========================================================
+       IMAGE VALIDATION
+    ========================================================= */
+
+    window.checkImageSize = function (input) {
+
+        if (
+            !input ||
+            !input.files ||
+            !input.files.length
+        ) {
+            return;
+        }
+
+        const file = input.files[0];
+
+        const maxSize =
+            100 * 1024;
+
+        if (file.size > maxSize) {
+            Swal.fire({
+                icon: "warning",
+                title: "Image Too Large",
+                text: "Maximum allowed image size is 100KB.",
+                confirmButtonColor: "var(--primary)"
+            });
+            input.value = "";
+        }
+    };
+
+
+    /* =========================================================
+       SUBMIT
+    ========================================================= */
+
+    form.addEventListener("submit", function (event) {
+        if (!validateAllRanges()) {
+            event.preventDefault();
+            return false;
+        }
+    });
+
+
+    /* =========================================================
+       HTMX SUBMIT STATE
+    ========================================================= */
+
+    document.body.addEventListener(
+        "disable-submit",
+        function () {
+
+            const button =
+                document.getElementById("mccSubmitBtn");
+
+            if (!button) return;
+
+            button.disabled = true;
+
+            button.style.opacity = "0.55";
+
+            button.style.cursor = "not-allowed";
+
+        }
+    );
+
+
+    document.body.addEventListener(
+        "enable-submit",
+        function () {
+
+            const button =
+                document.getElementById("mccSubmitBtn");
+
+            if (!button) return;
+
+            button.disabled = false;
+
+            button.style.opacity = "1";
+
+            button.style.cursor = "pointer";
+
+        }
+    );
+
+
+    /* =========================================================
+       INITIALIZE
+    ========================================================= */
+
+    typeSelect.addEventListener("change", updateMccType);
+
+    updateMccType();
+
+    syncBuffaloFat();
+
+    {% if not mcc %}
+    const nameInput = document.getElementById("mcc-name");
+    const emailInput = document.getElementById("mcc-email");
+    const passwordInput = document.getElementById("mcc-password");
+    const submitBtn = document.getElementById("mccSubmitBtn");
+
+    function validateMccForm() {
+        const nameVal = nameInput ? nameInput.value.trim() : "";
+        const emailVal = emailInput ? emailInput.value.trim() : "";
+        const passwordVal = passwordInput ? passwordInput.value.trim() : "";
+
+        if (nameVal && emailVal && passwordVal) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = "1";
+            submitBtn.style.cursor = "pointer";
+        } else {
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = "0.6";
+            submitBtn.style.cursor = "not-allowed";
+        }
+    }
+
+    if (nameInput && emailInput && passwordInput && submitBtn) {
+        nameInput.addEventListener("input", validateMccForm);
+        emailInput.addEventListener("input", validateMccForm);
+        passwordInput.addEventListener("input", validateMccForm);
+        validateMccForm();
+    }
+    {% endif %}
+
+});
+
+window.addDeviceVersionRow = function () {
+    const container = document.getElementById("device-versions-rows");
+    const row = document.createElement("div");
+    row.className = "device-version-row";
+    row.style.display = "grid";
+    row.style.gridTemplateColumns = "1fr 1fr 50px";
+    row.style.gap = "16px";
+    row.style.alignItems = "center";
+    row.innerHTML = `
+        <input type="text" name="item_names[]" class="form-control" placeholder="e.g. Milk Collection App" required />
+        <input type="text" name="versions[]" class="form-control" placeholder="e.g. 1.0.2" required />
+        <button type="button" class="btn btn-ghost" onclick="removeDeviceVersionRow(this)" style="color: var(--danger); padding: 8px; border: none; background: transparent; cursor: pointer; text-align: center;">
+            <i class="fa-solid fa-trash-can"></i>
+        </button>
+    `;
+    container.appendChild(row);
+};
+
+window.removeDeviceVersionRow = function (button) {
+    const row = button.closest(".device-version-row");
+    const rows = document.querySelectorAll(".device-version-row");
+    if (rows.length > 1) {
+        row.remove();
+    } else {
+        row.querySelectorAll("input").forEach(input => input.value = "");
+    }
+};
+
+window.togglePasswordVisibility = function (fieldId, button) {
+    const input = document.getElementById(fieldId);
+    const icon = button.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+};
+
+</script>
+
+{% endblock %}
+
+{% endblock %}

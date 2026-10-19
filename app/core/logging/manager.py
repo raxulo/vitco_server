@@ -2,9 +2,7 @@
 RealTimeTransfer
 ================
 
-Enterprise Logging Manager
-
-Heavy Traffic Ready
+Enterprise Logger Manager
 
 Python 3.13+
 """
@@ -13,52 +11,48 @@ from __future__ import annotations
 
 import logging
 
-from app.core.lifecycle.service import LifecycleService
+from app.config.logging import LOGGER_CONFIG
+from app.core.logging.handlers import HandlerFactory
+from app.core.logging.queue import LoggerQueue
 
-from app.core.logging.handlers import LoggingHandlers
-from app.core.logging.queue import LoggingQueue
-
-
-class LoggingManager(
-    LifecycleService,
-):
+class LoggerManager:
     """
-    Enterprise Logging Bootstrap.
+    Enterprise logger lifecycle manager.
 
-    Responsibilities
-    ----------------
+    Thread-safe startup.
 
-    • Configure logging
-
-    • Create handlers
-
-    • Start queue listener
-
-    • Configure root logger
-
-    • Graceful shutdown
+    Idempotent startup/shutdown.
     """
-
-    priority = 5
 
     __slots__ = (
-        "_application",
-        "_level",
+        "_logger",
+        "_queue",
         "_started",
     )
 
     def __init__(
         self,
-        *,
-        application: str,
-        level: int = logging.INFO,
+        logger: logging.Logger,
     ) -> None:
 
-        self._application = application
+        self._logger = logger
 
-        self._level = level
+        self._queue = LoggerQueue(
+            LOGGER_CONFIG.queue_size,
+        )
 
         self._started = False
+
+    # ---------------------------------------------------------
+
+    @property
+    def logger(
+        self,
+    ) -> logging.Logger:
+
+        return self._logger
+
+    # ---------------------------------------------------------
 
     @property
     def started(
@@ -67,79 +61,88 @@ class LoggingManager(
 
         return self._started
 
-    async def start(
+    # ---------------------------------------------------------
+
+    def startup(
         self,
     ) -> None:
 
         if self._started:
             return
 
-        #
-        # Create handlers
-        #
+        handlers = HandlerFactory.create()
 
-        console = LoggingHandlers.console(
-
-            application=self._application,
-
-            level=self._level,
+        self._logger.setLevel(
+            LOGGER_CONFIG.level,
         )
 
-        application = LoggingHandlers.rotating_file(
+        self._logger.handlers.clear()
 
-            application=self._application,
-
-            file="logs/application.log",
-
-            level=self._level,
+        self._logger.addHandler(
+            self._queue.handler,
         )
 
-        error = LoggingHandlers.error_file(
+        self._logger.propagate = False
 
-            application=self._application,
-
-            file="logs/error.log",
+        self._queue.start(
+            *handlers,
         )
 
-        #
-        # Start queue
-        #
-
-        LoggingQueue.start(
-
-            console,
-
-            application,
-
-            error,
-        )
-
-        #
-        # Configure root logger
-        #
-
-        root = logging.getLogger()
-
-        root.handlers.clear()
-
-        root.setLevel(self._level)
-
-        root.addHandler(
-
-            LoggingQueue.handler()
-        )
+        self._bind_external_loggers()
 
         self._started = True
 
-    async def stop(
+    # ---------------------------------------------------------
+
+    def shutdown(
         self,
     ) -> None:
 
         if not self._started:
             return
 
-        LoggingQueue.stop()
+        self._queue.stop()
 
-        logging.shutdown()
+        self._logger.handlers.clear()
 
         self._started = False
+
+    # ---------------------------------------------------------
+
+    def _bind_external_loggers(
+        self,
+    ) -> None:
+
+        names = (
+
+            "uvicorn",
+
+            "uvicorn.error",
+
+            "uvicorn.access",
+
+            "fastapi",
+
+            "sqlalchemy.engine",
+
+            "sqlalchemy.pool",
+
+        )
+
+        handlers = self._logger.handlers
+
+        level = self._logger.level
+
+        for name in names:
+
+            logger = logging.getLogger(
+                name,
+            )
+
+            logger.handlers = handlers
+
+            logger.setLevel(
+                level,
+            )
+
+            logger.propagate = False

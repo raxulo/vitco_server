@@ -1,0 +1,46 @@
+<!-- Sidebar -->
+
+
+<aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-header">
+        <img src="{{ url_for('static', path='images/logo.png')}}" alt="VITCO" height="32" loading="eager">
+        <span>VITCO</span>
+    </div>
+
+    <nav class="sidebar-menu">
+
+        {% for group in navigation %}
+
+        <div class="menu-group">
+
+            <div class="menu-group-header {{ group.css_class }}" aria-expanded="true">
+                <span>{{ group.label }}</span>
+                <i class="fa-solid fa-chevron-right toggle-icon"></i>
+            </div>
+
+            <div class="menu-group-items">
+
+                {% for item in group.items %}
+
+                <a href="{{ item.href }}" class="menu-item" data-match="{{ item.match }}">
+                    <i class="{{ item.icon }}"></i>
+                    <span>{{ item.label }}</span>
+                </a>
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </nav>
+
+    <a href="/logout" class="menu-item sidebar-logout">
+        <i class="fa-solid fa-power-off"></i>
+        <span>Logout</span>
+    </a>
+
+</aside>

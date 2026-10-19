@@ -1,0 +1,532 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Farmer Profile - {{ farmer.name }}{% endblock %}
+
+{% block styles %}
+<style>
+    /* Header Actions */
+    .btn-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s ease-in-out;
+    }
+    .btn-action.edit {
+        background: var(--primary);
+        color: white !important;
+        box-shadow: 0 4px 14px rgba(37,99,235,0.2);
+    }
+    .btn-action.edit:hover {
+        box-shadow: 0 6px 20px rgba(37,99,235,0.35);
+        transform: translateY(-1px);
+    }
+
+    /* Grid Layout */
+    .mcc-two-box-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        align-items: start;
+    }
+    .box-section {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+    }
+
+    /* Glassmorphism Cards */
+    .glass-card {
+        background: var(--glass-bg, rgba(255, 255, 255, 0.7));
+        border: 1px solid rgba(226, 232, 240, 0.8);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.02), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+        backdrop-filter: blur(16px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    .glass-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: transparent;
+        transition: all 0.3s;
+    }
+    .glass-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 24px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .card-header.border-blue::before { background: var(--primary); }
+    .card-header.border-teal::before { background: #14b8a6; }
+    .card-header.border-indigo::before { background: #6366f1; }
+    .card-header.border-green::before { background: var(--success); }
+
+    .header-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        box-shadow: inset 0 -2px 4px rgba(0,0,0,0.02);
+    }
+    .header-icon.primary { background: rgba(59,130,246,0.08); color: var(--primary); }
+    .header-icon.success { background: rgba(16,185,129,0.08); color: var(--success); }
+    .header-icon.indigo { background: rgba(99,102,241,0.08); color: #6366f1; }
+    .header-icon.teal { background: rgba(20,184,166,0.08); color: #14b8a6; }
+
+    .card-header h4 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--text-dark);
+        letter-spacing: -0.2px;
+    }
+
+    /* Profile Header Banner styling */
+    .profile-banner {
+        height: 90px;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        margin: -30px -30px 24px -30px;
+        position: relative;
+    }
+    .profile-summary-header {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin-top: -55px;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 2;
+        padding: 0 10px;
+    }
+    .profile-avatar-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 24px;
+        background: white;
+        border: 4px solid white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 38px;
+        color: var(--primary);
+        box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.15);
+        overflow: hidden;
+        flex-shrink: 0;
+        transition: transform 0.3s;
+    }
+    .glass-card:hover .profile-avatar-circle {
+        transform: scale(1.03);
+    }
+    .profile-meta-title h3 {
+        margin: 0 0 6px 0;
+        font-size: 21px;
+        font-weight: 800;
+        color: var(--text-dark);
+        letter-spacing: -0.5px;
+    }
+
+    .badge-code {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--primary);
+        background: rgba(59,130,246,0.08);
+        padding: 4px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(59,130,246,0.15);
+        letter-spacing: 0.2px;
+    }
+
+    /* Premium Row design */
+    .details-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 18px;
+        background: rgba(248, 250, 252, 0.6);
+        border-radius: 12px;
+        border: 1px solid rgba(226, 232, 240, 0.5);
+        transition: all 0.2s;
+    }
+    .detail-item:hover {
+        background: rgba(248, 250, 252, 1);
+        border-color: rgba(226, 232, 240, 0.9);
+        transform: translateX(2px);
+    }
+    .detail-label-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .detail-label-wrapper i {
+        font-size: 14px;
+        width: 20px;
+        text-align: center;
+    }
+    .lbl {
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .val {
+        font-size: 13.5px;
+        color: var(--text-dark);
+        font-weight: 700;
+    }
+
+    /* Status badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .status-badge.active { color: var(--success); background: rgba(16,185,129,0.08); }
+    .status-badge.inactive { color: var(--danger); background: rgba(239,68,68,0.08); }
+    .status-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+    .no-data-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 10px;
+        color: var(--text-faint);
+        text-align: center;
+        background: rgba(248, 250, 252, 0.4);
+        border-radius: 12px;
+        border: 1px dashed rgba(226, 232, 240, 1);
+    }
+    .no-data-box i {
+        font-size: 24px;
+        margin-bottom: 10px;
+        color: var(--text-faint);
+    }
+    .no-data-box p {
+        margin: 0;
+        font-size: 12.5px;
+        font-weight: 600;
+    }
+
+    @media (max-width: 992px) {
+        .mcc-two-box-grid {
+            grid-template-columns: 1fr;
+            gap: 28px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set milk_types = {
+    0: "Cow",
+    1: "Buffalo",
+    2: "Mixed"
+} %}
+
+<div class="mcc-container animate-fadeIn">
+
+    <!-- =========================================================
+         PAGE HEADER
+    ========================================================== -->
+    <div class="mcc-header">
+        <div class="mcc-header-title">
+            <a href="/farmer" class="back-link" style="color: var(--text-muted); text-decoration: none; font-size: 20px; transition: var(--transition-standard);">
+                <i class="fa-solid fa-arrow-left-long"></i>
+            </a>
+            <div>
+                <h2>{{ farmer.name }}</h2>
+                <p>Complete supplier profile, registration details, and direct bank settlement settings</p>
+            </div>
+        </div>
+        <div class="mcc-header-actions" style="display: flex; gap: 8px; align-items: center;">
+            {% if farmer.can_modify and farmer.is_active %}
+            <button
+                type="button"
+                class="btn-action delete"
+                style="background-color: #ef4444; color: white; border: none; cursor: pointer; padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; height: 38px;"
+                hx-post="/farmer/delete/{{ farmer.id }}?redirect=/farmer"
+                hx-confirm="Are you sure you want to delete this Farmer?"
+            >
+                <i class="fa-solid fa-trash-can"></i> Delete Profile
+            </button>
+            {% endif %}
+            <a href="/farmer/edit/{{ farmer.id }}" class="btn-action edit">
+                <i class="fa-solid fa-pen-to-square"></i> Edit Profile
+            </a>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         TWO BOX SECTION LAYOUT
+    ========================================================== -->
+    <div class="mcc-two-box-grid">
+        
+        <!-- =====================================================
+             BOX 1: PROFILE & CONTACT DETAILS (LEFT SECTION)
+        ====================================================== -->
+        <div class="box-section">
+            
+            <!-- Farmer Profile & General Info -->
+            <div class="glass-card">
+                <div class="profile-banner"></div>
+                
+                <div class="profile-summary-header">
+                    <div class="profile-avatar-circle">
+                        {% if farmer.profile_image %}
+                            {% if '/' in farmer.profile_image %}
+                                <img src="{{ farmer.profile_image }}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <img src="/image/{{ farmer.profile_image }}" alt="Profile" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% endif %}
+                        {% else %}
+                            <i class="fa-solid fa-user"></i>
+                        {% endif %}
+                    </div>
+                    <div class="profile-meta-title">
+                        <h3>{{ farmer.name }}</h3>
+                        <span class="badge-code">Farmer Code: {{ farmer.farmer_code }}</span>
+                    </div>
+                </div>
+
+                <div class="details-list">
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-envelope" style="color: #3b82f6;"></i>
+                            <span class="lbl">Account Email</span>
+                        </div>
+                        <span class="val font-mono">{{ user.email }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-phone" style="color: #10b881;"></i>
+                            <span class="lbl">Registered Mobile</span>
+                        </div>
+                        <span class="val font-mono">{{ user.mobile or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-cow" style="color: #6366f1;"></i>
+                            <span class="lbl">Milk Type Preference</span>
+                        </div>
+                        <span class="val">{{ milk_types[farmer.milk_type|int] }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-message" style="color: #f59e0b;"></i>
+                            <span class="lbl">SMS Notification</span>
+                        </div>
+                        <span class="val">{{ 'Enabled' if farmer.sms_enabled else 'Disabled' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-circle-check" style="color: #8b5cf6;"></i>
+                            <span class="lbl">Account Status</span>
+                        </div>
+                        <span class="val">
+                            {% if farmer.is_active %}
+                            <span class="status-badge active"><span class="dot"></span> Active</span>
+                            {% else %}
+                            <span class="status-badge inactive"><span class="dot"></span> Inactive</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Card -->
+            <div class="glass-card">
+                <div class="card-header border-teal">
+                    <div class="header-icon teal"><i class="fa-solid fa-map-location-dot"></i></div>
+                    <h4>Registered Address</h4>
+                </div>
+
+                {% if address and (address.line or address.city or address.state or address.pincode) %}
+                <div class="details-list">
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-road" style="color: #14b8a6;"></i>
+                            <span class="lbl">Street Line</span>
+                        </div>
+                        <span class="val">{{ address.line or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-city" style="color: #06b6d4;"></i>
+                            <span class="lbl">City</span>
+                        </div>
+                        <span class="val">{{ address.city or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-map" style="color: #3b82f6;"></i>
+                            <span class="lbl">State</span>
+                        </div>
+                        <span class="val">{{ address.state or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-location-pin" style="color: #ec4899;"></i>
+                            <span class="lbl">Pincode</span>
+                        </div>
+                        <span class="val font-mono">{{ address.pincode or '—' }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-data-box">
+                    <i class="fa-solid fa-map-pin"></i>
+                    <p>No address details registered for this supplier.</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <!-- =====================================================
+             BOX 2: CENTER ASSIGNMENT & BANK DETAILS (RIGHT SECTION)
+        ====================================================== -->
+        <div class="box-section">
+            
+            <!-- VLCC & Rate Chart Assignment -->
+            <div class="glass-card">
+                <div class="card-header border-indigo">
+                    <div class="header-icon indigo"><i class="fa-solid fa-building-ngo"></i></div>
+                    <h4>Hierarchy & Chart Assignments</h4>
+                </div>
+
+                <div class="details-list">
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-industry" style="color: #6366f1;"></i>
+                            <span class="lbl">Assigned VLCC</span>
+                        </div>
+                        <span class="val">
+                            {% if farmer.vlcc_name %}
+                            <a href="/vlcc/view/{{ farmer.vlcc_id }}" style="color: var(--primary); text-decoration: none; font-weight: 600;">
+                                {{ farmer.vlcc_name }}
+                            </a>
+                            {% else %}
+                            Not Assigned
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-file-invoice-dollar" style="color: #8b5cf6;"></i>
+                            <span class="lbl">Assigned Rate Chart</span>
+                        </div>
+                        <span class="val">
+                            {% if rate_chart %}
+                            <span class="badge-code">{{ rate_chart.name }}</span>
+                            {% else %}
+                            Default Chart
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bank Accounts Settlement -->
+            <div class="glass-card">
+                <div class="card-header border-green">
+                    <div class="header-icon green"><i class="fa-solid fa-building-columns"></i></div>
+                    <h4>Settlement Bank details</h4>
+                </div>
+
+                {% if bank_account and (bank_account.bank_name or bank_account.account_holder or bank_account.account_number or bank_account.ifsc_code) %}
+                <div class="details-list">
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-bank" style="color: #10b881;"></i>
+                            <span class="lbl">Bank Name</span>
+                        </div>
+                        <span class="val">{{ bank_account.bank_name or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-user-tie" style="color: #059669;"></i>
+                            <span class="lbl">Account Holder</span>
+                        </div>
+                        <span class="val">{{ bank_account.account_holder or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-credit-card" style="color: #2563eb;"></i>
+                            <span class="lbl">Account Number</span>
+                        </div>
+                        <span class="val font-mono">{{ bank_account.account_number or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-shield" style="color: #4f46e5;"></i>
+                            <span class="lbl">IFSC Branch Code</span>
+                        </div>
+                        <span class="val font-mono">{{ bank_account.ifsc_code or '—' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <div class="detail-label-wrapper">
+                            <i class="fa-solid fa-qrcode" style="color: #06b6d4;"></i>
+                            <span class="lbl">UPI ID</span>
+                        </div>
+                        <span class="val font-mono">{{ bank_account.upi_id or '—' }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="no-data-box">
+                    <i class="fa-solid fa-credit-card"></i>
+                    <p>No direct bank account details linked.</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

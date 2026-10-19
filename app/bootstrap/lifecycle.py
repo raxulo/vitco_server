@@ -1,167 +1,152 @@
 """
-RealTimeTransfer
-================
-
 Enterprise Lifecycle Manager
 
-Coordinates application startup, shutdown, readiness,
-and runtime state.
+Ultra High Performance
 
-Python 3.13
+Python 3.13+
 """
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Awaitable, Callable
-from enum import StrEnum, auto
-from time import monotonic
-from typing import Final
+from threading import RLock
 
-from fastapi import FastAPI
-
-from app.core.logger import logger
-
-
-LifecycleTask = Callable[[FastAPI], Awaitable[None]]
-
-
-class ApplicationState(StrEnum):
-    INITIALIZING = auto()
-    STARTING = auto()
-    RUNNING = auto()
-    STOPPING = auto()
-    STOPPED = auto()
+from app.core.logging.logger import logger
+from .interface import Resource
 
 
 class LifecycleManager:
     """
-    Enterprise lifecycle coordinator.
+    Enterprise lifecycle manager.
 
-    Responsibilities
-    ----------------
-    • Startup
-    • Shutdown
-    • Health
-    • Runtime State
-    • Uptime
-    • Service Registration
+    Features
+    --------
+    ✔ Priority startup
+    ✔ Reverse shutdown
+    ✔ Duplicate protection
+    ✔ Freeze support
+    ✔ O(1) registration
+    ✔ Thread-safe registration
     """
 
     __slots__ = (
-        "_startup",
-        "_shutdown",
-        "_state",
-        "_started",
+        "_resources",
+        "_registered",
         "_lock",
+        "_frozen",
+        "_sorted",
     )
 
     def __init__(self) -> None:
 
-        self._startup: list[LifecycleTask] = []
+        self._resources: list[Resource] = []
 
-        self._shutdown: list[LifecycleTask] = []
+        self._registered: set[int] = set()
 
-        self._state: ApplicationState = (
-            ApplicationState.INITIALIZING
+        self._lock = RLock()
+
+        self._frozen = False
+
+        self._sorted = False
+
+    # ---------------------------------------------------------
+
+    def register(
+        self,
+        resource: Resource,
+    ) -> None:
+
+        with self._lock:
+
+            if self._frozen:
+                raise RuntimeError(
+                    "LifecycleManager is frozen."
+                )
+
+            key = id(resource)
+
+            if key in self._registered:
+                return
+
+            self._registered.add(key)
+
+            self._resources.append(resource)
+
+            self._sorted = False
+
+    # ---------------------------------------------------------
+
+    def freeze(self) -> None:
+
+        self._frozen = True
+
+    # ---------------------------------------------------------
+
+    def _sort(self) -> None:
+
+        if self._sorted:
+            return
+
+        self._resources.sort(
+            key=lambda r: r.priority,
         )
 
-        self._started: float = 0.0
+        self._sorted = True
 
-        self._lock: Final = asyncio.Lock()
+    # ---------------------------------------------------------
+
+    async def startup(self) -> None:
+
+        self.freeze()
+
+        self._sort()
+
+        for resource in self._resources:
+
+            logger.info(
+                "Starting %s",
+                resource.__class__.__name__,
+            )
+
+            await resource.startup()
+
+    # ---------------------------------------------------------
+
+    async def shutdown(self) -> None:
+
+        for resource in reversed(self._resources):
+
+            try:
+
+                logger.info(
+                    "Stopping %s",
+                    resource.__class__.__name__,
+                )
+
+                await resource.shutdown()
+
+            except Exception:
+
+                logger.exception(
+                    "Failed stopping %s",
+                    resource.__class__.__name__,
+                )
+
+    # ---------------------------------------------------------
 
     @property
-    def state(self) -> ApplicationState:
-        return self._state
+    def resources(self):
+
+        return self._resources
+
+    # ---------------------------------------------------------
 
     @property
-    def uptime(self) -> float:
+    def frozen(self) -> bool:
 
-        if self._started == 0:
+        return self._frozen
 
-            return 0
+    # ---------------------------------------------------------
 
-        return monotonic() - self._started
+    def __len__(self):
 
-    def register_startup(
-        self,
-        task: LifecycleTask,
-    ) -> None:
-
-        self._startup.append(task)
-
-    def register_shutdown(
-        self,
-        task: LifecycleTask,
-    ) -> None:
-
-        self._shutdown.append(task)
-
-    async def startup(
-        self,
-        app: FastAPI,
-    ) -> None:
-
-        async with self._lock:
-
-            logger.info("Application starting...")
-
-            self._state = (
-                ApplicationState.STARTING
-            )
-
-            for task in self._startup:
-                await task(app)
-
-            self._started = monotonic()
-
-            self._state = (
-                ApplicationState.RUNNING
-            )
-
-            logger.success(
-                "Application started."
-            )
-
-    async def shutdown(
-        self,
-        app: FastAPI,
-    ) -> None:
-
-        async with self._lock:
-
-            logger.info("Application stopping...")
-
-            self._state = (
-                ApplicationState.STOPPING
-            )
-
-            for task in reversed(
-                self._shutdown
-            ):
-
-                try:
-                    await task(app)
-                except Exception:
-                    logger.exception(
-                        "Shutdown task failed."
-                    )
-
-            self._state = (
-                ApplicationState.STOPPED
-            )
-
-            logger.success(
-                "Application stopped."
-            )
-
-    def health(self) -> dict:
-        return {
-            "state": self.state,
-            "uptime": round(
-                self.uptime, 2,
-            ),
-        }
-
-
-lifecycle = LifecycleManager()
+        return len(self._resources)

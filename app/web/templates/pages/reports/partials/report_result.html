@@ -1,0 +1,272 @@
+
+<div class="report-card" style="width: 100%; padding: 28px; background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative;">
+    
+    <!-- Print Stylesheet (Scoped) -->
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #report-result-container, .report-card, .report-card * {
+                visibility: visible;
+            }
+            .report-card {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #edf2f7;
+        }
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .meta-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .meta-val {
+            font-size: 13px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+    </style>
+
+    <!-- Header Section -->
+    <div style="display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 20px;">
+        <div>
+            <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; letter-spacing: 0.5px;">
+                {{ result.report_type|upper|replace('_', ' ') }}
+            </span>
+            <h2 style="font-size: 22px; font-weight: 800; color: #0f172a; margin: 8px 0 4px 0;">
+                {{ result.metadata.report_name or 'MCC Milk Collection Report' }}
+            </h2>
+            {% if result.metadata.address %}
+            <p style="color: #64748b; font-size: 12px; margin: 0; font-style: italic;">
+                <i class="fa-solid fa-location-dot" style="margin-right: 4px;"></i> {{ result.metadata.address }}
+            </p>
+            {% endif %}
+        </div>
+        
+    </div>
+
+    <!-- Metadata Grid -->
+    <div class="meta-grid">
+        {% if result.metadata.name or result.metadata.code %}
+        <div class="meta-item">
+            <span class="meta-label">Center </span>
+            <span class="meta-val">
+                {{ result.metadata.name or '—' }} {% if result.metadata.code %}({{ result.metadata.code }}){% endif %}
+            </span>
+        </div>
+        {% endif %}
+
+        {% if result.metadata.uic_code %}
+        <div class="meta-item">
+            <span class="meta-label">UIC Code</span>
+            <span class="meta-val">{{ result.metadata.uic_code }}</span>
+        </div>
+        {% endif %}
+
+        {% if result.metadata.start_date or result.metadata.date %}
+        <div class="meta-item">
+            <span class="meta-label">Date / Period</span>
+            <span class="meta-val">
+                {% if result.metadata.end_date and result.metadata.start_date != result.metadata.end_date %}
+                    {{ result.metadata.start_date }} to {{ result.metadata.end_date }}
+                {% else %}
+                    {{ result.metadata.date or result.metadata.start_date }}
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+
+        {% if result.metadata.start_shift or result.metadata.end_shift %}
+        <div class="meta-item">
+            <span class="meta-label">Shift(s)</span>
+            <span class="meta-val">
+                {% if result.metadata.start_shift and result.metadata.end_shift %}
+                    {{ result.metadata.start_shift }} - {{ result.metadata.end_shift }}
+                {% else %}
+                    {{ result.metadata.start_shift }}
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+
+        {% if result.metadata.start_code or result.metadata.end_code %}
+        <div class="meta-item">
+            <span class="meta-label">Code Range</span>
+            <span class="meta-val">
+                {{ result.metadata.start_code or 'Start' }} - {{ result.metadata.end_code or 'End' }}
+            </span>
+        </div>
+        {% endif %}
+
+        {% if result.metadata.start_route or result.metadata.end_route %}
+        <div class="meta-item">
+            <span class="meta-label">Route Range</span>
+            <span class="meta-val">
+                {{ result.metadata.start_route or 'Start' }} - {{ result.metadata.end_route or 'End' }}
+            </span>
+        </div>
+        {% endif %}
+
+        {% if result.metadata.role %}
+        <div class="meta-item">
+            <span class="meta-label">Generated By</span>
+            <span class="meta-val" style="text-transform: capitalize;">{{ result.metadata.role }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Data Tables / Ledger Sections -->
+    {% if result.ledger %}
+        {% for block in result.ledger %}
+            <div style="margin-bottom: 32px;">
+                <!-- Subtitle for ledger section -->
+                <h4 style="font-size: 14px; font-weight: 700; color: #1e293b; margin: 24px 0 12px 0; border-bottom: 2px solid #2563eb; padding-bottom: 6px; width: fit-content; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-route" style="color: #2563eb;"></i> 
+                    {% if block and block.head %}
+                        {% for k, v in block.head.items() %}
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 5px;">
+                                <div>{{ v }}</div>,
+                            </div>
+                        {% endfor %}
+                    {% endif%}
+                </h4>
+                
+                <div class="table-responsive" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: white; margin-bottom: 12px;">
+                    <table class="mcc-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                        <thead>
+                            <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 12px;">
+                                {% for h in result.header %}
+                                <th style="padding: 14px 16px; border-right: 1px solid #f1f5f9;">{{ h }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if block.rows %}
+                                {% for row in block.rows %}
+                                <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; transition: background 0.1s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                                    {% for val in row.values() %}
+                                       <td style="padding: 12px 16px; border-right: 1px solid #f1f5f9;">
+                                            {{ val if val is not none else '—' }}
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="{{ result.header|length }}" style="text-align: center; padding: 32px; color: #94a3b8; font-size: 13px;">
+                                        No collection records found for this section.
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Footer for this ledger section -->
+                {% if block.footer %}
+                <div style="display: flex; justify-content: flex-end; gap: 16px; margin-top: 8px;">
+                    {% for k, v in block.footer.items() %}
+                    <div style="padding: 10px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-weight: 700; color: #334155; display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: bold;">{{ k|replace('_', ' ')|title }}:</span>
+                        <span>
+                            {% if 'qty' in k|lower or 'quantity' in k|lower or 'weight' in k|lower %}
+                                {{ "%.2f"|format(v|float) if v is not none else '0.00' }} Ltr
+                            {% else %}
+                                {{ v if v is not none else '0' }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <!-- Single Data Table -->
+        <div class="table-responsive" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: white;">
+            <table class="mcc-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; font-size: 12px;">
+                        {% for h in result.header %}
+                        <th style="padding: 14px 16px; border-right: 1px solid #f1f5f9;">{{ h }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if result and result.rows %}
+                        {% for row in result.rows %}
+                        <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle; transition: background 0.1s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
+                            {% for val in row.values() %}
+                               <td style="padding: 12px 16px; border-right: 1px solid #f1f5f9;">
+                                    {{ val if val is not none else '—' }}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ result.header|length }}" style="text-align: center; padding: 48px; color: #94a3b8; font-size: 14px;">
+                                <i class="fa-regular fa-folder-open" style="font-size: 28px; margin-bottom: 12px; display: block; color: #cbd5e1;"></i>
+                                No collection records found for the selected filters.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Grand Totals Footer -->
+        {% if result.footer %}
+        <div style="margin-top: 28px; padding: 20px 24px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
+            <h4 style="margin: 0 0 16px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 1px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-calculator" style="color: #2563eb;"></i> Summary Totals
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                {% for k, v in result.footer.items() %}
+                <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); min-width: 0;">
+                    <span style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ k|replace('_', ' ')|title }}</span>
+                    <span style="font-weight: 800; color: #0f172a; font-size: 16px;">
+                        {% if 'amount' in k|lower or 'rate' in k|lower or 'price' in k|lower or 'cost' in k|lower or 'payout' in k|lower or 'balance' in k|lower or 'debit' in k|lower or 'credit' in k|lower %}
+                            ₹{{ "%.2f"|format(v|float) if v is not none else '0.00' }}
+                        {% elif 'fat' in k|lower or 'snf' in k|lower or 'clr' in k|lower %}
+                            {{ "%.2f"|format(v|float) if v is not none else '0.0' }}%
+                        {% elif 'qty' in k|lower or 'quantity' in k|lower or 'weight' in k|lower %}
+                            {{ "%.2f"|format(v|float) if v is not none else '0.00' }} Ltr
+                        {% else %}
+                            {{ v if v is not none else '—' }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    
+</div>

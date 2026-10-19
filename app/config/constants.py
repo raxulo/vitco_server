@@ -9,7 +9,7 @@ These values are NOT loaded from environment variables.
 Python  : 3.13
 """
 
-from __future__ import annotations
+from zoneinfo import ZoneInfo
 
 from enum import IntEnum, StrEnum
 
@@ -23,7 +23,22 @@ APP_COMPANY = "RealTimeTransfer"
 
 DEFAULT_ENCODING = "utf-8"
 
-DEFAULT_TIMEZONE = "UTC"
+from app.core.clock import (
+    IST,
+    TIMEZONE_NAME,
+    TIMEZONE_LABEL,
+    now_ist,
+    now_naive_ist,
+    today_ist,
+    to_ist,
+    to_naive_ist,
+    day_bounds_ist,
+    format_ist,
+    get_ist_now,
+)
+
+DEFAULT_TIMEZONE = TIMEZONE_LABEL
+
 
 ###############################################################################
 # API

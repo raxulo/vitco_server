@@ -1,0 +1,391 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}My Profile - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+    <!-- Page Header -->
+    <div class="page-header"
+        style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <div class="page-title">
+            <h2
+                style="margin:0; font-size: 22px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-address-card" style="color: #2563eb;"></i> User Profile
+            </h2>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">Manage and view your credentials, transaction
+                metrics, and account metadata</p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap;gap: 5px;">
+            {% if view_url %}
+            <a href="{{ view_url }}" class="btn"
+                style="border: 1px solid #ffffff; background: #d9dfed; color: rgb(11, 9, 9); padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; height: 38px;">
+                <i class="fa-solid fa-eye"></i> View
+            </a>
+            {% endif %}
+            {% if edit_url %}
+            <a href="{{ edit_url }}" class="btn"
+                style="border: 1px solid #cbd5e1; background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; height: 38px;">
+                <i class="fa-solid fa-pen-to-square"></i> Edit Profile
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Card (Two Columns) -->
+    <div class="profile-layout-grid"
+        style="display: grid; grid-template-columns: 320px 1fr; gap: 32px; background: white; padding: 40px; border-radius: 24px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.02), 0 4px 6px -2px rgba(0,0,0,0.01);">
+
+        <!-- Left Column: Avatar & Quick Metrics -->
+        <div class="profile-left-col"
+            style="display: flex; flex-direction: column; align-items: center; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 32px;">
+            <!-- Avatar -->
+            {% if user.profile_image %}
+            <img src="{{ user.profile_image }}"
+                style="width: 130px; height: 130px; border-radius: 50%; object-fit: cover; margin-bottom: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); border: 4px solid #eff6ff;"
+                alt="Profile Picture">
+            {% else %}
+            <div
+                style="width: 130px; height: 130px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; display: flex; align-items: center; justify-content: center; font-size: 52px; font-weight: 800; margin-bottom: 20px; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2); border: 4px solid #eff6ff;">
+                {{ user.name[0]|upper if user.name else 'U' }}
+            </div>
+            {% endif %}
+
+            <h3 style="margin: 0 0 6px 0; font-size: 22px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
+                {{ user.name }}</h3>
+
+            <!-- Role Badge -->
+            <div style="margin-bottom: 24px;">
+                {% if user.role == 1 %}
+                <span
+                    style="font-size: 12px; font-weight: 700; color: #7c3aed; background: #f3e8ff; padding: 4px 14px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-crown"></i> Super Admin
+                </span>
+                {% elif user.role == 2 %}
+                <span
+                    style="font-size: 12px; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 4px 14px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-user-shield"></i> Admin
+                </span>
+                {% elif user.role == 3 %}
+                <span
+                    style="font-size: 12px; font-weight: 700; color: #475569; background: #f1f5f9; padding: 4px 14px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-user"></i> Sub Admin
+                </span>
+                {% elif user.role == 5 %}
+                <span
+                    style="font-size: 12px; font-weight: 700; color: #059669; background: #ecfdf5; padding: 4px 14px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-store"></i> VLCC Shop
+                </span>
+                {% elif user.role == 4 %}
+                <span
+                    style="font-size: 12px; font-weight: 700; color: #d97706; background: #fffbeb; padding: 4px 14px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-sitemap"></i> MCC Center
+                </span>
+                {% else %}
+                <span
+                    style="font-size: 12px; font-weight: 700; color: #475569; background: #f1f5f9; padding: 4px 14px; border-radius: 30px; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-user"></i> User
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Quick Metrics Cards -->
+            <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                <!-- Wallet Balance -->
+                <div
+                    style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 16px; padding: 16px; color: white; text-align: left; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.15);">
+                    <div
+                        style="font-size: 10px; font-weight: 700; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">
+                        Wallet Balance</div>
+                    <div style="font-size: 20px; font-weight: 800;">₹{{ "{:,.2f}".format(balance) }}</div>
+                </div>
+            </div>
+
+            <!-- Status Indicator -->
+            <div
+                style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #10b981; background: #ecfdf5; padding: 8px 16px; border-radius: 30px;">
+                <span
+                    style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse 2s infinite;"></span>
+                Active
+            </div>
+        </div>
+
+        <!-- Right Column: Full Details Grid -->
+        <div class="profile-right-col" style="display: flex; flex-direction: column; gap: 24px; padding-left: 16px;">
+            <h4
+                style="margin: 0 0 8px 0; font-size: 18px; font-weight: 800; color: #1e293b; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; letter-spacing: -0.01em;">
+                Full Account Credentials</h4>
+
+            <div class="credentials-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Full Name Field -->
+                <div style="background: #f8fafc; padding: 18px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div
+                        style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        Full Name</div>
+                    <div
+                        style="font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-user" style="color: #3b82f6; font-size: 16px;"></i> {{ user.name }}
+                    </div>
+                </div>
+
+                <!-- Mobile Field -->
+                <div style="background: #f8fafc; padding: 18px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div
+                        style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        Mobile Number</div>
+                    <div
+                        style="font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-phone" style="color: #10b981; font-size: 16px;"></i> {{ user.mobile or
+                        'N/A' }}
+                    </div>
+                </div>
+
+                <!-- Email Field -->
+                <div
+                    style="background: #f8fafc; padding: 18px; border-radius: 16px; border: 1px solid #e2e8f0; grid-column: span 2;">
+                    <div
+                        style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        Email Address</div>
+                    <div
+                        style="font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-envelope" style="color: #ec4899; font-size: 16px;"></i> {{ user.email }}
+                    </div>
+                </div>
+
+                <!-- Created By (Parent Account) -->
+                <div
+                    style="background: #f8fafc; padding: 18px; border-radius: 16px; border: 1px solid #e2e8f0; grid-column: span 2;">
+                    <div
+                        style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        Created By</div>
+                    <div
+                        style="font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-user-gear" style="color: #6366f1; font-size: 16px;"></i> {{ creator_name
+                        }}
+                    </div>
+                </div>
+
+                <!-- System Lock Status -->
+                <div style="background: #f8fafc; padding: 18px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div
+                        style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        Security Lock Status</div>
+                    <div
+                        style="font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                        {% if user.is_locked %}
+                        <span style="font-size: 13px; color: #ef4444; font-weight: 700;"><i class="fa-solid fa-lock"
+                                style="color: #ef4444;"></i> Account Locked</span>
+                        {% else %}
+                        <span style="font-size: 13px; color: #10b981; font-weight: 700;"><i
+                                class="fa-solid fa-lock-open" style="color: #10b981;"></i> Account Unlocked</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Join Date -->
+                <div style="background: #f8fafc; padding: 18px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div
+                        style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+                        Registration Date</div>
+                    <div
+                        style="font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-calendar-check" style="color: #14b8a6; font-size: 16px;"></i> {{
+                        user.created_at.strftime('%d-%b-%Y %I:%M %p') if user.created_at else 'N/A' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address & Bank Details Section -->
+            <div class="details-section-grid"
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; border-top: 2px solid #f1f5f9; padding-top: 24px; text-align: left;">
+
+                <!-- Address Details Card -->
+                <div>
+                    <h4
+                        style="margin: 0 0 16px 0; font-size: 16px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-map-location-dot" style="color: #6366f1;"></i> Address Details
+                    </h4>
+                    {% if address %}
+                    <div
+                        style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+                        <div>
+                            <div
+                                style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                Street Address</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #1e293b;">{{ address.line }}</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div>
+                                <div
+                                    style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                    City</div>
+                                <div style="font-size: 14px; font-weight: 700; color: #1e293b;">{{ address.city }}</div>
+                            </div>
+                            <div>
+                                <div
+                                    style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                    State</div>
+                                <div style="font-size: 14px; font-weight: 700; color: #1e293b;">{{ address.state }}
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                Pincode</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #1e293b; font-family: monospace;">{{
+                                address.pincode }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div
+                        style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 16px; padding: 24px; text-align: center; color: #94a3b8; font-size: 13px;">
+                        <i class="fa-solid fa-house-chimney-crack"
+                            style="font-size: 24px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
+                        No registered address details
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Bank Details Card -->
+                <div>
+                    <h4
+                        style="margin: 0 0 16px 0; font-size: 16px; font-weight: 800; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-building-columns" style="color: #10b981;"></i> Bank Details
+                    </h4>
+                    {% if bank %}
+                    <div
+                        style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px;">
+                            <div>
+                                <div
+                                    style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                    Bank Name</div>
+                                <div style="font-size: 14px; font-weight: 700; color: #1e293b;">{{ bank.bank_name }}
+                                </div>
+                            </div>
+                            <div>
+                                <div
+                                    style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                    IFSC Code</div>
+                                <div style="font-size: 13px; font-weight: 700; color: #1e293b; font-family: monospace;">
+                                    {{ bank.ifsc_code }}</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                Account Holder</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #1e293b;">{{ bank.account_holder }}
+                            </div>
+                        </div>
+                        <div>
+                            <div
+                                style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                Account Number</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #1e293b; font-family: monospace;">{{
+                                bank.account_number }}</div>
+                        </div>
+                        {% if bank.upi_id %}
+                        <div>
+                            <div
+                                style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">
+                                UPI ID</div>
+                            <div style="font-size: 14px; font-weight: 700; color: #1e293b; font-family: monospace;">{{
+                                bank.upi_id }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div
+                        style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 16px; padding: 24px; text-align: center; color: #94a3b8; font-size: 13px;">
+                        <i class="fa-solid fa-credit-card"
+                            style="font-size: 24px; margin-bottom: 8px; display: block; color: #cbd5e1;"></i>
+                        No registered bank account details
+                    </div>
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <!-- Logout Link -->
+            <div style="margin-top: 24px; text-align: right;">
+                <a href="/logout"
+                    style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 12px 24px; border-radius: 16px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: all 0.2s;"
+                    onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sign Out from VITCO
+                </a>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<style>
+    @keyframes pulse {
+        0% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+        }
+
+        70% {
+            transform: scale(1);
+            box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+        }
+
+        100% {
+            transform: scale(0.95);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-fadeIn {
+        animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    @media (max-width: 992px) {
+        .profile-layout-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+            padding: 24px !important;
+        }
+
+        .profile-left-col {
+            border-right: none !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            padding-right: 0 !important;
+            padding-bottom: 24px !important;
+        }
+
+        .profile-right-col {
+            padding-left: 0 !important;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .credentials-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .credentials-grid>div {
+            grid-column: span 1 !important;
+        }
+
+        .details-section-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+{% endblock %}

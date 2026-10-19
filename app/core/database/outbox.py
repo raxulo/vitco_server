@@ -4,8 +4,6 @@ RealTimeTransfer
 
 Enterprise Transactional Outbox Pattern
 
-Guarantees eventual consistency and zero event loss across distributed microservices.
-
 Python 3.13+
 """
 
@@ -13,16 +11,17 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
+from app.core.clock import get_ist_now
 from typing import Sequence
 
-from sqlalchemy import Column, String, DateTime, Text, Boolean, select
+from sqlalchemy import Column, String, DateTime, Text, Boolean, select, delete
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession
 
-OutboxBase = declarative_base()
+from app.core.database.base import Base
 
 
-class OutboxMessage(OutboxBase):
+class OutboxMessage(Base):
     """
     Outbox table schema for recording published domain events.
     """
@@ -34,7 +33,7 @@ class OutboxMessage(OutboxBase):
     payload = Column(Text, nullable=False)
     created_at = Column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=get_ist_now,
         nullable=False,
     )
     processed = Column(Boolean, default=False, nullable=False, index=True)
@@ -62,6 +61,17 @@ class OutboxRepository:
         self._session.add(msg)
         return msg
 
+    async def add_events(self, events: list[tuple[str, str]]) -> list[OutboxMessage]:
+        """
+        Bulk append multiple event messages to the outbox.
+        """
+        messages = [
+            OutboxMessage(event_type=et, payload=pl)
+            for et, pl in events
+        ]
+        self._session.add_all(messages)
+        return messages
+
     async def get_unprocessed(self, limit: int = 100) -> Sequence[OutboxMessage]:
         """
         Fetch pending unprocessed outbox events for background relay.
@@ -82,4 +92,16 @@ class OutboxRepository:
         msg = await self._session.get(OutboxMessage, message_id)
         if msg:
             msg.processed = True
-            msg.processed_at = datetime.now(timezone.utc)
+            msg.processed_at = get_ist_now()
+
+    async def clean_processed(self, older_than: datetime) -> int:
+        """
+        Prune processed outbox messages older than a specified datetime.
+        """
+        stmt = (
+            delete(OutboxMessage)
+            .where(OutboxMessage.processed == True)  # noqa: E712
+            .where(OutboxMessage.processed_at < older_than)
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount
