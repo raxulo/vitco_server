@@ -27,7 +27,8 @@ class ReportPreviewRequest(BaseModel):
     milk_type: MilkType | None = None
 
     route_code: str | None = None
-    farmer_code: str | None = None
+    # Member of the report's owner: farmer code for VLCC reports, VLCC code for MCC reports
+    member_code: str | None = None
 
     code_from: str | None = None
     code_to: str | None = None
@@ -56,7 +57,7 @@ class ReportPreviewRequest(BaseModel):
             vlcc_id=self.vlcc_id,
 
             route_code=self.route_code,
-            farmer_code=self.farmer_code,
+            member_code=self.member_code.strip() if self.member_code else None,
 
             code_from=self.code_from,
             code_to=self.code_to,
@@ -84,7 +85,7 @@ class ReportRequest(BaseModel):
     vlcc_id: str | None = None
 
     route_code: str | None = None
-    farmer_code: str | None = None
+    member_code: str | None = None
 
     code_from: str | None = None
     code_to: str | None = None
@@ -115,7 +116,7 @@ class ReportRequest(BaseModel):
             vlcc_id=self.vlcc_id,
 
             route_code=self.route_code,
-            farmer_code=self.farmer_code,
+            member_code=self.member_code.strip() if self.member_code else None,
 
             code_from=self.code_from,
             code_to=self.code_to,

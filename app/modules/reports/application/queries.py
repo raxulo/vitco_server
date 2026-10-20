@@ -20,7 +20,8 @@ class ReportQuery:
     mcc_id: UUID | None = None
     vlcc_id: UUID | None = None
     route_code: str | None = None
-    farmer_code: str | None = None
+    # Farmer code for VLCC reports, VLCC code for MCC reports
+    member_code: str | None = None
     code_from: str | None = None
     code_to: str | None = None
     route_from: str | None = None

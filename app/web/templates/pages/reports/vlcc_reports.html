@@ -63,6 +63,12 @@
                 </select>
             </div>
 
+            <!-- Member Code (farmer code) -->
+            <div id="member-code-container" style="display: none;">
+                <label for="member_code" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Farmer Code</label>
+                <input type="text" name="member_code" id="member_code" inputmode="numeric" placeholder="e.g. 001" disabled style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
             <!-- Code From -->
             <div id="code-from-container" style="display: none;">
                 <label for="code_from" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code From</label>
@@ -259,6 +265,7 @@
         const reportType = reportTypeSelect ? reportTypeSelect.value : '';
         const codeFrom = (document.getElementById('code_from')?.value || '').trim();
         const codeTo = (document.getElementById('code_to')?.value || '').trim();
+        const memberCode = (document.getElementById('member_code')?.value || '').trim();
 
         const btnGenerate = document.querySelector('.btn-generate');
         const btnPreview = document.querySelector('.btn-preview');
@@ -271,9 +278,9 @@
                 shouldDisable = true;
             }
         } 
-        // 2. VLCC Duplicate Receipt: Farmer Code (code_from) empty -> disable
+        // 2. VLCC Duplicate Receipt: Farmer Code (member_code) empty -> disable
         else if (reportType === 'vlcc_duplicate_receipt') {
-            if (!codeFrom) {
+            if (!memberCode) {
                 shouldDisable = true;
             }
         }
@@ -298,6 +305,13 @@
         const routeToContainer = document.getElementById('route-to-container');
         const milkTypeContainer = document.getElementById('milk-type-container');
 
+        // Member code (the farmer code) only for Duplicate Receipt; disabled when hidden so it is not submitted
+        const needsMember = reportType === 'vlcc_duplicate_receipt';
+        const memberContainer = document.getElementById('member-code-container');
+        const memberInput = document.getElementById('member_code');
+        if (memberContainer) memberContainer.style.display = needsMember ? 'block' : 'none';
+        if (memberInput) memberInput.disabled = !needsMember;
+
         if (reportType === 'dispatch_summary') {
             if (startDateLabel) startDateLabel.textContent = 'Start Date';
             if (endDateContainer) endDateContainer.style.display = 'block';
@@ -316,21 +330,13 @@
             if (endShiftContainer) endShiftContainer.style.display = 'none';
             
             if (reportType === 'vlcc_duplicate_receipt') {
-                if (codeFromContainer) {
-                    codeFromContainer.style.display = 'block';
-                    const lbl = codeFromContainer.querySelector('label');
-                    if (lbl) lbl.textContent = 'Farmer Code';
-                }
+                if (codeFromContainer) codeFromContainer.style.display = 'none';
                 if (codeToContainer) codeToContainer.style.display = 'none';
                 if (routeFromContainer) routeFromContainer.style.display = 'none';
                 if (routeToContainer) routeToContainer.style.display = 'none';
                 if (milkTypeContainer) milkTypeContainer.style.display = 'none';
             } else {
-                if (codeFromContainer) {
-                    codeFromContainer.style.display = 'none';
-                    const lbl = codeFromContainer.querySelector('label');
-                    if (lbl) lbl.textContent = 'Code From';
-                }
+                if (codeFromContainer) codeFromContainer.style.display = 'none';
                 if (codeToContainer) codeToContainer.style.display = 'none';
                 if (routeFromContainer) routeFromContainer.style.display = 'none';
                 if (routeToContainer) routeToContainer.style.display = 'none';
@@ -392,7 +398,7 @@
 
     // Listen for inputs on code fields to toggle button disabled state dynamically
     document.addEventListener('input', function(e) {
-        if (e.target && (e.target.id === 'code_from' || e.target.id === 'code_to')) {
+        if (e.target && (e.target.id === 'code_from' || e.target.id === 'code_to' || e.target.id === 'member_code')) {
             updateButtonStates();
         }
     });

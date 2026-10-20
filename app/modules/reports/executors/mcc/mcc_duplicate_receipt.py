@@ -5,7 +5,6 @@ Re-prints every collection one VLCC (the MCC's member, picked by VLCC code)
 supplied to the MCC within the date / shift range.
 """
 
-from sqlalchemy import true
 from sqlalchemy import select
 
 from app.modules.administration.domain.enums import Role
@@ -29,7 +28,8 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
         self._database = database
 
     async def execute(self, query: ReportQuery) -> ReportResult:
-        if not query.code_from:
+        # member_code of an MCC report is the VLCC code
+        if not query.member_code:
             raise ValueError("Please enter the VLCC code to print its duplicate receipt.")
 
         session = self._database.session
@@ -78,7 +78,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
             ledger=[
                 LedgerResult(
                     head={
-                        "Code": query.code_from,
+                        "Code": query.member_code,
                         "Name": vlcc["name"] if vlcc else "VLCC not found",
                         "Mobile No.": (vlcc["mobile"] if vlcc else None) or "—",
                     },
@@ -107,7 +107,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
             select(VlccModel.id, VlccModel.name, UserModel.mobile)
             .outerjoin(UserModel, UserModel.id == VlccModel.user_id)
             .where(
-                VlccModel.vlcc_code == query.code_from.strip(),
+                VlccModel.vlcc_code == query.member_code,
                 VlccModel.created_by.in_(mcc_creators),
                 VlccModel.is_deleted.is_(False),
             )
@@ -125,6 +125,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
             date_range=True,
             shift=True,
             vlcc_id=True,
+            member_code=True,
             mcc_id=True,
             is_deleted=True,
         )
@@ -137,7 +138,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
             end_date=query.formatted_end_date,
             start_shift=query.formatted_start_shift,
             end_shift=query.formatted_end_shift,
-            start_code=query.code_from,
+            start_code=query.member_code,
             owner_name=mcc.get("owner_name") if mcc else None,
             role="mcc",
             report_name="Duplicate Receipt",

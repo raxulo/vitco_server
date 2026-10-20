@@ -18,7 +18,7 @@ class AppliedOnFilters:
     mcc_id: bool = False
     vlcc_id: bool = False
     route_code: bool = False
-    farmer_code: bool = False
+    member_code: bool = False
     code: bool = False
     code_range: bool = False
     is_deleted: bool = False

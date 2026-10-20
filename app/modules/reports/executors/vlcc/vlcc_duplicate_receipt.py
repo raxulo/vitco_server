@@ -1,5 +1,5 @@
 from app.modules.reports.application.dto import LedgerResult
-from sqlalchemy import select, func
+from sqlalchemy import select
 from app.modules.reports.executors.base import ReportExecutor
 from app.modules.farmer.infrastructure.models import FarmerModel
 from app.modules.administration.infrastructure.models import UserModel
@@ -22,6 +22,10 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
         self._database = database
 
     async def execute(self, query: ReportQuery) -> ReportResult:
+        # member_code of a VLCC report is the farmer code
+        if not query.member_code:
+            raise ValueError("Please enter the farmer code to print the duplicate receipt.")
+
         session = self._database.session
         m = VlccCollectionModel
         f = FarmerModel
@@ -33,17 +37,17 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
         # Get farmer info
         farmer_name = "—"
         mobile_number = "—"
-        if query.code_from:
-            farmer_stmt = (
-                select(u.name, u.mobile)
-                .select_from(f)
-                .join(u, u.id == f.user_id)
-                .where(f.farmer_code == query.code_from, f.vlcc_id == query.vlcc_id)
-            )
-            farmer_res = (await session.execute(farmer_stmt)).mappings().one_or_none()
-            if farmer_res:
-                farmer_name = farmer_res["name"]
-                mobile_number = farmer_res["mobile"] or "—"
+        farmer_stmt = (
+            select(u.name, u.mobile)
+            .select_from(f)
+            .join(u, u.id == f.user_id)
+            .where(f.farmer_code == query.member_code, f.vlcc_id == query.vlcc_id)
+            .limit(1)
+        )
+        farmer_res = (await session.execute(farmer_stmt)).mappings().one_or_none()
+        if farmer_res:
+            farmer_name = farmer_res["name"]
+            mobile_number = farmer_res["mobile"] or "—"
 
         rows_stmt = (
             select(
@@ -60,8 +64,7 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
             .where(*filters)
         )
 
-        if query.code_from:
-            rows_stmt = rows_stmt.where(f.farmer_code == query.code_from)
+        rows_stmt = rows_stmt.where(f.farmer_code == query.member_code)
 
         rows_result = await session.execute(rows_stmt)
 
@@ -85,7 +88,7 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
             ledger=[
                 LedgerResult(
                     head={
-                        "Code": query.code_from,
+                        "Code": query.member_code,
                         "Name": farmer_name,
                         "Mobile No.": mobile_number,
                     },
@@ -115,6 +118,7 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
             date=True,
             shift=True,
             vlcc_id=True,
+            member_code=True,
         )
 
     @staticmethod
@@ -128,7 +132,7 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
             time=query.formatted_time,
             date=query.formatted_start_date,
             start_shift=query.formatted_start_shift,
-            start_code=query.code_from,
+            start_code=query.member_code,
             role="vlcc",
             owner_name=vlcc.get("owner_name", None) if vlcc else None,
             report_name="Duplicate Receipt",

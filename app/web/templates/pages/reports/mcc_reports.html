@@ -82,9 +82,15 @@
                 </select>
             </div>
 
+            <!-- Member Code (VLCC code) -->
+            <div id="member-code-container" style="display: none;">
+                <label for="member_code" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">VLCC Code</label>
+                <input type="text" name="member_code" id="member_code" inputmode="numeric" placeholder="e.g. 001" disabled style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+            </div>
+
             <!-- Code From -->
             <div id="code-from-container" style="display: none;">
-                <label for="code_from" id="code-from-label" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code From</label>
+                <label for="code_from" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code From</label>
                 <input type="text" name="code_from" id="code_from" placeholder="e.g. 001" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
             </div>
 
@@ -281,6 +287,7 @@
         const routeFrom = (document.getElementById('route_from')?.value || '').trim();
         const routeTo = (document.getElementById('route_to')?.value || '').trim();
         const vlccId = (document.getElementById('vlcc_id')?.value || '').trim();
+        const memberCode = (document.getElementById('member_code')?.value || '').trim();
 
         const btnGenerate = document.querySelector('.btn-generate');
         const btnPreview = document.querySelector('.btn-preview');
@@ -307,7 +314,7 @@
         }
         // 4. MCC Duplicate Receipt: VLCC code empty -> disable
         else if (reportType === 'mcc_duplicate_receipt') {
-            if (!codeFrom) {
+            if (!memberCode) {
                 shouldDisable = true;
             }
         }
@@ -339,9 +346,12 @@
         if (vlccContainer) vlccContainer.style.display = needsVlcc ? 'block' : 'none';
         if (vlccSelect) vlccSelect.disabled = !needsVlcc;
 
-        // Duplicate receipt reuses "Code From" as the single VLCC code
-        const codeFromLabel = document.getElementById('code-from-label');
-        if (codeFromLabel) codeFromLabel.textContent = reportType === 'mcc_duplicate_receipt' ? 'VLCC Code' : 'Code From';
+        // Member code (the VLCC code) only for Duplicate Receipt; disabled when hidden so it is not submitted
+        const needsMember = reportType === 'mcc_duplicate_receipt';
+        const memberContainer = document.getElementById('member-code-container');
+        const memberInput = document.getElementById('member_code');
+        if (memberContainer) memberContainer.style.display = needsMember ? 'block' : 'none';
+        if (memberInput) memberInput.disabled = !needsMember;
 
         if (reportType === 'mcc_shift_summary' || reportType === 'mcc_weight_shift_summary' || reportType === 'mcc_fixed_rate_summary') {
             // Single date, single shift
@@ -368,7 +378,7 @@
                 if (routeToContainer) routeToContainer.style.display = 'none';
                 if (milkTypeContainer) milkTypeContainer.style.display = 'none';
             } else if (reportType === 'mcc_duplicate_receipt') {
-                if (codeFromContainer) codeFromContainer.style.display = 'block';
+                if (codeFromContainer) codeFromContainer.style.display = 'none';
                 if (codeToContainer) codeToContainer.style.display = 'none';
                 if (routeFromContainer) routeFromContainer.style.display = 'none';
                 if (routeToContainer) routeToContainer.style.display = 'none';
@@ -439,7 +449,7 @@
 
     // Listen for inputs on code/route fields to toggle button disabled state dynamically
     document.addEventListener('input', function(e) {
-        if (e.target && (e.target.id === 'code_from' || e.target.id === 'code_to' || e.target.id === 'route_from' || e.target.id === 'route_to')) {
+        if (e.target && (e.target.id === 'code_from' || e.target.id === 'code_to' || e.target.id === 'route_from' || e.target.id === 'route_to' || e.target.id === 'member_code')) {
             updateButtonStates();
         }
     });
