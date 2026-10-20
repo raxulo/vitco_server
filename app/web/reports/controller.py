@@ -27,6 +27,7 @@ REPORT_TITLES = {
     ReportType.MCC_BILL_COMPARISON.value: "Milk Bill Comparison",
     ReportType.MCC_MILK_BILL_SUMMARY.value: "MCC Milk Bill Summary",
     ReportType.MCC_DUPLICATE_RECEIPT.value: "MCC Duplicate Receipt",
+    ReportType.MCC_WEIGHT_DUPLICATE_RECEIPT.value: "MCC Weight Duplicate Receipt",
     ReportType.VLCC_SHIFT_SUMMARY.value: "VLCC Shift Summary",
     ReportType.DISPATCH_SUMMARY.value: "Dispatch Summary",
 }
@@ -189,12 +190,14 @@ class ReportsController:
                 ReportType.MCC_WEIGHT_DATE_WISE,
                 ReportType.MCC_WEIGHT_VLCC_WISE,
                 ReportType.MCC_WEIGHT_ROUTE_WISE,
+                ReportType.MCC_WEIGHT_DUPLICATE_RECEIPT,
             ]
         elif mcc_type == MccType.FIXED_RATE:
             types = [
                 ReportType.MCC_FIXED_RATE_SUMMARY,
                 ReportType.MCC_FIXED_RATE_PAYMENT_SUMMARY,
                 ReportType.MCC_LEDGER,
+                ReportType.MCC_DUPLICATE_RECEIPT,
             ]
         else:
             types = [

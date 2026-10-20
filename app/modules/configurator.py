@@ -483,6 +483,7 @@ class ModuleConfigurator:
         from app.modules.reports.executors.mcc.mcc_payment_summary import MccPaymentSummaryExecutor
         from app.modules.reports.executors.mcc.mcc_milk_bill_summary import MccMilkBillSummaryExecutor
         from app.modules.reports.executors.mcc.mcc_duplicate_receipt import MccDuplicateReceiptExecutor
+        from app.modules.reports.executors.mcc.mcc_weight_duplicate_receipt import MccWeightDuplicateReceiptExecutor
         from app.modules.reports.executors.mcc.mcc_fixed_rate_summary import (
             MccFixedRatePaymentSummaryExecutor,
             MccFixedRateSummaryExecutor,
@@ -503,6 +504,7 @@ class ModuleConfigurator:
             ReportType.MCC_PAYMENT_SUMMARY: MccPaymentSummaryExecutor(container.database),
             ReportType.MCC_MILK_BILL_SUMMARY: MccMilkBillSummaryExecutor(container.database),
             ReportType.MCC_DUPLICATE_RECEIPT: MccDuplicateReceiptExecutor(container.database),
+            ReportType.MCC_WEIGHT_DUPLICATE_RECEIPT: MccWeightDuplicateReceiptExecutor(container.database),
             ReportType.MCC_FIXED_RATE_SUMMARY: MccFixedRateSummaryExecutor(container.database),
             ReportType.MCC_FIXED_RATE_PAYMENT_SUMMARY: MccFixedRatePaymentSummaryExecutor(container.database),
             # Fixed-rate MCC's "Member Ledger" behaves exactly like the MCC member ledger

@@ -22,6 +22,7 @@ class ReportType(StrEnum):
     MCC_WEIGHT_ROUTE_WISE = "mcc_weight_route_wise"
     MCC_MILK_BILL_SUMMARY = "mcc_milk_bill_summary"
     MCC_DUPLICATE_RECEIPT = "mcc_duplicate_receipt"
+    MCC_WEIGHT_DUPLICATE_RECEIPT = "mcc_weight_duplicate_receipt"
 
     # =========================
     # VLCC

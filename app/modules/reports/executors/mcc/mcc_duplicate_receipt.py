@@ -2,7 +2,7 @@
 MCC Duplicate Receipt report.
 
 Re-prints every collection one VLCC (the MCC's member, picked by VLCC code)
-supplied to the MCC within the date / shift range.
+supplied to the MCC on the selected date and shift.
 """
 
 from sqlalchemy import select
@@ -57,7 +57,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
             for row in (await session.execute(stmt)).mappings():
                 qty = float(row["quantity"] or 0)
                 rows.append({
-                    "date": row["collected_at"].strftime("%d/%m/%y"),
+                    "date": self.short_date(row["collected_at"]),
                     "shift": "M" if row["shift"] == CollectionShift.MORNING else "E",
                     "quantity": round(qty, 2),
                     "fat": float(row["fat_percent"] or 0),
@@ -122,7 +122,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
     def apply_filters(self) -> AppliedOnFilters:
         return AppliedOnFilters(
             actor_type=Role.MCC,
-            date_range=True,
+            date=True,
             shift=True,
             vlcc_id=True,
             member_code=True,
@@ -134,10 +134,8 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
     def build_metadata(query: ReportQuery, mcc: dict | None) -> ReportMetadata:
         return ReportMetadata(
             time=query.formatted_time,
-            start_date=query.formatted_start_date,
-            end_date=query.formatted_end_date,
+            date=query.formatted_start_date,
             start_shift=query.formatted_start_shift,
-            end_shift=query.formatted_end_shift,
             start_code=query.member_code,
             owner_name=mcc.get("owner_name") if mcc else None,
             role="mcc",

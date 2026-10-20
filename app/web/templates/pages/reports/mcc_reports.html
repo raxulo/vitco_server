@@ -321,7 +321,7 @@
             }
         }
         // 4. MCC Duplicate Receipt: VLCC code empty -> disable
-        else if (reportType === 'mcc_duplicate_receipt') {
+        else if (reportType === 'mcc_duplicate_receipt' || reportType === 'mcc_weight_duplicate_receipt') {
             if (!memberCode) {
                 shouldDisable = true;
             }
@@ -355,7 +355,7 @@
         if (vlccSelect) vlccSelect.disabled = !needsVlcc;
 
         // Member code (the VLCC code) only for Duplicate Receipt; disabled when hidden so it is not submitted
-        const needsMember = reportType === 'mcc_duplicate_receipt';
+        const needsMember = reportType === 'mcc_duplicate_receipt' || reportType === 'mcc_weight_duplicate_receipt';
         const memberContainer = document.getElementById('member-code-container');
         const memberInput = document.getElementById('member_code');
         if (memberContainer) memberContainer.style.display = needsMember ? 'block' : 'none';
@@ -372,6 +372,17 @@
             if (routeFromContainer) routeFromContainer.style.display = 'none';
             if (routeToContainer) routeToContainer.style.display = 'none';
             if (milkTypeContainer) milkTypeContainer.style.display = 'block';
+        } else if (needsMember) {
+            // Like VLCC Duplicate Receipt: single date, single shift and the member (VLCC) code
+            if (startDateLabel) startDateLabel.textContent = 'Date';
+            if (endDateContainer) endDateContainer.style.display = 'none';
+            if (startShiftContainer) startShiftContainer.style.display = 'block';
+            if (endShiftContainer) endShiftContainer.style.display = 'none';
+            if (codeFromContainer) codeFromContainer.style.display = 'none';
+            if (codeToContainer) codeToContainer.style.display = 'none';
+            if (routeFromContainer) routeFromContainer.style.display = 'none';
+            if (routeToContainer) routeToContainer.style.display = 'none';
+            if (milkTypeContainer) milkTypeContainer.style.display = 'none';
         } else {
             // Date range, shift range
             if (startDateLabel) startDateLabel.textContent = 'Start Date';
@@ -382,12 +393,6 @@
             if (reportType === 'mcc_weight_date_wise' || reportType === 'mcc_weight_vlcc_wise' || reportType === 'mcc_vlcc_bill' || reportType === 'mcc_ledger') {
                 if (codeFromContainer) codeFromContainer.style.display = 'block';
                 if (codeToContainer) codeToContainer.style.display = 'block';
-                if (routeFromContainer) routeFromContainer.style.display = 'none';
-                if (routeToContainer) routeToContainer.style.display = 'none';
-                if (milkTypeContainer) milkTypeContainer.style.display = 'none';
-            } else if (reportType === 'mcc_duplicate_receipt') {
-                if (codeFromContainer) codeFromContainer.style.display = 'none';
-                if (codeToContainer) codeToContainer.style.display = 'none';
                 if (routeFromContainer) routeFromContainer.style.display = 'none';
                 if (routeToContainer) routeToContainer.style.display = 'none';
                 if (milkTypeContainer) milkTypeContainer.style.display = 'none';

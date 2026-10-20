@@ -123,6 +123,7 @@ async def get_report_types(request: Request):
         {"value": ReportType.MCC_WEIGHT_DATE_WISE.value, "label": "MCC Weight Date Wise"},
         {"value": ReportType.MCC_WEIGHT_VLCC_WISE.value, "label": "MCC Weight VLCC Wise"},
         {"value": ReportType.MCC_WEIGHT_ROUTE_WISE.value, "label": "MCC Weight Route Wise"},
+        {"value": ReportType.MCC_WEIGHT_DUPLICATE_RECEIPT.value, "label": "MCC Weight Duplicate Receipt"},
         {"value": ReportType.MCC_FIXED_RATE_SUMMARY.value, "label": "MCC Fixed Rate Summary"},
         {"value": ReportType.MCC_FIXED_RATE_PAYMENT_SUMMARY.value, "label": "MCC Fixed Rate Payment Summary"},
         {"value": ReportType.MCC_LEDGER.value, "label": "Member Ledger"},
