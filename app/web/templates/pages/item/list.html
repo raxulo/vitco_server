@@ -13,9 +13,12 @@
             <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">View and manage product items, measurement units, and rates</p>
         </div>
         <div class="page-actions">
+            {# Hidden when the user lacks the Item & Unit Masters permission (also enforced on the server) #}
+            {% if can_create|default(true) %}
             <button onclick="openItemModal()" class="btn btn-primary" style="background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; transition: background 0.2s;">
                 <i class="fa-solid fa-plus"></i> NEW ITEM MASTER
             </button>
+            {% endif %}
         </div>
     </div>
 

@@ -117,7 +117,13 @@
                             name="code"
                             type="text"
                             class="form-control"
-                            placeholder="MCC001"
+                            placeholder="1001"
+                            {% if not mcc %}
+                            inputmode="numeric"
+                            pattern="[0-9]+"
+                            title="MCC code must contain digits only"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            {% endif %}
                             value="{{ mcc.code if mcc else '' }}"
                             {% if mcc %}
                             readonly
@@ -214,7 +220,12 @@
                             name="mobile"
                             type="tel"
                             class="form-control"
-                            placeholder="+91 99999 88888"
+                            placeholder="9999988888"
+                            inputmode="numeric"
+                            maxlength="10"
+                            pattern="[0-9]{10}"
+                            title="Mobile number must be exactly 10 digits"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"
                             value="{{ user.mobile if mcc else '' }}"
                         />
                     </div>

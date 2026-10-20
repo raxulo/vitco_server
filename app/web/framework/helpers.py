@@ -8,6 +8,19 @@ class WebHelper:
     __slots__ = ()
 
     @staticmethod
+    def deny_role(request: Request, role, message: str = "Use My Profile to update your own details") -> None:
+        """
+        Block a role from a full edit page of its own kind (an MCC user editing
+        MCCs, a VLCC user editing VLCCs, a farmer editing farmers). Their own
+        details are edited through /profile/edit instead.
+        """
+        from app.core.exceptions.base import ForbiddenException
+
+        user = getattr(request.state, "user", None)
+        if user is not None and user.role_type == role:
+            raise ForbiddenException(message)
+
+    @staticmethod
     def client_ip(request: Request) -> str:
 
         forwarded = request.headers.get("X-Forwarded-For")

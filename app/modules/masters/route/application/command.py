@@ -11,6 +11,7 @@ class CreateRouteMasterCommand:
     route_code: int
     route_name: str
     created_by: UUID | None = None
+    owner: CurrentUser | None = None
 
 
 @dataclass(slots=True)

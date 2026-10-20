@@ -8,9 +8,13 @@
     <div class="page-header" style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
         <div class="page-title">
             <h2 style="margin:0; font-size: 22px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                {% if is_farmer %}
+                <i class="fa-solid fa-indian-rupee-sign" style="color: #2563eb;"></i> My Payments
+                {% else %}
                 <i class="fa-solid fa-clock-rotate-left" style="color: #2563eb;"></i> Payment Ledger History
+                {% endif %}
             </h2>
-            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">Audit trail of all credits and debits posted for the selected user.</p>
+            <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">{{ 'Every payment you have received, newest first.' if is_farmer else 'Audit trail of all credits and debits posted for the selected user.' }}</p>
         </div>
         {% if active_user %}
         <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 16px; display: flex; align-items: center; gap: 8px;">
@@ -26,7 +30,8 @@
     <div class="card" style="padding: 18px 24px; margin-bottom: 24px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); position: relative; z-index: 1000; overflow: visible !important;">
         <form method="GET" action="/payments/history" id="filter-form" style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; position: relative; z-index: 1000; overflow: visible !important;">
             
-            <!-- Single User Search Input Column -->
+            <!-- Single User Search Input Column (not for farmers: they only see their own payments) -->
+            {% if not is_farmer %}
             <div style="flex: 2; min-width: 260px; position: relative; z-index: 1001;">
                 <label style="font-size: 13px; font-weight: 600; color: #475569; display: block; margin-bottom: 6px;">
                     <i class="fa-solid fa-magnifying-glass-dollar" style="color: #2563eb; margin-right: 4px;"></i> Search User:
@@ -46,6 +51,7 @@
                     <div id="no-users-found" style="display: none; padding: 12px 16px; color: #94a3b8; font-size: 13px;">No matching user found</div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- From Date -->
             <div style="flex: 1; min-width: 170px;">

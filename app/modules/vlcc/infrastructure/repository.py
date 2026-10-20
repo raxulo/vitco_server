@@ -15,6 +15,7 @@ from app.modules.common.settings.infrastructure.models import SettingsModel
 from app.config.settings import Settings
 from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.administration.infrastructure.models import UserModel
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.modules.vlcc.domain.entities import VlccRelations
 from app.modules.vlcc.application.command import UpdateVlccCommand
 from app.modules.vlcc.application.command import CreateVlcc
@@ -30,88 +31,16 @@ from app.modules.vlcc.domain.entities import Vlcc
 from app.modules.vlcc.domain.irepository import IVlccRepository
 from app.modules.vlcc.infrastructure.mapper import VlccMapper
 from app.modules.vlcc.infrastructure.models import VlccModel
+from app.core.clock import now_naive_ist
 
 
 class VlccAccessScope:
+    """Which VLCCs a user may see / modify — rules in `Hierarchy`."""
 
     @staticmethod
     def condition(owner: CurrentUser):
-        if owner.role_type == Role.SUPER_ADMIN:
-            return true()
-
-        same_role_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == VlccModel.created_by,
-                UserModel.role == owner.role,
-            )
-            .correlate(VlccModel)
-        )
-
-        global_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == VlccModel.created_by,
-                UserModel.role == Role.SUPER_ADMIN,
-            )
-            .correlate(VlccModel)
-        )
-
-        hierarchy_condition = false()
-        if owner.role_type == Role.ADMIN:
-            parent_user = aliased(UserModel)
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == VlccModel.created_by,
-                    or_(
-                        UserModel.created_by == owner.id,
-                        exists(
-                            select(1)
-                            .select_from(parent_user)
-                            .where(
-                                parent_user.id == UserModel.created_by,
-                                parent_user.created_by == owner.id,
-                            )
-                        )
-                    )
-                )
-                .correlate(VlccModel)
-            )
-        elif owner.role_type == Role.SUB_ADMIN:
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == VlccModel.created_by,
-                    UserModel.created_by == owner.id,
-                )
-                .correlate(VlccModel)
-            )
-        elif owner.role_type == Role.MCC:
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == VlccModel.created_by,
-                    UserModel.created_by == owner.id,
-                )
-                .correlate(VlccModel)
-            )
-
-        # A VLCC user can also see their own VLCC record
-        vlcc_own_condition = VlccModel.user_id == owner.id
-
-        return or_(
-            VlccModel.created_by == owner.id,
-            vlcc_own_condition,
-            global_condition,
-            same_role_condition,
-            hierarchy_condition
-        )
+        vlcc_ids = Hierarchy.vlcc_ids(owner)
+        return true() if vlcc_ids is None else VlccModel.id.in_(vlcc_ids)
 
     @staticmethod
     def can_modify(owner: CurrentUser | None, item_created_by):
@@ -119,61 +48,13 @@ class VlccAccessScope:
             return false()
         role = owner.role_type
 
-        # SuperAdmin -> everything
         if role == Role.SUPER_ADMIN:
             return true()
 
-        # Admin -> own + direct SubAdmin/MCC/VLCC
-        if role == Role.ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.SUB_ADMIN, Role.MCC, Role.VLCC)),
-                    )
-                    .correlate(VlccModel)
-                ),
-            )
-
-        # SubAdmin -> own + own MCC/VLCC
-        if role == Role.SUB_ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.MCC, Role.VLCC)),
-                    )
-                    .correlate(VlccModel)
-                ),
-            )
-
-        # MCC -> own + own VLCC
-        if role == Role.MCC:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role == Role.VLCC,
-                    )
-                    .correlate(VlccModel)
-                ),
-            )
-
-        # VLCC -> own only
-        if role == Role.VLCC:
-            return item_created_by == owner.id
+        # Admin / Sub Admin / MCC -> VLCCs created within their hierarchy.
+        # A VLCC user only views its own VLCC.
+        if role in (Role.ADMIN, Role.SUB_ADMIN, Role.MCC):
+            return item_created_by.in_(Hierarchy.vlcc_creators(owner))
 
         return false()
 
@@ -249,7 +130,7 @@ class VlccRepository(IVlccRepository):
                 is_active=entity.is_active,
                 is_deleted=entity.is_deleted,
                 assigned_chart_rank=entity.assigned_chart_rank,
-                updated_at=func.now(),
+                updated_at=now_naive_ist(),
             )
         )
 
@@ -284,7 +165,7 @@ class VlccRepository(IVlccRepository):
                 farmer_enabled=data.farmer_enabled,
                 is_active=data.is_active,
                 assigned_chart_rank=data.assigned_chart_rank,
-                updated_at=func.now(),
+                updated_at=now_naive_ist(),
             )
         )
 
@@ -577,17 +458,17 @@ class VlccRepository(IVlccRepository):
 
         return [VlccMapper.to_entity(model) for model in result]
 
-    async def get_vlccs_half_detail_by_mcc(self, mcc_id: UUID):
+    async def get_vlccs_half_detail_by_mcc(self, mcc_id: UUID, owner: CurrentUser | None = None):
+        # An MCC's VLCCs: created by the MCC user, or by whoever created the MCC
+        mcc_creators = select(MccModel.user_id).where(MccModel.id == mcc_id).union(
+            select(MccModel.created_by).where(MccModel.id == mcc_id)
+        )
         stmt = (
             select(
                 VlccModel,
                 UserModel,
                 AddressModel,
                 BankAccountModel,
-            )
-            .join(
-                MccModel,
-                MccModel.created_by == VlccModel.created_by,
             )
             .outerjoin(
                 UserModel,
@@ -602,8 +483,10 @@ class VlccRepository(IVlccRepository):
                 BankAccountModel.id == VlccModel.bank_account_id,
             )
             .where(
-                MccModel.id == mcc_id,
+                VlccModel.created_by.in_(mcc_creators),
                 VlccModel.is_deleted.is_(False),
+                # ...and only those the logged-in user may see
+                *([VlccAccessScope.condition(owner)] if owner is not None else []),
             )
             .order_by(VlccModel.created_at.desc())
         )

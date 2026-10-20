@@ -10,6 +10,7 @@ from app.modules.payments.infrastructure.repository import PaymentTransferReposi
 
 from decimal import Decimal
 from uuid import UUID
+from app.core.clock import now_naive_ist
 from app.modules.payments.domain.exceptions import (
     InvalidPaymentAmount,
     SelfTransferNotAllowed,
@@ -249,7 +250,7 @@ class PaymentPostingService:
                 sender_after=sender_after,
                 receiver_before=receiver_before,
                 receiver_after=receiver_after,
-                created_at=datetime.utcnow(),
+                created_at=now_naive_ist(),
             )
 
             # =====================================================

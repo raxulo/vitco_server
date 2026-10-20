@@ -12,8 +12,13 @@ from app.modules.masters.route.domain.exceptions import (
     RouteNotFoundException,
     RouteCodeAlreadyExistsException,
 )
-from app.modules.masters.route.infrastructure.repository import RouteMasterRepository
+from app.core.exceptions.base import ForbiddenException
+from app.modules.masters.route.infrastructure.repository import (
+    RouteMasterAccessScope,
+    RouteMasterRepository,
+)
 from app.modules.masters.route.domain.dto import RouteMasterDto, RouteMasterListDto
+from app.core.clock import now_naive_ist
 from app.modules.masters.route.application.command import (
     CreateRouteMasterCommand,
     UpdateRouteMasterCommand,
@@ -46,6 +51,10 @@ class RouteMasterHandler:
         self,
         command: CreateRouteMasterCommand,
     ) -> RouteMasterDto:
+        # Route codes are created only by Super Admin / Admin / Sub Admin
+        if command.owner is None or command.owner.role_type not in RouteMasterAccessScope.CREATOR_ROLES:
+            raise ForbiddenException("Only Super Admin, Admin or Sub Admin can create route codes")
+
         self._validate(command)
 
         await self._ensure_code_available(command.route_code)
@@ -56,8 +65,8 @@ class RouteMasterHandler:
             route_name=command.route_name.strip(),
             is_active=True,
             created_by=command.created_by,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
         )
 
         async with self._database.transaction():
@@ -86,7 +95,7 @@ class RouteMasterHandler:
             route.route_code = command.route_code
             route.route_name = command.route_name.strip()
             route.is_active = command.is_active
-            route.updated_at = datetime.now(UTC)
+            route.updated_at = now_naive_ist()
 
             await self._repository.update(route, command.owner)
 

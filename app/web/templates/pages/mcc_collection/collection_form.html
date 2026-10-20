@@ -278,23 +278,8 @@
 
         {% endif %}
 
-        {% if mcc and mcc.mcc_type|int != 2 %}
-
-        <div class="form-group" id="group-payment">
-
-            <label>Payment Status *</label>
-
-            <select name="status" id="cf-payment" class="form-control">
-
-                <option value="0">Unpaid</option>
-
-                <option value="1">Paid</option>
-
-            </select>
-
-        </div>
-
-        {% endif %}
+        {# Payment status is no longer chosen by hand; keep the record's current value (new entries: Unpaid) #}
+        <input type="hidden" name="status" value="{{ collection.status|int if collection and collection.status is not none else 0 }}">
 
     </div>
 

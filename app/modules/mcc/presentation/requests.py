@@ -2,6 +2,7 @@ from fastapi import UploadFile
 from pydantic import field_validator
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, model_validator
+from app.core.validators import apply_milk_quality_rules, digits_only, min_not_above_max, mobile_number
 from app.modules.mcc.domain.enums import MccType
 from typing import Any
 
@@ -18,8 +19,19 @@ from app.modules.common.settings.domain.enums import (
 class CreateMccRequest(BaseModel):
     code: str = Field(..., min_length=1, max_length=30)
     name: str = Field(..., min_length=1, max_length=150)
-    mobile: str = Field(..., min_length=10, max_length=15)
+    mobile: str
     email: EmailStr
+
+    @field_validator("code")
+    @classmethod
+    def _code_digits(cls, value: str) -> str:
+        return digits_only(value, "MCC code")
+
+    @field_validator("mobile", mode="before")
+    @classmethod
+    def _mobile_digits(cls, value: str) -> str:
+        return mobile_number(value)
+
     password: str | None = None
     mcc_type: MccType = Field(default=MccType.NORMAL)
 
@@ -77,6 +89,13 @@ class CreateMccRequest(BaseModel):
     max_fat: float | None = Field(default=0.0, ge=0)
     min_snf: float | None = Field(default=0.0, ge=0)
     max_snf: float | None = Field(default=0.0, ge=0)
+
+    @model_validator(mode="after")
+    def _quality_rules(self):
+        apply_milk_quality_rules(self)
+        min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
+        min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
+        return self
 
     @field_validator("password")
     @classmethod
@@ -120,10 +139,17 @@ class CreateMccRequest(BaseModel):
 
 
 class UpdateMccRequest(BaseModel):
+    # Code is read-only after creation (older codes may contain letters), so it is not re-validated
     code: str = Field(..., min_length=1, max_length=30)
     name: str = Field(..., min_length=1, max_length=150)
-    mobile: str = Field(..., min_length=10, max_length=15)
+    mobile: str
     email: EmailStr
+
+    @field_validator("mobile", mode="before")
+    @classmethod
+    def _mobile_digits(cls, value: str) -> str:
+        return mobile_number(value)
+
     password: str | None = None
     mcc_type: MccType = Field(default=MccType.NORMAL)
 
@@ -181,6 +207,13 @@ class UpdateMccRequest(BaseModel):
     max_fat: float | None = Field(default=0.0, ge=0)
     min_snf: float | None = Field(default=0.0, ge=0)
     max_snf: float | None = Field(default=0.0, ge=0)
+
+    @model_validator(mode="after")
+    def _quality_rules(self):
+        apply_milk_quality_rules(self)
+        min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
+        min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
+        return self
 
     @model_validator(mode="before")
     @classmethod

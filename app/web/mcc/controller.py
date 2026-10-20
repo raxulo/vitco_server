@@ -17,6 +17,7 @@ from app.modules.mcc.domain.dto import MccDetailDto
 from app.modules.mcc.application.command import GetMccQuery
 from uuid import UUID
 from app.modules.dependencies import GetHandler
+from app.web.framework.helpers import WebHelper
 from fastapi import Request
 
 from app.web.framework.renderer import Renderer
@@ -63,6 +64,7 @@ class MccController:
 
     @staticmethod
     async def get_edit_page(request: Request, id: UUID):
+        WebHelper.deny_role(request, Role.MCC)
         query: GetMccQuery = GetMccQuery(
             id=id, owner=request.state.user
         )
@@ -164,6 +166,7 @@ class MccController:
 
     @staticmethod
     async def post_update_page(request: Request,  id: UUID):
+        WebHelper.deny_role(request, Role.MCC)
         user: CurrentUser = request.state.user
 
         form_data = await request.form()

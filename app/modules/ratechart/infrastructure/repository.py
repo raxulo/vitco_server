@@ -28,6 +28,7 @@ from app.modules.ratechart.infrastructure.models import (
 )
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.models import UserModel
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.middleware.authentication import CurrentUser
 
 
@@ -87,27 +88,6 @@ class RateChartAccessScope:
         return RateChartModel.created_by == owner_id
 
     # =========================================================
-    # CHILD RATE CHART
-    #
-    # RateChart creator must be a direct child of owner.
-    # =========================================================
-
-    @staticmethod
-    def child(
-        owner_id: UUID,
-        roles: tuple[Role, ...],
-    ):
-        return exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == RateChartModel.created_by,
-                UserModel.created_by == owner_id,
-                UserModel.role.in_(roles),
-            )
-        )
-
-    # =========================================================
     # ASSIGNED RATE CHART
     #
     # Used mainly by MCC / VLCC.
@@ -127,118 +107,20 @@ class RateChartAccessScope:
         )
 
     # =========================================================
-    # PARENT RATE CHART
-    #
-    # Finds rate charts created by current user's direct parent.
-    # No created_by field is required in CurrentUser.
-    # =========================================================
-
-    @staticmethod
-    def parent(owner_id: UUID):
-        return exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == owner_id,
-                RateChartModel.created_by == UserModel.created_by,
-            )
-        )
-
-    # =========================================================
     # READ ACCESS
     # =========================================================
 
     @staticmethod
     def get_condition(owner: CurrentUser):
+        """
+        View / use / assign (map).
 
-        role = owner.role_type
-
-        # -----------------------------------------------------
-        # SUPER ADMIN
-        #
-        # Can see every RateChart.
-        # -----------------------------------------------------
-
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        # -----------------------------------------------------
-        # ADMIN
-        #
-        # Own
-        # + own SubAdmins
-        # + own MCCs
-        # + own VLCCs
-        # + own parent SuperAdmin
-        # -----------------------------------------------------
-
-        if role == Role.ADMIN:
-            return or_(
-                # Own
-                RateChartAccessScope.own(owner.id),
-
-                # Parent SuperAdmin
-                RateChartAccessScope.parent(owner.id),
-
-                # SubAdmins created by this Admin
-                RateChartAccessScope.child(
-                    owner.id,
-                    (Role.SUB_ADMIN,),
-                ),
-
-                # MCC / VLCC directly under this Admin
-                RateChartAccessScope.child(
-                    owner.id,
-                    (
-                        Role.MCC,
-                        Role.VLCC,
-                    ),
-                ),
-            )
-
-        # -----------------------------------------------------
-        # SUB ADMIN
-        #
-        # Own
-        # + own MCCs
-        # + own VLCCs
-        # + parent Admin
-        # -----------------------------------------------------
-
-        if role == Role.SUB_ADMIN:
-            return or_(
-                # Own
-                RateChartAccessScope.own(owner.id),
-
-                # Parent Admin
-                RateChartAccessScope.parent(owner.id),
-
-                # Own MCC / VLCC
-                RateChartAccessScope.child(
-                    owner.id,
-                    (
-                        Role.MCC,
-                        Role.VLCC,
-                    ),
-                ),
-            )
-
-        # -----------------------------------------------------
-        # MCC / VLCC
-        #
-        # Own + Assigned
-        # -----------------------------------------------------
-
-        if role in {
-            Role.MCC,
-            Role.VLCC,
-        }:
-            return or_(
-                RateChartAccessScope.own(owner.id),
-                RateChartAccessScope.assigned(owner.id),
-            )
-
-        return false()
+        - Super Admin charts      -> everyone
+        - Charts made by the user or anyone below it (see `Hierarchy`)
+        - Charts made by anyone above it (its Admin, Sub Admin, MCC creator...)
+        Charts from another Admin's tree stay invisible, even if assigned earlier.
+        """
+        return Hierarchy.shared_visible(owner, RateChartModel.created_by)
 
     # =========================================================
     # WRITE ACCESS
@@ -249,127 +131,12 @@ class RateChartAccessScope:
 
     @staticmethod
     def write_condition(owner: CurrentUser):
-
-        role = owner.role_type
-
-        # -----------------------------------------------------
-        # SUPER ADMIN
-        #
-        # Can update/delete everything.
-        # -----------------------------------------------------
-
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        # -----------------------------------------------------
-        # ADMIN
-        #
-        # Own
-        # + SubAdmin
-        # + MCC
-        # + VLCC
-        #
-        # Parent SuperAdmin -> READ ONLY
-        # -----------------------------------------------------
-
-        if role == Role.ADMIN:
-            return or_(
-                RateChartAccessScope.own(owner.id),
-
-                RateChartAccessScope.child(
-                    owner.id,
-                    (
-                        Role.SUB_ADMIN,
-                        Role.MCC,
-                        Role.VLCC,
-                    ),
-                ),
-            )
-
-        # -----------------------------------------------------
-        # SUB ADMIN
-        #
-        # Own
-        # + MCC
-        # + VLCC
-        #
-        # Parent Admin -> READ ONLY
-        # -----------------------------------------------------
-
-        if role == Role.SUB_ADMIN:
-            return or_(
-                RateChartAccessScope.own(owner.id),
-
-                RateChartAccessScope.child(
-                    owner.id,
-                    (
-                        Role.MCC,
-                        Role.VLCC,
-                    ),
-                ),
-            )
-
-        # -----------------------------------------------------
-        # MCC / VLCC
-        #
-        # Only their own RateCharts.
-        #
-        # Assigned RateChart -> READ ONLY.
-        # -----------------------------------------------------
-
-        if role in {
-            Role.MCC,
-            Role.VLCC,
-        }:
-            return RateChartAccessScope.own(owner.id)
-
-        return false()
+        """Modify / delete: charts made by the user or anyone below it. Charts from above are read-only."""
+        return RateChartAccessScope.can_modify(owner, RateChartModel.created_by)
 
     @staticmethod
     def can_modify(owner: CurrentUser | None, item_created_by):
-        if owner is None:
-            return false()
-        role = owner.role_type
-
-        # SuperAdmin -> everything
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        # Admin -> own + direct SubAdmin/MCC/VLCC
-        if role == Role.ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.SUB_ADMIN, Role.MCC, Role.VLCC)),
-                    )
-                ),
-            )
-
-        # SubAdmin -> own + own MCC/VLCC
-        if role == Role.SUB_ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.MCC, Role.VLCC)),
-                    )
-                ),
-            )
-
-        # MCC / VLCC -> own only
-        if role in (Role.MCC, Role.VLCC):
-            return item_created_by == owner.id
-
-        return false()
+        return Hierarchy.shared_modifiable(owner, item_created_by)
 
     # =========================================================
     # GET INCLUDING ASSIGNED
@@ -475,6 +242,16 @@ class RateChartRepository(IRateChartRepository):
 
         if model is not None:
             await self._session.delete(model)
+
+    async def is_modifiable(self, id: UUID, owner: CurrentUser) -> bool:
+        """Whether the user may edit this chart (creator or someone above it)."""
+        found = await self._session.scalar(
+            select(RateChartModel.id).where(
+                RateChartModel.id == id,
+                RateChartAccessScope.write_condition(owner),
+            )
+        )
+        return found is not None
 
     async def get_by_id(
         self,
@@ -672,7 +449,7 @@ class RateChartRepository(IRateChartRepository):
             RateChartModel.chart_name.ilike(pattern)
         )
         if owner is not None:
-            stmt = stmt.where(RateChartAccessScope.condition(owner))
+            stmt = stmt.where(RateChartAccessScope.get_condition(owner))
         return await self._session.scalar(stmt) or 0
 
     async def create_assignment(

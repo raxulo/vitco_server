@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from app.core.database.manager import DatabaseManager
+from app.core.clock import now_naive_ist
 
 from app.modules.common.address.domain.entities import (
     Address,
@@ -71,7 +72,7 @@ class AddressHandler:
         if existing is not None:
             raise AddressAlreadyExistsException()
 
-        now = datetime.now(UTC)
+        now = now_naive_ist()
 
         address = Address(
             id=uuid4(),
@@ -174,7 +175,7 @@ class AddressHandler:
                 command.pincode
             )
 
-            address.updated_at = datetime.now(UTC)
+            address.updated_at = now_naive_ist()
 
             await self._repository.update(
                 address

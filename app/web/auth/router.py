@@ -30,9 +30,22 @@ auth_router.add_api_route(
 )
 
 auth_router.add_api_route(
-    path="/profile", 
-    endpoint=AuthController.profile_page, 
+    path="/profile",
+    endpoint=AuthController.profile_page,
     methods=["GET"]
+)
+
+# Self-service edit: personal, address, bank (+ settings when permitted)
+auth_router.add_api_route(
+    path="/profile/edit",
+    endpoint=AuthController.profile_edit_page,
+    methods=["GET"]
+)
+
+auth_router.add_api_route(
+    path="/profile/edit",
+    endpoint=AuthController.profile_edit_post,
+    methods=["POST"]
 )
 
 # -------------------------------

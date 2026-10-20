@@ -6,6 +6,7 @@ from app.modules.advanceditem.application.command import AdvanceItemDetailDTO
 from app.modules.advanceditem.application.command import AdvanceDetailDTO
 from app.modules.masters.items.infrastructure.repository import ItemMasterRepository
 from uuid import UUID
+from app.middleware.authentication import CurrentUser
 from app.modules.advanceditem.application.command import AdvanceItemCommand
 from app.modules.payments.domain.enums import PaymentMethod
 from app.modules.payments.domain.enums import PaymentSourceType
@@ -164,9 +165,9 @@ class AdvanceService:
 
         return record
 
-    async def get_detail(self, advance_id: UUID) -> AdvanceDetailDTO | None:
-
-        rows = await self._advance_record_repository.get_detail_rows(advance_id)
+    async def get_detail(self, advance_id: UUID, owner: CurrentUser) -> AdvanceDetailDTO | None:
+        # None when the record doesn't exist or the user neither gave nor received it
+        rows = await self._advance_record_repository.get_detail_rows(advance_id, owner)
 
         if not rows:
             return None
@@ -228,7 +229,7 @@ class AdvanceService:
             ],
             page=command.page,
             size=command.size,
-            total_page=count // command.size + 1,
+            total_page=max(1, -(-count // command.size)),
         )
         
 

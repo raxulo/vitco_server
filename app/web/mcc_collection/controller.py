@@ -19,7 +19,7 @@ from app.core.database.manager import DatabaseManager
 from app.modules.vlcc.application.command import GetVlccQuery
 from uuid import UUID
 from fastapi import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from app.modules.dependencies import GetHandler
 from app.modules.collections.mcc_collection.application.command import (
@@ -31,6 +31,7 @@ from app.modules.mcc.application.command import ListMccQuery
 from app.modules.vlcc.application.command import ListVlccQuery
 from app.web.framework.renderer import Renderer
 from app.web.mcc_collection.assembler import MccCollectionAssembler
+from app.core.clock import now_naive_ist
 from app.modules.collections.mcc_collection.presentation.requests import (
     CreateMccCollectionRequest,
     UpdateMccCollectionRequest,
@@ -93,7 +94,7 @@ class MccCollectionController:
         mcc_handler = GetHandler.mcc_handler(request)
 
         mccs = await mcc_handler.list(ListMccQuery(size=200, owner=request.state.user))
-        default_date = datetime.now().strftime("%Y-%m-%dT%H:%M")
+        default_date = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
@@ -120,12 +121,12 @@ class MccCollectionController:
         user = request.state.user
 
         collection = await handler.get(GetMccCollectionQuery(id=collection_id), owner=user)
-        mccs = await mcc_handler.list(ListMccQuery(size=200))
-        vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=collection.mcc_id)
+        mccs = await mcc_handler.list(ListMccQuery(size=200, owner=user))
+        vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=collection.mcc_id, owner=user)
         
         mcc = await mcc_handler.get(GetMccQuery(id=collection.mcc_id, owner=user))
         setting = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id)
-        default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else datetime.now().strftime("%Y-%m-%dT%H:%M")
+        default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
@@ -231,7 +232,7 @@ class MccCollectionController:
             mcc_handler = GetHandler.mcc_handler(request)
             vlcc_handler = GetHandler.vlcc_handler(request)
 
-            mccs = await mcc_handler.list(ListMccQuery(size=200))
+            mccs = await mcc_handler.list(ListMccQuery(size=200, owner=request.state.user))
             mcc = await mcc_handler.get(GetMccQuery(id=data.mcc_id, owner=request.state.user))
             settings = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id)
             if mcc.mcc_type == MccType.WEIGHT:
@@ -247,11 +248,11 @@ class MccCollectionController:
             vlccs = []
             if data.mcc_id and mcc.mcc_type == MccType.WEIGHT:
                 try:
-                    vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=data.mcc_id)
+                    vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=data.mcc_id, owner=request.state.user)
                 except Exception:
                     pass
 
-            default_date = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else datetime.now().strftime("%Y-%m-%dT%H:%M")
+            default_date = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
             vlcc_name = "VLCC"
             if result.vlcc_id:
@@ -342,6 +343,19 @@ class MccCollectionController:
         await handler.delete(DeleteMccCollectionCommand(id=collection_id), owner=user)
         return HTMLResponse("success")
 
+    @staticmethod
+    async def delete_bulk_post(request: Request):
+        """Delete the selected rows; ids outside the user's scope are skipped by the repository."""
+        body = await request.json()
+        try:
+            ids = [UUID(str(i)) for i in body.get("ids", [])]
+        except ValueError:
+            return JSONResponse({"detail": "Invalid collection id"}, status_code=400)
+
+        handler = GetHandler.mcc_collection_handler(request)
+        deleted = await handler.delete_bulk(ids, owner=request.state.user)
+        return JSONResponse({"deleted": len(deleted)})
+
     # =========================================================
     # CODE VALIDATION
     # =========================================================
@@ -427,7 +441,7 @@ class MccCollectionController:
         if mcc.mcc_type == MccType.WEIGHT:
             sample_result: MccSampleResult = await GetHandler.mcc_collection_handler(request).genext_sample_number(
                 query=GetNextSampleNumberQuery(mcc_id=mcc.id,
-                collected_at=collected_at or datetime.now(),
+                collected_at=collected_at or now_naive_ist(),
                 shift=shift or CollectionShift.MORNING)
             )
             next_sample_number = sample_result.next_sample_number
@@ -440,11 +454,11 @@ class MccCollectionController:
         vlccs = []
         if mcc_id and mcc.mcc_type == MccType.WEIGHT:
             try:
-                vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=mcc_id)
+                vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=mcc_id, owner=request.state.user)
             except Exception:
                 pass
 
-        default_date = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else datetime.now().strftime("%Y-%m-%dT%H:%M")
+        default_date = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
@@ -482,20 +496,25 @@ class MccCollectionController:
                 try:
                     dt = datetime.strptime(collection_date.split(".")[0], "%Y-%m-%d")
                 except ValueError:
-                    dt = datetime.now()
+                    dt = now_naive_ist()
         else:
-            dt = datetime.now()
+            dt = now_naive_ist()
 
-        result: MccCollectionResult | None = await handler.collection_by_sample_result(
-            query=GetCollectionBySampleNumberQuery(
-                mcc_id=mcc_id,
-                sample_number=sample_number,
-                shift=shift,
-                collected_at=dt or datetime.now(),
-            )
+        sample_query = GetCollectionBySampleNumberQuery(
+            mcc_id=mcc_id,
+            sample_number=sample_number,
+            shift=shift,
+            collected_at=dt or now_naive_ist(),
         )
 
-        vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=mcc_id)
+        # Owner-wide checks: within a weight MCC's range, and not used by a sibling MCC this shift
+        sample_error = await handler.sample_number_error(sample_query)
+        if sample_error:
+            return MccCollectionController._sample_error_response(sample_error)
+
+        result: MccCollectionResult | None = await handler.collection_by_sample_result(query=sample_query)
+
+        vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=mcc_id, owner=request.state.user)
 
         assigned_chart_rank = 1
         matched_vlcc_code = ""
@@ -529,17 +548,24 @@ class MccCollectionController:
             html = '<div id="cf-sample-error" style="display: none;" hx-swap-oob="true"></div>'
             return HTMLResponse(html, headers=headers)
         else:
-            trigger_data = {
-                "populate-fields": {
-                    "quantity": "",
-                    "can_count": "",
-                    "vlcc_id": "",
-                }
+            return MccCollectionController._sample_error_response("sample not exists")
+
+    @staticmethod
+    def _sample_error_response(message: str) -> HTMLResponse:
+        """Clear the auto-filled fields and show the sample error under the input."""
+        import json
+
+        trigger_data = {
+            "populate-fields": {
+                "quantity": "",
+                "can_count": "",
+                "vlcc_id": "",
             }
-            headers = {"HX-Trigger": json.dumps(trigger_data)}
-            html = """
+        }
+        headers = {"HX-Trigger": json.dumps(trigger_data)}
+        html = f"""
             <div id="cf-sample-error" style="color: #ef4444; font-size: 11px; margin-top: 4px; display: block; font-weight: 600;" hx-swap-oob="true">
-                <i class="fa-solid fa-circle-exclamation"></i> sample not exists
+                <i class="fa-solid fa-circle-exclamation"></i> {message}
             </div>
             """
-            return HTMLResponse(html, headers=headers)
+        return HTMLResponse(html, headers=headers)

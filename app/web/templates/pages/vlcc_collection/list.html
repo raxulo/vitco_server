@@ -15,6 +15,9 @@
     2: "Mixed"
 } %}
 
+{# Farmers get a read-only view of their own collections #}
+{% set is_farmer = current_user and current_user.role_type|int == 6 %}
+
 <div class="mcc-container animate-fadeIn">
 
     <!-- =========================================================
@@ -22,15 +25,17 @@
     ========================================================== -->
     <div class="mcc-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
         <div class="mcc-header-title">
-            <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin: 0;">Vlcc Milk Collections</h2>
+            <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin: 0;">{{ 'My Milk Collections' if is_farmer else 'Vlcc Milk Collections' }}</h2>
         </div>
         <div style="display: flex; align-items: center; gap: 16px;">
             <span style="background: #eff6ff; color: #2563eb; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;">
                 {{ total_items or 0 }} Collections Found
             </span>
+            {% if not is_farmer %}
             <a href="/vlcc-collections/create" class="btn-action-primary" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-plus"></i> New Collection
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -68,28 +73,47 @@
          DATATABLE CARD
     ========================================================== -->
     <div class="table-card" style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden;">
+        <!-- Bulk action bar (shown when rows are selected) -->
+        {% if not is_farmer %}
+        <div id="bulk-bar" style="display: none; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; background: #fef2f2; border-bottom: 1px solid #fecaca;">
+            <span style="font-size: 13px; font-weight: 600; color: #991b1b;">
+                <i class="fa-solid fa-square-check"></i> <span id="bulk-count">0</span> selected
+            </span>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="clearSelection()" style="background: white; border: 1px solid #fecaca; color: #991b1b; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">Clear</button>
+                <button type="button" onclick="confirmBulkDelete()" style="background: #dc2626; border: none; color: white; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-trash-can"></i> Delete Selected
+                </button>
+            </div>
+        </div>
+        {% endif %}
         <div class="table-responsive">
             <table class="mcc-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                 <thead>
                     <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">
-                        <th style="width: 40px; padding: 12px 16px; text-align: center;"><input type="checkbox"></th>
+                        {% if not is_farmer %}
+                        <th style="width: 40px; padding: 12px 16px; text-align: center;"><input type="checkbox" id="select-all" title="Select all on this page" onclick="toggleAll(this)"></th>
+                        {% endif %}
                         <th style="padding: 12px 16px;">Entry Details</th>
                         <th style="padding: 12px 16px;">VLCC Info</th>
                         <th style="padding: 12px 16px;">Farmer</th>
                         <th style="padding: 12px 16px;">Milk Specs</th>
                         <th style="padding: 12px 16px;">Weight Info</th>
                         <th style="padding: 12px 16px;">Billing</th>
-                        <th style="padding: 12px 16px;">Payment</th>
+                        {% if not is_farmer %}
                         <th style="width: 120px; padding: 12px 16px; text-align: center;">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in items %}
                     <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle;">
                         <!-- Checkbox -->
+                        {% if not is_farmer %}
                         <td style="padding: 16px; text-align: center;">
-                            <input type="checkbox">
+                            <input type="checkbox" class="row-check" value="{{ item.id }}" onchange="updateBulkBar()">
                         </td>
+                        {% endif %}
 
                          <!-- Entry Details -->
                         <td style="padding: 16px; line-height: 1.4;">
@@ -129,25 +153,10 @@
                             ₹{{ item.total_amount }}
                         </td>
 
-                        <!-- Payment -->
-                        <td style="padding: 16px;">
-                            {% if item.status|int == 1 %}
-                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #d1fae5; color: #065f46; border-radius: 12px; font-size: 11px; font-weight: bold;">
-                                <i class="fa-solid fa-circle-check"></i> PAID
-                            </span>
-                            {% else %}
-                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #fef3c7; color: #d97706; border-radius: 12px; font-size: 11px; font-weight: bold;">
-                                <i class="fa-regular fa-clock"></i> UNPAID
-                            </span>
-                            {% endif %}
-                        </td>
-
                         <!-- Actions -->
+                        {% if not is_farmer %}
                         <td style="padding: 16px; text-align: center;">
                             <div class="actions-wrapper" style="display: flex; gap: 8px; justify-content: center;">
-                                <a href="/vlcc-collections/edit/{{ item.id }}" class="action-btn edit" title="Edit Record" style="color: #64748b; font-size: 14px;">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </a>
                                 <button
                                     type="button"
                                     class="action-btn delete"
@@ -159,10 +168,11 @@
                                 </button>
                             </div>
                         </td>
+                        {% endif %}
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="table-empty-state" style="text-align: center; padding: 32px; color: #64748b;">
+                        <td colspan="{{ 6 if is_farmer else 8 }}" class="table-empty-state" style="text-align: center; padding: 32px; color: #64748b;">
                             <i class="fa-solid fa-circle-info" style="font-size: 24px; margin-bottom: 8px;"></i>
                             <p>No collection records found. Please adjust filters or record a new supply.</p>
                         </td>
@@ -227,6 +237,44 @@
                     if (res.ok) window.location.reload();
                 });
         }
+    }
+
+    // ---------- Multi-select delete ----------
+    function selectedIds() {
+        return Array.from(document.querySelectorAll('.row-check:checked')).map(cb => cb.value);
+    }
+
+    function updateBulkBar() {
+        const ids = selectedIds();
+        const all = document.querySelectorAll('.row-check');
+        document.getElementById('bulk-count').textContent = ids.length;
+        document.getElementById('bulk-bar').style.display = ids.length ? 'flex' : 'none';
+        const selectAll = document.getElementById('select-all');
+        selectAll.checked = all.length > 0 && ids.length === all.length;
+        selectAll.indeterminate = ids.length > 0 && ids.length < all.length;
+    }
+
+    function toggleAll(source) {
+        document.querySelectorAll('.row-check').forEach(cb => { cb.checked = source.checked; });
+        updateBulkBar();
+    }
+
+    function clearSelection() {
+        document.querySelectorAll('.row-check').forEach(cb => { cb.checked = false; });
+        updateBulkBar();
+    }
+
+    function confirmBulkDelete() {
+        const ids = selectedIds();
+        if (!ids.length) return;
+        if (!confirm(`Are you sure you want to delete ${ids.length} selected record(s)? This action cannot be undone.`)) return;
+        fetch('/vlcc-collections/delete-bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: ids })
+        }).then(res => {
+            if (res.ok) window.location.reload();
+        });
     }
 </script>
 

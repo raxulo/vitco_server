@@ -12,6 +12,7 @@ from app.modules.products.domain.exceptions import (
 )
 from app.modules.products.infrastructure.repository import ProductRepository
 from app.modules.products.domain.dto import ProductDto, ProductListDto
+from app.core.clock import now_naive_ist
 from app.modules.products.application.command import (
     CreateProductCommand,
     UpdateProductCommand,
@@ -59,8 +60,8 @@ class ProductHandler:
             contact_number=command.contact_number,
             contact_email=command.contact_email,
             is_active=True,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
         )
 
         async with self._database.transaction():
@@ -93,7 +94,7 @@ class ProductHandler:
             product.contact_number = command.contact_number
             product.contact_email = command.contact_email
             product.is_active = command.is_active
-            product.updated_at = datetime.now(UTC)
+            product.updated_at = now_naive_ist()
 
             await self._repository.update(product)
 
@@ -113,7 +114,7 @@ class ProductHandler:
                 raise ProductNotFoundException()
 
             product.is_active = False
-            product.updated_at = datetime.now(UTC)
+            product.updated_at = now_naive_ist()
             await self._repository.update(product)
 
     # =========================================================

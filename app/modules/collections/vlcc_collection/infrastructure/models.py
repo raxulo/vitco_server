@@ -9,7 +9,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from app.core.clock import get_ist_now
+from app.core.clock import get_ist_now, now_naive_ist
 
 from sqlalchemy import (
     Boolean,
@@ -288,7 +288,7 @@ class DispatchModel(
     collected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
+        default=now_naive_ist,
     )
 
     shift: Mapped[CollectionShift] = mapped_column(

@@ -48,6 +48,12 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/delete-bulk",
+    MccCollectionController.delete_bulk_post,
+    methods=["POST"],
+)
+
+router.add_api_route(
     "/validation-number",
     MccCollectionController.validate_number,
     methods=["GET"],

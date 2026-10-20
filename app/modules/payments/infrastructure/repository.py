@@ -23,6 +23,7 @@ from app.modules.payments.infrastructure.models import (
 )
 from sqlalchemy.orm import aliased
 from app.modules.administration.infrastructure.models import UserModel
+from app.core.clock import now_naive_ist
 
 
 class AccountBalanceRepository:
@@ -183,7 +184,7 @@ class AccountBalanceRepository:
                     AccountBalanceModel.version + 1
                 ),
                 "last_ledger_id": ledger_id,
-                "updated_at": func.now(),
+                "updated_at": now_naive_ist(),
             },
         ).returning(AccountBalanceModel)
 
@@ -239,7 +240,7 @@ class AccountBalanceRepository:
                 "last_ledger_id": (
                     stmt.excluded.last_ledger_id
                 ),
-                "updated_at": func.now(),
+                "updated_at": now_naive_ist(),
             },
         ).returning(AccountBalanceModel)
 
@@ -1021,7 +1022,7 @@ class PaymentLedgerRepository:
 #                 "last_transfer_id": (
 #                     stmt.excluded.last_transfer_id
 #                 ),
-#                 "updated_at": func.now(),
+#                 "updated_at": now_naive_ist(),
 #             },
 #         ).returning(
 #             PaymentPairBalanceModel.balance
@@ -1101,7 +1102,7 @@ class PaymentPairBalanceRepository:
                     "last_transfer_id": (
                         insert_stmt.excluded.last_transfer_id
                     ),
-                    "updated_at": func.now(),
+                    "updated_at": now_naive_ist(),
                 },
             )
             .returning(

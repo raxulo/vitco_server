@@ -272,44 +272,51 @@ class SubAdminController:
             profile_image=profile_image,
         )
 
-        address_line = form_data.get("address_line")
-        city = form_data.get("city")
-        state_val = form_data.get("state")
-        pincode = form_data.get("pincode")
-
-        address_command = None
-        if address_line or city or state_val or pincode:
-            address_command = UpdateAddressCommand(
-                id=user_id, # Placeholder, will be replaced inside services
-                line=address_line or "",
-                city=city or "",
-                state=state_val or "",
-                pincode=pincode or "",
-            )
-
-        bank_name = form_data.get("bank_name")
-        account_holder = form_data.get("account_holder")
-        account_number = form_data.get("account_number")
-        ifsc_code = form_data.get("ifsc_code")
-        upi_id = form_data.get("upi_id")
-
-        bank_command = None
-        if bank_name or account_holder or account_number or ifsc_code or upi_id:
-            bank_command = UpdateBankAccountCommand(
-                id=user_id, # Placeholder, will be replaced inside services
-                bank_name=bank_name or "",
-                account_holder=account_holder or "",
-                account_number=account_number or "",
-                ifsc_code=ifsc_code or "",
-                upi_id=upi_id or None,
-            )
+        address_fields = dict(
+            line=form_data.get("address_line") or "",
+            city=form_data.get("city") or "",
+            state=form_data.get("state") or "",
+            pincode=form_data.get("pincode") or "",
+        )
+        bank_fields = dict(
+            bank_name=form_data.get("bank_name") or "",
+            account_holder=form_data.get("account_holder") or "",
+            account_number=form_data.get("account_number") or "",
+            ifsc_code=form_data.get("ifsc_code") or "",
+            upi_id=form_data.get("upi_id") or None,
+        )
+        has_address = any(address_fields.values())
+        has_bank = any(bank_fields.values())
 
         profile_service = GetHandler.profile_service(request)
+        # Address / bank are updated by their own ids, so look up the user's existing records
+        existing = await profile_service.get_profile(user_id)
+
+        address_command = None
+        if has_address and existing.address:
+            address_command = UpdateAddressCommand(id=existing.address.id, **address_fields)
+
+        bank_command = None
+        if has_bank and existing.bank_account:
+            bank_command = UpdateBankAccountCommand(id=existing.bank_account.id, **bank_fields)
+
         async with profile_service._database.transaction():
             await profile_service.update(
                 user_data=command,
                 address_data=address_command,
                 bank_data=bank_command,
             )
+
+            # First time this user gets an address / bank account: create instead of update
+            if has_address and not existing.address:
+                await profile_service.create_address(
+                    user_id=user_id,
+                    address_data=CreateAddressCommand(**address_fields),
+                )
+            if has_bank and not existing.bank_account:
+                await profile_service.create_bank_account(
+                    user_id=user_id,
+                    bank_data=CreateBankAccountCommand(user_id=user_id, **bank_fields),
+                )
 
         return Renderer.redirect("/sub-admins")

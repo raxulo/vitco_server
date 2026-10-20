@@ -4,6 +4,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
 
 from app.modules.dependencies import GetHandler
+from app.modules.common.settings.infrastructure.permissions import can_create_masters
 from app.modules.masters.items.application.command import (
     CreateItemMasterCommand,
     UpdateItemMasterCommand,
@@ -50,6 +51,7 @@ class ItemController:
 
         # Build a unit name lookup
         unit_names = {u.id: u.name for u in units}
+        db = request.app.state.application.container.database
 
         return Renderer.page(
             request=request,
@@ -63,6 +65,7 @@ class ItemController:
                 "total_pages": total_pages,
                 "total": total_items,
                 "error": None,
+                "can_create": await can_create_masters(db.session, owner),
             },
         )
 

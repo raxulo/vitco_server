@@ -13,6 +13,7 @@ from app.modules.collections.vlcc_collection.application.dispatch_command import
 )
 from app.modules.vlcc.application.command import ListVlccQuery
 from app.web.framework.renderer import Renderer
+from app.core.clock import now_naive_ist
 from app.modules.collections.mcc_collection.domain.enums import (
     CollectionShift,
     QuantityCollectionMode,
@@ -68,6 +69,7 @@ class DispatchController:
                 end_date=e_date,
                 page=page,
                 size=limit,
+                owner=request.state.user,
             )
         )
         total_pages = 1
@@ -95,7 +97,7 @@ class DispatchController:
     async def get_create_page(request: Request):
         vlcc_handler = GetHandler.vlcc_handler(request)
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=request.state.user))
-        now = datetime.now()
+        now = now_naive_ist()
         default_shift = CollectionShift.MORNING if now.hour < 15 else CollectionShift.EVENING
         return Renderer.page(
             request=request,
@@ -141,6 +143,7 @@ class DispatchController:
                 can_count=cans,
                 quantity_collection_mode=QuantityCollectionMode.MANUAL,
                 measurement_mode=MeasurementMode.MANUAL,
+                owner=request.state.user,
             )
         )
         return RedirectResponse("/vlcc-dispatches", status_code=303)
@@ -150,7 +153,7 @@ class DispatchController:
         handler = GetHandler.dispatch_handler(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
         
-        dispatch = await handler.get(GetDispatchQuery(id=UUID(id)))
+        dispatch = await handler.get(GetDispatchQuery(id=UUID(id), owner=request.state.user))
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=request.state.user))
 
         return Renderer.page(
@@ -198,6 +201,7 @@ class DispatchController:
                 can_count=cans,
                 quantity_collection_mode=QuantityCollectionMode.MANUAL,
                 measurement_mode=MeasurementMode.MANUAL,
+                owner=request.state.user,
             )
         )
         return RedirectResponse("/vlcc-dispatches", status_code=303)
@@ -205,5 +209,5 @@ class DispatchController:
     @staticmethod
     async def post_delete(request: Request, id: str):
         handler = GetHandler.dispatch_handler(request)
-        await handler.delete(DeleteDispatchCommand(id=UUID(id)))
+        await handler.delete(DeleteDispatchCommand(id=UUID(id), owner=request.state.user))
         return RedirectResponse("/vlcc-dispatches", status_code=303)

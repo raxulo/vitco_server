@@ -48,7 +48,7 @@ class CollectionCommand(BaseModel):
     )
 
     collected_at: datetime | None = Field(
-        default=datetime.now(IST),
+        default_factory=now_naive_ist,
         description="Collection timestamp",
     )
 

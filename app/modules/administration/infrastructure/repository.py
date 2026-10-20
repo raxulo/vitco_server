@@ -19,6 +19,7 @@ from sqlalchemy import select
 from app.modules.administration.domain.repository import IUserRepository
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.administration.infrastructure.mapper import UserMapper
+from app.core.clock import now_naive_ist
 
 
 class UserRepository(IUserRepository):
@@ -257,6 +258,9 @@ class UserRepository(IUserRepository):
     async def user_update(self, entity: UpdateUserCommand) -> bool:
         data = entity.model_dump()
         data.pop("id")
+        # Ownership never changes on update; the command's default None would detach
+        # the user from its creator and break the access hierarchy
+        data.pop("created_by", None)
 
         if "profile_image" in data:
             if data["profile_image"] is None:
@@ -269,7 +273,7 @@ class UserRepository(IUserRepository):
         result = await self._session.execute(
             update(UserModel)
             .where(UserModel.id == entity.id)
-            .values(**data,updated_at=func.now())
+            .values(**data,updated_at=now_naive_ist())
         )
 
         return result.rowcount > 0

@@ -24,6 +24,7 @@ from app.modules.collections.mcc_collection.domain.exceptions import (
 )
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
 from app.modules.collections.mcc_collection.infrastructure.repository import MccCollectionRepository
+from app.core.clock import now_naive_ist
 from app.modules.collections.mcc_collection.domain.dto import (
     MccCollectionDto,
     MccCollectionListDto,
@@ -77,6 +78,7 @@ class MccCollectionHandler:
             raise InvalidMccCollectionException(message="MCC user account not found.")
         if not vlcc_user_id:
             raise InvalidMccCollectionException(message="VLCC user account not found.")
+        await self._ensure_sample_usable(command)
 
         collection_id = uuid4()
         collection = MccCollection(
@@ -103,8 +105,8 @@ class MccCollectionHandler:
             calibration_fat=command.calibration_fat,
             calibration_snf=command.calibration_snf,
             is_deleted=False,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
         )
 
         payment_cmd = PostPaymentCommand(
@@ -141,6 +143,7 @@ class MccCollectionHandler:
             collection = await self._repository.get_by_id(command.id, owner)
             if collection is None:
                 raise MccCollectionNotFoundException()
+            await self._ensure_sample_usable(command, exclude_collection_id=command.id)
 
             collection.collection_number = command.collection_number.strip()
             collection.mcc_id = command.mcc_id
@@ -164,7 +167,7 @@ class MccCollectionHandler:
             collection.detection_value = command.detection_value
             collection.calibration_fat = command.calibration_fat
             collection.calibration_snf = command.calibration_snf
-            collection.updated_at = datetime.now(UTC)
+            collection.updated_at = now_naive_ist()
 
             await self._repository.update(collection, owner)
 
@@ -246,6 +249,35 @@ class MccCollectionHandler:
         query: GetCollectionBySampleNumberQuery,
     ) -> MccCollectionResult | None:
         return await self._repository.get_collection_by_sample_number(query)
+
+    SAMPLE_MESSAGES = {
+        "not_exists": "sample not exists",
+        "taken": "already taken",
+    }
+
+    async def sample_number_error(
+        self,
+        query: GetCollectionBySampleNumberQuery,
+        exclude_collection_id: UUID | None = None,
+    ) -> str | None:
+        """User-facing reason a sample number can't be used here, or None."""
+        problem = await self._repository.sample_number_problem(query, exclude_collection_id)
+        return self.SAMPLE_MESSAGES.get(problem) if problem else None
+
+    async def _ensure_sample_usable(self, command, exclude_collection_id: UUID | None = None) -> None:
+        if not command.sample_number:
+            return
+        error = await self.sample_number_error(
+            GetCollectionBySampleNumberQuery(
+                mcc_id=command.mcc_id,
+                sample_number=command.sample_number,
+                shift=command.shift,
+                collected_at=command.collected_at,
+            ),
+            exclude_collection_id,
+        )
+        if error:
+            raise InvalidMccCollectionException(message=f"Sample {command.sample_number}: {error}")
 
     async def is_sample_number_collected(
         self,query: GetCollectionBySampleNumberQuery,

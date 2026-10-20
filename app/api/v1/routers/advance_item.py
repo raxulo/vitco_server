@@ -31,6 +31,7 @@ from app.modules.advanceditem.application.command import (
     CreateAdvanceCommand,
 )
 from app.modules.dependencies import GetHandler
+from app.core.clock import now_naive_ist
 
 router = APIRouter(
     prefix="/advance-items",
@@ -166,7 +167,7 @@ async def create_advance_item(
         for it in payload.items
     )
 
-    adv_date = payload.advance_date or datetime.now(IST)
+    adv_date = payload.advance_date or now_naive_ist()
 
     command = CreateAdvanceCommand(
         user_id=payload.user_id,
@@ -178,7 +179,7 @@ async def create_advance_item(
 
     try:
         record = await service.create(command)
-        detail = await service.get_detail(record.id)
+        detail = await service.get_detail(record.id, user_state)
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as exc:
@@ -210,7 +211,7 @@ async def get_advance_item_detail(
     service = GetHandler.advance_item_service(request)
 
     try:
-        detail = await service.get_detail(id)
+        detail = await service.get_detail(id, user_state)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch advance item detail: {str(exc)}")
 

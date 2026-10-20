@@ -2,6 +2,7 @@ from datetime import datetime
 from fastapi import Request
 from app.modules.dependencies import GetHandler
 from app.web.framework.renderer import Renderer
+from app.core.clock import now_naive_ist
 
 class PaymentsController:
     __slots__ = ()
@@ -90,14 +91,27 @@ class PaymentsController:
             except ValueError:
                 pass
 
+        from app.modules.administration.domain.enums import Role
+        from app.modules.administration.infrastructure.hierarchy import Hierarchy
+        from sqlalchemy import or_
+
         target_user = None
         selected_user_id = ""
         selected_user_name = ""
+        # Farmers only ever see their own history
+        is_farmer = user.role_type == Role.FARMER
 
-        if user_id.strip():
+        if user_id.strip() and not is_farmer:
             try:
                 u_uuid = UUID(user_id.strip())
                 stmt = select(UserModel.id, UserModel.name, UserModel.mobile).where(UserModel.id == u_uuid)
+                # Another user's history only within the viewer's hierarchy
+                if user.role_type != Role.SUPER_ADMIN:
+                    allowed = [UserModel.id.in_(Hierarchy.controlled_users(user))]
+                    farmers = Hierarchy.farmer_users(user)
+                    if farmers is not None:
+                        allowed.append(UserModel.id.in_(farmers))
+                    stmt = stmt.where(or_(*allowed))
                 res = await db_manager.session.execute(stmt)
                 target_user = res.one_or_none()
                 if target_user:
@@ -117,6 +131,10 @@ class PaymentsController:
             limit=100,
         )
         
+        # A farmer's "My Payments" lists only money received (credits)
+        if is_farmer:
+            entries = [e for e in entries if e.entry_type == 2]
+
         # Format items for UI
         formatted_entries = []
         for entry in entries:
@@ -194,6 +212,7 @@ class PaymentsController:
                 "start_date": start_date,
                 "end_date": end_date,
                 "is_filtered_user": target_user is not None and target_user.id != user.id,
+                "is_farmer": is_farmer,
             }
         )
 
@@ -413,7 +432,7 @@ class PaymentsController:
         end_dt = None
         
         if not start_date.strip() and not end_date.strip():
-            now_dt = datetime.now()
+            now_dt = now_naive_ist()
             start_dt = now_dt - timedelta(days=7)
             # End date set to end of today
             end_dt = datetime.strptime(now_dt.strftime("%Y-%m-%d") + " 23:59:59", "%Y-%m-%d %H:%M:%S")

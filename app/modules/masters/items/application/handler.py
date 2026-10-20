@@ -12,8 +12,11 @@ from app.modules.masters.items.domain.exceptions import (
     ItemNotFoundException,
     ItemCodeAlreadyExistsException,
 )
+from app.core.exceptions.base import ForbiddenException
+from app.modules.common.settings.infrastructure.permissions import can_create_masters
 from app.modules.masters.items.infrastructure.repository import ItemMasterRepository
 from app.modules.masters.items.domain.dto import ItemMasterDto, ItemMasterListDto
+from app.core.clock import now_naive_ist
 from app.modules.masters.items.application.command import (
     CreateItemMasterCommand,
     UpdateItemMasterCommand,
@@ -47,6 +50,9 @@ class ItemMasterHandler:
         command: CreateItemMasterCommand,
         owner: CurrentUser | None = None
     ) -> ItemMasterDto:
+        if not await can_create_masters(self._database.session, owner):
+            raise ForbiddenException("You do not have permission to create item masters")
+
         self._validate(command)
 
         if await self._repository.exists_item(command.item_name,command.item_code,owner):
@@ -60,8 +66,8 @@ class ItemMasterHandler:
             rate=command.rate,
             is_active=True,
             created_by=command.created_by,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
         )
 
         async with self._database.transaction():
@@ -92,7 +98,7 @@ class ItemMasterHandler:
             item.unit_id = command.unit_id
             item.rate = command.rate
             item.is_active = command.is_active
-            item.updated_at = datetime.now(UTC)
+            item.updated_at = now_naive_ist()
 
             await self._repository.update(item, command.owner)
 

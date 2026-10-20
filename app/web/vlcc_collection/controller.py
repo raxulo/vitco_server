@@ -5,8 +5,10 @@ VLCC Collection Web Controller
 from datetime import datetime
 from uuid import UUID
 from fastapi import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
+from app.core.exceptions.base import ForbiddenException
+from app.modules.administration.domain.enums import Role
 from app.modules.dependencies import GetHandler
 from app.modules.collections.vlcc_collection.application.command import (
     GetVlccCollectionQuery,
@@ -23,6 +25,7 @@ from app.modules.collections.vlcc_collection.presentation.requests import (
     UpdateVlccCollectionRequest,
 )
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift, MilkType
+from app.core.clock import now_naive_ist
 
 
 class VlccCollectionController:
@@ -98,10 +101,17 @@ class VlccCollectionController:
     # =========================================================
 
     @staticmethod
+    def _deny_farmer(request: Request) -> None:
+        # Farmers may only view their own collections
+        if request.state.user.role_type == Role.FARMER:
+            raise ForbiddenException("Farmers can only view their collections")
+
+    @staticmethod
     async def get_create_page(request: Request):
+        VlccCollectionController._deny_farmer(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=request.state.user))
-        default_date = datetime.now().strftime("%Y-%m-%dT%H:%M")
+        default_date = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         # Resolve farmers for the first VLCC if any
         selected_vlcc_id = vlccs[0].id if vlccs else None
@@ -142,6 +152,7 @@ class VlccCollectionController:
         request: Request,
         collection_id: UUID,
     ):
+        VlccCollectionController._deny_farmer(request)
         handler = GetHandler.vlcc_collection_handler(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
         farmer_handler = GetHandler.farmer_handler(request)
@@ -151,7 +162,7 @@ class VlccCollectionController:
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=owner))
         farmers = await farmer_handler.list(ListFarmerQuery(vlcc_id=collection.vlcc_id, limit=200, owner=owner))
 
-        default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else datetime.now().strftime("%Y-%m-%dT%H:%M")
+        default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
@@ -218,6 +229,7 @@ class VlccCollectionController:
 
     @staticmethod
     async def post_create_page(request: Request):
+        VlccCollectionController._deny_farmer(request)
         form_data = dict(await request.form())
 
         data = CreateVlccCollectionRequest.model_validate(form_data)
@@ -245,7 +257,7 @@ class VlccCollectionController:
                 except Exception:
                     pass
 
-            default_date = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else datetime.now().strftime("%Y-%m-%dT%H:%M")
+            default_date = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
             setting = None
             rate_charts = []
             if vlcc:
@@ -299,6 +311,7 @@ class VlccCollectionController:
         request: Request,
         collection_id: UUID,
     ):
+        VlccCollectionController._deny_farmer(request)
         form_data = dict(await request.form())
         user = request.state.user
 
@@ -338,10 +351,25 @@ class VlccCollectionController:
         request: Request,
         collection_id: UUID,
     ):
+        VlccCollectionController._deny_farmer(request)
         user = request.state.user
         handler = GetHandler.vlcc_collection_handler(request)
         await handler.delete(DeleteVlccCollectionCommand(id=collection_id), owner=user)
         return HTMLResponse("success")
+
+    @staticmethod
+    async def delete_bulk_post(request: Request):
+        """Delete the selected rows; ids outside the user's scope are skipped by the repository."""
+        VlccCollectionController._deny_farmer(request)
+        body = await request.json()
+        try:
+            ids = [UUID(str(i)) for i in body.get("ids", [])]
+        except ValueError:
+            return JSONResponse({"detail": "Invalid collection id"}, status_code=400)
+
+        handler = GetHandler.vlcc_collection_handler(request)
+        deleted = await handler.delete_bulk(ids, owner=request.state.user)
+        return JSONResponse({"deleted": len(deleted)})
 
     # =========================================================
     # AJAX DYNAMIC LOADING
@@ -367,7 +395,7 @@ class VlccCollectionController:
         if vlcc_id:
             farmers = await farmer_handler.list(ListFarmerQuery(vlcc_id=vlcc_id, limit=200, owner=user))
 
-        default_date = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else datetime.now().strftime("%Y-%m-%dT%H:%M")
+        default_date = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
         setting = None
         rate_charts = []
         if vlcc:

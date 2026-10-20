@@ -16,8 +16,7 @@ from datetime import time
 from app.modules.admin.infrastructure import models
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
 from datetime import datetime
-from _operator import and_
-from operator import or_
+from sqlalchemy import and_, or_
 from app.modules.administration.domain.enums import Role
 from app.modules.reports.infrastructure.filters import AppliedOnFilters
 from abc import ABC, abstractmethod
@@ -200,7 +199,7 @@ class ReportExecutor(ABC):
         if not query.start_date:
             return None
 
-        end_date = query.end_date if config.date_range else query.start_date
+        end_date = (query.end_date or query.start_date) if config.date_range else query.start_date
 
         start = datetime.combine(query.start_date, time.min)
         end = datetime.combine(end_date + timedelta(days=1), time.min)
@@ -212,23 +211,25 @@ class ReportExecutor(ABC):
             )
         ]
 
-        if (
-            (not config.shift_range
-            and query.start_shift is not None ) or (query.start_date == end_date)
-        ):
-            conditions.append(
-                model.shift == query.start_shift
-            )
+        if not config.shift_range:
+            # Single shift applied to every day in the window
+            if query.start_shift is not None:
+                conditions.append(model.shift == query.start_shift)
+            return and_(*conditions)
 
-        elif config.shift_range:
-            if query.start_shift and query.end_shift:
-                conditions.append(
-                    and_(model.shift >= query.start_shift,model.shift <= query.end_shift)
-                )
-
-            elif query.start_shift is not None:
-                conditions.append(
-                    model.shift == query.start_shift
-                )
+        # Shift range runs from (start date, start shift) to (end date, end shift):
+        # only the first day is cut by the start shift and only the last day by the end shift.
+        # MORNING is 0, so compare against None, never on truthiness; and the column
+        # stores enum names, so use equality rather than >= / <= ordering.
+        if query.start_shift == CollectionShift.EVENING:
+            conditions.append(or_(
+                model.collected_at >= start + timedelta(days=1),
+                model.shift == CollectionShift.EVENING,
+            ))
+        if query.end_shift == CollectionShift.MORNING:
+            conditions.append(or_(
+                model.collected_at < end - timedelta(days=1),
+                model.shift == CollectionShift.MORNING,
+            ))
 
         return and_(*conditions)

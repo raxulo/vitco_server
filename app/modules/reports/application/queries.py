@@ -7,6 +7,7 @@ from uuid import UUID
 from app.modules.reports.domain.enums import ReportType
 from app.modules.collections.mcc_collection.domain.enums import MilkType
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.core.clock import now_naive_ist
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,4 +60,4 @@ class ReportQuery:
 
     @property
     def formatted_time(self) -> str:
-        return datetime.now().strftime('%H:%M:%S')
+        return now_naive_ist().strftime('%H:%M:%S')

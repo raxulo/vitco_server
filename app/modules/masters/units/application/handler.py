@@ -12,8 +12,11 @@ from app.modules.masters.units.domain.exceptions import (
     UnitNotFoundException,
     UnitAlreadyExistsException,
 )
+from app.core.exceptions.base import ForbiddenException
+from app.modules.common.settings.infrastructure.permissions import can_create_masters
 from app.modules.masters.units.infrastructure.repository import UnitMasterRepository
 from app.modules.masters.units.domain.dto import UnitMasterDto, UnitMasterListDto
+from app.core.clock import now_naive_ist
 from app.modules.masters.units.application.command import (
     CreateUnitMasterCommand,
     UpdateUnitMasterCommand,
@@ -47,6 +50,9 @@ class UnitMasterHandler:
         command: CreateUnitMasterCommand,
         owner: CurrentUser | None = None,
     ) -> UnitMasterDto:
+        if not await can_create_masters(self._database.session, owner):
+            raise ForbiddenException("You do not have permission to create unit masters")
+
         self._validate(command)
 
         await self._ensure_name_available(command.name, owner)
@@ -56,8 +62,8 @@ class UnitMasterHandler:
             name=command.name.strip(),
             is_active=True,
             created_by=command.created_by,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
             can_modify=True,
         )
 
@@ -86,7 +92,7 @@ class UnitMasterHandler:
 
             unit.name = command.name.strip()
             unit.is_active = command.is_active
-            unit.updated_at = datetime.now(UTC)
+            unit.updated_at = now_naive_ist()
 
             await self._repository.update(unit, command.owner)
 

@@ -1,112 +1,541 @@
 {% extends 'layouts/dashboard.html' %}
 
+{% block title %}Overview Dashboard - VITCO{% endblock %}
+
 {% block content %}
-    <div class="animate-fadeIn">
-        <!-- Header -->
-        <div class="dashboard-header">
-            <div>
-                <h2 style="font-size:22px; font-weight:800; letter-spacing:-0.3px;">Overview Dashboard</h2>
-                <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">
-                    Welcome back! Here's an overview of the network activity today.
-                </p>
-            </div>
-            <div
-                style="font-size:12px; color:var(--text-faint); font-weight:600; display:flex; align-items:center; gap:6px;">
-                <i class="fa-regular fa-clock"></i> Updated <strong style="color:var(--text-body);">Today</strong>
-            </div>
-        </div>
+{% set d = dashboard %}
 
-        <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-box">
-                <span class="stat-label">Dairies</span>
-                <div class="stat-num">{{ stats.total_vlcc }}</div>
-                <div class="stat-sub"><i class="fa-solid fa-store" style="font-size:10px;"></i> Active Shops</div>
-            </div>
-            <div class="stat-box" style="--primary:#8b5cf6;">
-                <span class="stat-label">Farmers</span>
-                <div class="stat-num">{{ stats.total_farmers }}</div>
-                <div class="stat-sub" style="color:#8b5cf6;"><i class="fa-solid fa-users" style="font-size:10px;"></i>
-                    Registered Members</div>
-            </div>
-            <div class="stat-box" style="--primary:#f59e0b;">
-                <span class="stat-label">Total Quantity</span>
-                <div class="stat-num">{{ "{:.2f}".format(stats.total_quantity) }} <span
-                        style="font-size:12px; font-weight:400; color:var(--text-faint);">Ltr</span></div>
-                <div class="stat-sub" style="color:#f59e0b;"><i class="fa-solid fa-droplet" style="font-size:10px;"></i>
-                    Collected Volume</div>
-            </div>
-            <div class="stat-box" style="--primary:#10b981;">
-                <span class="stat-label">Total Amount</span>
-                <div class="stat-sub"><i class="fa-solid fa-chart-line" style="font-size:10px;"></i> {{ "{:,.0f}".format(stats.total_amount) }}</div>
-            </div>
-        </div>
+{# ---------- formatting helpers ---------- #}
+{% macro fmt(value, kind) -%}
+    {%- if kind == 'money' -%}₹{{ "{:,.0f}".format(value or 0) }}
+    {%- elif kind == 'qty' -%}{{ "{:,.1f}".format(value or 0) }}<span class="ov-unit">L</span>
+    {%- elif kind == 'pct' -%}{{ "{:.2f}".format(value or 0) }}<span class="ov-unit">%</span>
+    {%- else -%}{{ "{:,}".format((value or 0)|int) }}
+    {%- endif -%}
+{%- endmacro %}
 
-        <!-- Main Row -->
-        <div class="dashboard-row">
-            <!-- Latest Dairies -->
-            <div class="section-card">
-                <div class="section-head">
-                    <h3><i class="fa-solid fa-building" style="color:var(--primary); margin-right:8px; font-size:14px;"></i>
-                        Latest Onboarding</h3>
-                    <a href="/admin/dairies/" style="font-size:12px; font-weight:700; color:var(--primary);">View All →</a>
+{% macro delta(kpi) -%}
+    {%- set pct = kpi.delta_pct -%}
+    {%- if pct is not none -%}
+        {%- if pct > 0 -%}
+        <span class="ov-delta up" title="vs previous {{ d.period_label|lower }}"><i class="fa-solid fa-arrow-trend-up"></i> {{ pct }}%</span>
+        {%- elif pct < 0 -%}
+        <span class="ov-delta down" title="vs previous {{ d.period_label|lower }}"><i class="fa-solid fa-arrow-trend-down"></i> {{ pct|abs }}%</span>
+        {%- else -%}
+        <span class="ov-delta flat"><i class="fa-solid fa-minus"></i> 0%</span>
+        {%- endif -%}
+    {%- elif kpi.previous is not none -%}
+        <span class="ov-delta flat" title="No data in the previous period">new</span>
+    {%- endif -%}
+{%- endmacro %}
+
+<div class="ov animate-fadeIn">
+<style>
+    .ov {
+        --ov-surface: #ffffff;
+        --ov-ink: #0f172a;
+        --ov-ink-2: #475569;
+        --ov-ink-3: #94a3b8;
+        --ov-line: #e8edf4;
+        --ov-grid: #eef2f7;
+        --series-1: #2a78d6;
+        --series-2: #eb6834;
+        --good: #0f8a4f;
+        --good-bg: #e7f6ee;
+        --bad: #c0362c;
+        --bad-bg: #fdecea;
+        --radius: 16px;
+        display: flex; flex-direction: column; gap: 20px;
+        color: var(--ov-ink);
+    }
+    .ov * { box-sizing: border-box; }
+    .ov-unit { font-size: .55em; font-weight: 600; color: var(--ov-ink-3); margin-left: 3px; }
+
+    /* ---------- hero ---------- */
+    .ov-hero {
+        position: relative; overflow: hidden; border-radius: 20px; padding: 26px 28px;
+        background: radial-gradient(1200px 400px at 100% -50%, rgba(255,255,255,.18), transparent 60%),
+                    linear-gradient(120deg, #1e3a8a 0%, #3157d6 55%, #4f6ef7 100%);
+        color: #fff; display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap;
+        box-shadow: 0 18px 40px -18px rgba(49, 87, 214, .55);
+    }
+    .ov-hero::after {
+        content: ""; position: absolute; right: -60px; top: -80px; width: 260px; height: 260px; border-radius: 50%;
+        border: 38px solid rgba(255,255,255,.06);
+    }
+    .ov-hero-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .4px; opacity: .9; }
+    .ov-role { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.25); padding: 3px 10px; border-radius: 999px; text-transform: uppercase; font-size: 11px; }
+    .ov-hero h1 { margin: 10px 0 4px; font-size: 26px; font-weight: 800; letter-spacing: -.4px; }
+    .ov-hero p { margin: 0; font-size: 13.5px; opacity: .85; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ov-period { position: relative; z-index: 1; display: inline-flex; background: rgba(15, 23, 42, .25); border: 1px solid rgba(255,255,255,.2); border-radius: 12px; padding: 4px; backdrop-filter: blur(6px); }
+    .ov-period a { color: #fff; text-decoration: none; font-size: 12.5px; font-weight: 700; padding: 8px 14px; border-radius: 9px; opacity: .8; transition: .15s; white-space: nowrap; }
+    .ov-period a:hover { opacity: 1; background: rgba(255,255,255,.1); }
+    .ov-period a.active { background: #fff; color: #1e3a8a; opacity: 1; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+
+    /* ---------- cards ---------- */
+    .ov-card { background: var(--ov-surface); border: 1px solid var(--ov-line); border-radius: var(--radius); box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    .ov-card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px 20px 0; }
+    .ov-card-head h3 { margin: 0; font-size: 15px; font-weight: 800; letter-spacing: -.2px; display: flex; align-items: center; gap: 8px; }
+    .ov-card-head small { font-size: 12px; color: var(--ov-ink-3); font-weight: 600; }
+    .ov-card-body { padding: 16px 20px 20px; }
+
+    /* ---------- KPIs ---------- */
+    .ov-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 14px; }
+    .ov-kpi { padding: 18px; display: flex; flex-direction: column; gap: 10px; transition: transform .15s, box-shadow .15s; }
+    .ov-kpi:hover { transform: translateY(-2px); box-shadow: 0 12px 28px -14px rgba(15,23,42,.25); }
+    .ov-kpi-top { display: flex; justify-content: space-between; align-items: center; }
+    .ov-chip { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-size: 15px; }
+    .tone-blue   .ov-chip { background: #e8f0fd; color: #2563eb; }
+    .tone-green  .ov-chip { background: #e7f6ee; color: #0f8a4f; }
+    .tone-violet .ov-chip { background: #efecfd; color: #6250d6; }
+    .tone-amber  .ov-chip { background: #fdf3df; color: #b77700; }
+    .tone-teal   .ov-chip { background: #e2f6f0; color: #138a62; }
+    .tone-rose   .ov-chip { background: #fdecef; color: #c2416b; }
+    .ov-kpi-label { font-size: 12px; font-weight: 700; color: var(--ov-ink-2); text-transform: uppercase; letter-spacing: .5px; }
+    .ov-kpi-value { font-size: 26px; font-weight: 800; letter-spacing: -.6px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .ov-kpi-hint { font-size: 12px; color: var(--ov-ink-3); font-weight: 600; min-height: 16px; }
+    .ov-delta { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 800; padding: 3px 8px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+    .ov-delta.up { color: var(--good); background: var(--good-bg); }
+    .ov-delta.down { color: var(--bad); background: var(--bad-bg); }
+    .ov-delta.flat { color: var(--ov-ink-2); background: #f1f5f9; }
+
+    /* ---------- layout rows ---------- */
+    .ov-row { display: grid; gap: 20px; }
+    .ov-row > * { min-width: 0; }
+    .ov-row-main { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+    @media (max-width: 1100px) { .ov-row-main { grid-template-columns: 1fr; } }
+
+    /* ---------- trend chart ---------- */
+    .ov-toggle { display: inline-flex; background: #f1f5f9; border-radius: 10px; padding: 3px; }
+    .ov-toggle button { border: 0; background: transparent; font: inherit; font-size: 12px; font-weight: 700; color: var(--ov-ink-2); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+    .ov-toggle button.active { background: #fff; color: var(--ov-ink); box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+    .ov-trend-summary { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 6px; }
+    .ov-trend-summary div { font-size: 12px; color: var(--ov-ink-3); font-weight: 700; }
+    .ov-trend-summary strong { display: block; font-size: 18px; color: var(--ov-ink); font-variant-numeric: tabular-nums; }
+    .ov-chart { position: relative; width: 100%; height: 260px; }
+    .ov-chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+    .ov-chart .axis text { font-size: 11px; fill: var(--ov-ink-3); font-weight: 600; }
+    .ov-tip { position: absolute; pointer-events: none; background: #0f172a; color: #fff; border-radius: 10px; padding: 8px 11px; font-size: 12px; line-height: 1.5; white-space: nowrap; box-shadow: 0 10px 24px rgba(15,23,42,.25); opacity: 0; transform: translate(-50%, -110%); transition: opacity .1s; }
+    .ov-tip b { font-variant-numeric: tabular-nums; }
+    .ov-tablelink summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--primary, #4f6ef7); margin-top: 10px; }
+    .ov-mini-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+    .ov-mini-table th, .ov-mini-table td { padding: 6px 8px; border-bottom: 1px solid var(--ov-grid); text-align: right; }
+    .ov-mini-table th:first-child, .ov-mini-table td:first-child { text-align: left; }
+
+    /* ---------- quality + splits ---------- */
+    .ov-quality { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .ov-q { border: 1px solid var(--ov-line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .ov-q .ov-kpi-value { font-size: 20px; }
+    .ov-section-label { font-size: 12px; font-weight: 800; color: var(--ov-ink-2); text-transform: uppercase; letter-spacing: .5px; margin: 18px 0 10px; display: flex; justify-content: space-between; }
+    .ov-stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; gap: 2px; background: var(--ov-surface); }
+    .ov-stack span { display: block; height: 100%; min-width: 4px; }
+    .ov-stack span:first-child { border-radius: 4px 0 0 4px; }
+    .ov-stack span:last-child { border-radius: 0 4px 4px 0; }
+    .ov-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; }
+    .ov-legend div { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ov-ink-2); font-weight: 600; }
+    .ov-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .ov-legend b { color: var(--ov-ink); font-variant-numeric: tabular-nums; }
+
+    /* ---------- bar lists ---------- */
+    .ov-bars { display: flex; flex-direction: column; gap: 12px; }
+    .ov-bar-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+    .ov-rank { width: 26px; height: 26px; border-radius: 8px; background: #f1f5f9; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: var(--ov-ink-2); }
+    .ov-bar-row:first-child .ov-rank { background: #fdf3df; color: #9a6400; }
+    .ov-bar-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ov-bar-name small { color: var(--ov-ink-3); font-weight: 700; margin-right: 6px; }
+    .ov-bar-track { height: 8px; border-radius: 4px; background: #f1f5f9; margin-top: 6px; overflow: hidden; }
+    .ov-bar-fill { height: 100%; border-radius: 4px; background: var(--series-1); }
+    .ov-bar-val { text-align: right; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .ov-bar-val small { display: block; font-size: 11px; color: var(--ov-ink-3); font-weight: 700; }
+
+    /* ---------- quick actions ---------- */
+    .ov-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .ov-action { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--ov-line); border-radius: 12px; text-decoration: none; color: var(--ov-ink); font-size: 13px; font-weight: 700; transition: .15s; }
+    .ov-action i { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: #eef2ff; color: #4f6ef7; }
+    .ov-action:hover { border-color: #c7d2fe; background: #f8faff; transform: translateY(-1px); }
+
+    /* ---------- recent table ---------- */
+    .ov-table-wrap { overflow-x: auto; }
+    .ov-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; font-variant-numeric: tabular-nums; }
+    .ov-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--ov-ink-3); font-weight: 800; padding: 10px 12px; border-bottom: 1px solid var(--ov-line); }
+    .ov-table td { padding: 12px; border-bottom: 1px solid var(--ov-grid); }
+    .ov-table tr:last-child td { border-bottom: 0; }
+    .ov-table tbody tr:hover td { background: #f8fafc; }
+    .ov-table .num { text-align: right; }
+    .ov-shift { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; }
+    .ov-shift.m { background: #e8f0fd; color: #1d4ed8; }
+    .ov-shift.e { background: #fdeee6; color: #b4471c; }
+    .ov-avatar { width: 30px; height: 30px; border-radius: 9px; background: #eef2ff; color: #4f6ef7; display: grid; place-items: center; font-weight: 800; font-size: 12px; flex: none; }
+    .ov-who { display: flex; align-items: center; gap: 10px; }
+    .ov-who small { display: block; color: var(--ov-ink-3); font-weight: 700; font-size: 11px; }
+
+    .ov-empty { text-align: center; padding: 28px 12px; color: var(--ov-ink-3); font-size: 13px; font-weight: 600; }
+    .ov-empty i { display: block; font-size: 26px; margin-bottom: 8px; color: #cbd5e1; }
+
+    @media (max-width: 640px) {
+        .ov-hero { padding: 20px; }
+        .ov-hero h1 { font-size: 21px; }
+        .ov-hero > div { min-width: 0; }
+        .ov-period { width: 100%; }
+        .ov-period a { flex: 1; min-width: 0; text-align: center; padding: 8px 4px; font-size: 12px; }
+        .ov-kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+        .ov-kpi { padding: 14px; }
+        .ov-kpi-value { font-size: 22px; }
+        .ov-quality { grid-template-columns: 1fr; }
+        .ov-actions { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+
+    <!-- ================= HERO ================= -->
+    <section class="ov-hero">
+        <div style="position: relative; z-index: 1;">
+            <div class="ov-hero-eyebrow">
+                <span class="ov-role"><i class="fa-solid fa-shield-halved"></i> {{ d.role_label }}</span>
+                <span><i class="fa-regular fa-calendar"></i> <span id="ov-today"></span></span>
+            </div>
+            <h1><span id="ov-greeting">Welcome</span>{% if d.user_name %}, {{ d.user_name }}{% endif %} 👋</h1>
+            <p><i class="fa-solid fa-location-dot"></i> {{ d.scope_label }} <span style="opacity:.6;">·</span> Showing {{ d.period_label|lower }}</p>
+        </div>
+        <nav class="ov-period" aria-label="Period">
+            {% for value, label in d.period_options %}
+            <a href="?period={{ value }}" class="{{ 'active' if value == d.period else '' }}">{{ label }}</a>
+            {% endfor %}
+        </nav>
+    </section>
+
+    <!-- ================= KPIs ================= -->
+    <section class="ov-kpis">
+        {% for k in d.kpis %}
+        <div class="ov-card ov-kpi tone-{{ k.tone }}">
+            <div class="ov-kpi-top">
+                <div class="ov-chip"><i class="{{ k.icon }}"></i></div>
+                {{ delta(k) }}
+            </div>
+            <div class="ov-kpi-label">{{ k.label }}</div>
+            <div class="ov-kpi-value">{{ fmt(k.value, k.fmt) }}</div>
+            <div class="ov-kpi-hint">{{ k.hint }}</div>
+        </div>
+        {% endfor %}
+    </section>
+
+    <!-- ================= TREND + QUALITY ================= -->
+    <section class="ov-row ov-row-main">
+        <div class="ov-card">
+            <div class="ov-card-head">
+                <h3><i class="fa-solid fa-chart-area" style="color: var(--series-1);"></i> {{ d.trend_title }}</h3>
+                <div class="ov-toggle" role="tablist">
+                    <button type="button" class="active" data-metric="quantity">Quantity</button>
+                    <button type="button" data-metric="amount">Amount</button>
                 </div>
-                <table class="data-table">
+            </div>
+            <div class="ov-card-body">
+                {% set trend_qty = d.trend|sum(attribute='quantity') %}
+                {% set trend_amt = d.trend|sum(attribute='amount') %}
+                <div class="ov-trend-summary">
+                    <div>Total ({{ d.trend|length }} days)<strong id="ov-trend-total">{{ "{:,.1f}".format(trend_qty) }} L</strong></div>
+                    <div>Daily average<strong id="ov-trend-avg">{{ "{:,.1f}".format(trend_qty / (d.trend|length or 1)) }} L</strong></div>
+                    <div>Peak day<strong id="ov-trend-peak">—</strong></div>
+                </div>
+                <div class="ov-chart" id="ov-chart">
+                    <svg id="ov-chart-svg" role="img" aria-label="{{ d.trend_title }}"></svg>
+                    <div class="ov-tip" id="ov-tip"></div>
+                </div>
+                <details class="ov-tablelink">
+                    <summary>View as table</summary>
+                    <table class="ov-mini-table">
+                        <thead><tr><th>Date</th><th>Quantity (L)</th><th>Amount (₹)</th></tr></thead>
+                        <tbody>
+                            {% for p in d.trend|reverse %}
+                            <tr><td>{{ p.day.strftime('%d %b %Y') }}</td><td>{{ "{:,.2f}".format(p.quantity) }}</td><td>{{ "{:,.2f}".format(p.amount) }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </details>
+            </div>
+        </div>
+
+        <div class="ov-card">
+            <div class="ov-card-head">
+                <h3><i class="fa-solid fa-vial-circle-check" style="color: #138a62;"></i> Milk Quality</h3>
+                <small>{{ d.period_label }}</small>
+            </div>
+            <div class="ov-card-body">
+                <div class="ov-quality">
+                    {% for q in d.quality %}
+                    <div class="ov-q">
+                        <span class="ov-kpi-label" style="font-size:11px;">{{ q.label }}</span>
+                        <span class="ov-kpi-value">{{ fmt(q.value, q.fmt) }}</span>
+                        <span>{{ delta(q) }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% set shift_total = d.shift_split|sum(attribute='value') %}
+                <div class="ov-section-label"><span>Shift split</span><span style="color: var(--ov-ink-3);">{{ "{:,.1f}".format(shift_total) }} L</span></div>
+                {% if shift_total > 0 %}
+                <div class="ov-stack" role="img" aria-label="Morning versus evening quantity">
+                    {% for s in d.shift_split if s.value > 0 %}
+                    <span style="width: {{ s.share }}%; background: var(--series-{{ loop.index }});" title="{{ s.label }}: {{ '{:,.1f}'.format(s.value) }} L ({{ s.share }}%)"></span>
+                    {% endfor %}
+                </div>
+                <div class="ov-legend">
+                    {% for s in d.shift_split %}
+                    <div><i style="background: var(--series-{{ loop.index }});"></i> {{ s.label }} <b>{{ s.share }}%</b></div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="ov-empty" style="padding: 12px;">No collection in this period</div>
+                {% endif %}
+
+                {% set milk_total = d.milk_split|sum(attribute='value') %}
+                <div class="ov-section-label"><span>By milk type</span></div>
+                {% if milk_total > 0 %}
+                <div class="ov-bars">
+                    {% for s in d.milk_split|sort(attribute='value', reverse=true) %}
+                    <div>
+                        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700;">
+                            <span>{{ s.label }}</span>
+                            <span style="font-variant-numeric: tabular-nums;">{{ "{:,.1f}".format(s.value) }} L <small style="color:var(--ov-ink-3);">· {{ s.share }}%</small></span>
+                        </div>
+                        <div class="ov-bar-track"><div class="ov-bar-fill" style="width: {{ s.share }}%;"></div></div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="ov-empty" style="padding: 12px;">No collection in this period</div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= LEADERBOARD + ACTIONS ================= -->
+    <section class="ov-row {{ 'ov-row-main' if d.leaderboard_title else '' }}">
+        {% if d.leaderboard_title %}
+        <div class="ov-card">
+            <div class="ov-card-head">
+                <h3><i class="fa-solid fa-trophy" style="color: #b77700;"></i> {{ d.leaderboard_title }}</h3>
+                <small>by quantity · {{ d.period_label|lower }}</small>
+            </div>
+            <div class="ov-card-body">
+                {% if d.leaderboard %}
+                {% set top = d.leaderboard[0].quantity or 1 %}
+                <div class="ov-bars">
+                    {% for r in d.leaderboard %}
+                    <div class="ov-bar-row">
+                        <span class="ov-rank">{{ loop.index }}</span>
+                        <div style="min-width:0;">
+                            <div class="ov-bar-name"><small>#{{ r.code }}</small>{{ r.name }}</div>
+                            <div class="ov-bar-track"><div class="ov-bar-fill" style="width: {{ (r.quantity / top * 100)|round(1) }}%;"></div></div>
+                        </div>
+                        <div class="ov-bar-val">{{ "{:,.1f}".format(r.quantity) }} L<small>₹{{ "{:,.0f}".format(r.amount) }}</small></div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="ov-empty"><i class="fa-solid fa-ranking-star"></i> No collection in this period</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="ov-card">
+            <div class="ov-card-head">
+                <h3><i class="fa-solid fa-bolt" style="color: #f59e0b;"></i> Quick Actions</h3>
+            </div>
+            <div class="ov-card-body">
+                <div class="ov-actions" style="{{ '' if d.leaderboard_title else 'grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));' }}">
+                    {% for a in d.quick_actions %}
+                    <a href="{{ a.href }}" class="ov-action"><i class="{{ a.icon }}"></i>{{ a.label }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= RECENT ================= -->
+    <section>
+        <div class="ov-card">
+            <div class="ov-card-head">
+                <h3><i class="fa-solid fa-clock-rotate-left" style="color: #6250d6;"></i> {{ d.recent_title }}</h3>
+                <small>Latest {{ d.recent|length }}</small>
+            </div>
+            <div class="ov-card-body ov-table-wrap">
+                {% if d.recent %}
+                <table class="ov-table">
                     <thead>
-                        <tr>
-                            <th>VLCC Name</th>
-                            <th>Location</th>
-                            <th>Status</th>
-                        </tr>
+                        <tr><th>{{ 'Date' if d.role_label == 'Farmer' else 'From' }}</th><th>Shift</th><th class="num">Qty (L)</th><th class="num">FAT</th><th class="num">SNF</th><th class="num">Amount</th></tr>
                     </thead>
                     <tbody>
-                        {% for d in recent_vlcc %}
+                        {% for r in d.recent %}
                         <tr>
-                            <td style="font-weight:700; color:var(--text-dark);">{{ d.name }}</td>
-                            <td>{{ d.location }}</td>
                             <td>
-                                <span class="badge {% if d.status %}badge-active{% else %}badge-blue{% endif %}">
-                                    {{ 'Active' if d.status else 'Offline' }}
-                                </span>
+                                {% if d.role_label == 'Farmer' %}
+                                <strong>{{ r.collected_at.strftime('%d %b') }}</strong> <small style="color:var(--ov-ink-3); font-weight:700;">{{ r.collected_at.strftime('%I:%M %p') }}</small>
+                                {% else %}
+                                <div class="ov-who">
+                                    <span class="ov-avatar">{{ (r.name or '?')[:1]|upper }}</span>
+                                    <div><strong>{{ r.name }}</strong><small>#{{ r.code }} · {{ r.collected_at.strftime('%d %b, %I:%M %p') }}</small></div>
+                                </div>
+                                {% endif %}
                             </td>
+                            <td><span class="ov-shift {{ 'm' if r.shift == 0 else 'e' }}">{{ 'Morning' if r.shift == 0 else 'Evening' }}</span></td>
+                            <td class="num"><strong>{{ "{:,.2f}".format(r.quantity) }}</strong></td>
+                            <td class="num">{{ "{:.2f}".format(r.fat) }}</td>
+                            <td class="num">{{ "{:.2f}".format(r.snf) }}</td>
+                            <td class="num"><strong>₹{{ "{:,.2f}".format(r.amount) }}</strong></td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="section-card">
-                <div class="section-head">
-                    <h3><i class="fa-solid fa-bolt" style="color:#f59e0b; margin-right:8px; font-size:14px;"></i> Quick
-                        Management</h3>
-                </div>
-                <div style="padding:20px;">
-                    <a href="/admin/dairies/add" class="action-link">
-                        <i class="fa-solid fa-plus-circle" style="color:var(--primary);"></i>
-                        <span>Register New VLCC</span>
-                    </a>
-                    <a href="/admin/ratecharts/add" class="action-link">
-                        <i class="fa-solid fa-tags" style="color:#8b5cf6;"></i>
-                        <span>Create Rate Chart</span>
-                    </a>
-                    <a href="/admin/ratecharts/assign" class="action-link">
-                        <i class="fa-solid fa-link" style="color:#10b981;"></i>
-                        <span>Assign Rate Charts</span>
-                    </a>
-
-                    <div
-                        style="margin-top:20px; padding:20px; border-radius:var(--radius-md); background:#f8fafc; border:1px solid var(--border-soft); text-align:center;">
-                        <div class="stat-label">System Health</div>
-                        <div style="font-size:28px; font-weight:800; color:#10b981; margin:6px 0; letter-spacing:-0.5px;">
-                            99.9%</div>
-                        <div style="font-size:11px; color:var(--text-muted); font-weight:500;">Optimal Network Stability
-                        </div>
-                    </div>
-                </div>
+                {% else %}
+                <div class="ov-empty"><i class="fa-regular fa-folder-open"></i> No collections recorded yet</div>
+                {% endif %}
             </div>
         </div>
-    </div>
+    </section>
+</div>
 
+{# Trend data for the client-side chart #}
+<script type="application/json" id="ov-trend-data">
+    {{ d.trend | map(attribute='day') | map('string') | list | tojson }}
+</script>
+<script type="application/json" id="ov-trend-values">
+    {{ {'quantity': d.trend | map(attribute='quantity') | list, 'amount': d.trend | map(attribute='amount') | list} | tojson }}
+</script>
 
+<script>
+(function () {
+    // ---------- header greeting & date ----------
+    var now = new Date();
+    var h = now.getHours();
+    var greet = document.getElementById('ov-greeting');
+    if (greet) greet.textContent = h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
+    var today = document.getElementById('ov-today');
+    if (today) today.textContent = now.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+
+    // ---------- trend chart ----------
+    var days = JSON.parse(document.getElementById('ov-trend-data').textContent);
+    var values = JSON.parse(document.getElementById('ov-trend-values').textContent);
+    var svg = document.getElementById('ov-chart-svg');
+    var tip = document.getElementById('ov-tip');
+    var box = document.getElementById('ov-chart');
+    var metric = 'quantity';
+    var NS = 'http://www.w3.org/2000/svg';
+    var nf1 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 });
+    var nf0 = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+
+    function fmt(v, m) { return m === 'amount' ? '₹' + nf0.format(v) : nf1.format(v) + ' L'; }
+    function label(iso, long) {
+        var dt = new Date(iso + 'T00:00:00');
+        return dt.toLocaleDateString('en-IN', long ? { weekday: 'short', day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short' });
+    }
+    function el(name, attrs) {
+        var n = document.createElementNS(NS, name);
+        for (var k in attrs) n.setAttribute(k, attrs[k]);
+        return n;
+    }
+    function niceMax(v) {
+        if (v <= 0) return 1;
+        var p = Math.pow(10, Math.floor(Math.log10(v)));
+        var n = v / p;
+        return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+    }
+
+    function summary(series) {
+        var total = series.reduce(function (a, b) { return a + b; }, 0);
+        var peak = series.indexOf(Math.max.apply(null, series));
+        document.getElementById('ov-trend-total').textContent = fmt(total, metric);
+        document.getElementById('ov-trend-avg').textContent = fmt(total / (series.length || 1), metric);
+        document.getElementById('ov-trend-peak').textContent = total > 0 ? label(days[peak]) + ' · ' + fmt(series[peak], metric) : '—';
+    }
+
+    function draw() {
+        var series = values[metric];
+        var W = box.clientWidth, H = box.clientHeight;
+        var m = { t: 12, r: 12, b: 26, l: 52 };
+        var iw = W - m.l - m.r, ih = H - m.t - m.b;
+        var max = niceMax(Math.max.apply(null, series.concat([0])));
+        var n = series.length;
+        var x = function (i) { return m.l + (n === 1 ? iw / 2 : (i / (n - 1)) * iw); };
+        var y = function (v) { return m.t + ih - (v / max) * ih; };
+
+        svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+        var defs = el('defs', {});
+        var grad = el('linearGradient', { id: 'ov-area', x1: 0, y1: 0, x2: 0, y2: 1 });
+        grad.appendChild(el('stop', { offset: '0%', 'stop-color': '#2a78d6', 'stop-opacity': '0.22' }));
+        grad.appendChild(el('stop', { offset: '100%', 'stop-color': '#2a78d6', 'stop-opacity': '0' }));
+        defs.appendChild(grad);
+        svg.appendChild(defs);
+
+        // grid + y labels (recessive)
+        var axis = el('g', { class: 'axis' });
+        for (var g = 0; g <= 4; g++) {
+            var gv = max * g / 4, gy = y(gv);
+            axis.appendChild(el('line', { x1: m.l, x2: W - m.r, y1: gy, y2: gy, stroke: g === 0 ? '#cbd5e1' : '#eef2f7', 'stroke-width': 1 }));
+            var t = el('text', { x: m.l - 8, y: gy + 4, 'text-anchor': 'end' });
+            t.textContent = metric === 'amount' ? '₹' + nf0.format(gv) : nf0.format(gv);
+            axis.appendChild(t);
+        }
+        // x labels: thin out so they never collide
+        var step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / 64))));
+        for (var i = 0; i < n; i += step) {
+            var xt = el('text', { x: x(i), y: H - 6, 'text-anchor': 'middle' });
+            xt.textContent = label(days[i]);
+            axis.appendChild(xt);
+        }
+        svg.appendChild(axis);
+
+        // area + 2px line
+        var pts = series.map(function (v, i) { return [x(i), y(v)]; });
+        var line = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+        svg.appendChild(el('path', { d: line + ' L' + x(n - 1) + ' ' + y(0) + ' L' + x(0) + ' ' + y(0) + ' Z', fill: 'url(#ov-area)' }));
+        svg.appendChild(el('path', { d: line, fill: 'none', stroke: '#2a78d6', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+        // crosshair + marker (hidden until hover)
+        var cross = el('line', { y1: m.t, y2: m.t + ih, stroke: '#94a3b8', 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0 });
+        var dot = el('circle', { r: 5, fill: '#2a78d6', stroke: '#fff', 'stroke-width': 2, opacity: 0 });
+        svg.appendChild(cross);
+        svg.appendChild(dot);
+
+        // hit area larger than the line
+        var hit = el('rect', { x: m.l - 10, y: 0, width: iw + 20, height: H, fill: 'transparent' });
+        svg.appendChild(hit);
+        function show(evt) {
+            var r = svg.getBoundingClientRect();
+            var px = (evt.touches ? evt.touches[0].clientX : evt.clientX) - r.left;
+            var idx = n === 1 ? 0 : Math.round((px - m.l) / iw * (n - 1));
+            idx = Math.max(0, Math.min(n - 1, idx));
+            var cx = x(idx), cy = y(series[idx]);
+            cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('opacity', 1);
+            dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('opacity', 1);
+            tip.innerHTML = label(days[idx], true) + '<br>Quantity <b>' + fmt(values.quantity[idx], 'quantity') + '</b><br>Amount <b>' + fmt(values.amount[idx], 'amount') + '</b>';
+            tip.style.left = Math.min(Math.max(cx, 80), W - 80) + 'px';
+            tip.style.top = cy + 'px';
+            tip.style.opacity = 1;
+        }
+        function hide() { cross.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); tip.style.opacity = 0; }
+        hit.addEventListener('mousemove', show);
+        hit.addEventListener('touchstart', show, { passive: true });
+        hit.addEventListener('touchmove', show, { passive: true });
+        hit.addEventListener('mouseleave', hide);
+
+        summary(series);
+    }
+
+    document.querySelectorAll('.ov-toggle button').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.ov-toggle button').forEach(function (b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            metric = btn.getAttribute('data-metric');
+            draw();
+        });
+    });
+
+    var pending;
+    window.addEventListener('resize', function () { clearTimeout(pending); pending = setTimeout(draw, 120); });
+    draw();
+})();
+</script>
 {% endblock %}

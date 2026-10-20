@@ -7,13 +7,43 @@ from app.core.database.manager import DatabaseManager
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.administration.domain.enums import Role
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 
 from app.modules.advanceditem.infrastructure.models import (
     AdvanceItemModel,
     AdvanceRecordModel,
 )
+
+
+class AdvanceRecordAccessScope:
+    """
+    Advances whose giver (created_by) or receiver (user_id) is in the user's
+    hierarchy: the user, everyone below it, and the farmers of its VLCCs.
+    Super Admin sees everything; a farmer sees only its own.
+    """
+
+    @staticmethod
+    def condition(owner: CurrentUser):
+        if owner.role_type == Role.SUPER_ADMIN:
+            return true()
+
+        # controlled_users includes the user itself
+        people = [Hierarchy.controlled_users(owner)]
+        farmers = Hierarchy.farmer_users(owner)
+        if farmers is not None:
+            people.append(farmers)
+
+        conditions = []
+        for group in people:
+            conditions += [
+                AdvanceRecordModel.created_by.in_(group),
+                AdvanceRecordModel.user_id.in_(group),
+            ]
+        return or_(*conditions)
 
 
 class AdvanceRecordRepository:
@@ -257,6 +287,7 @@ class AdvanceRecordRepository:
     async def get_detail_rows(
         self,
         advance_id: UUID,
+        owner: CurrentUser,
     ) -> list[tuple]:
 
         selected_user = aliased(UserModel, name="selected_user")
@@ -312,6 +343,7 @@ class AdvanceRecordRepository:
 
             .where(
                 AdvanceRecordModel.id == advance_id,
+                AdvanceRecordAccessScope.condition(owner),
             )
 
             .order_by(
@@ -350,6 +382,13 @@ class AdvanceRecordRepository:
                 creator_user.id
                 == AdvanceRecordModel.created_by,
             )
+            .where(AdvanceRecordAccessScope.condition(owner))
+            .order_by(
+                AdvanceRecordModel.advance_date.desc(),
+                AdvanceRecordModel.id.desc(),
+            )
+            .offset((page - 1) * size)
+            .limit(size)
         )
         result = await self._session.execute(stmt)
         return result.all()
@@ -359,9 +398,10 @@ class AdvanceRecordRepository:
             select(
                 func.count(AdvanceRecordModel.id),
             )
+            .where(AdvanceRecordAccessScope.condition(owner))
         )
         result = await self._session.scalar(stmt)
-        return result
+        return result or 0
 
     async def flush(self) -> None:
         await self._session.flush()

@@ -24,6 +24,7 @@ from app.modules.reports.application.dto import ReportResult
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.domain.enums import ReportType
 from app.modules.reports.presentation.request import ReportPreviewRequest
+from app.core.clock import today_ist
 
 router = APIRouter(
     prefix="/reports",
@@ -117,6 +118,7 @@ async def get_report_types(request: Request):
         {"value": ReportType.MCC_BILL_COMPARISON.value, "label": "Milk Bill Comparison"},
         {"value": ReportType.MCC_PAYMENT_SUMMARY.value, "label": "MCC Payment Summary"},
         {"value": ReportType.MCC_MILK_BILL_SUMMARY.value, "label": "MCC Milk Bill Summary"},
+        {"value": ReportType.MCC_DUPLICATE_RECEIPT.value, "label": "MCC Duplicate Receipt"},
         {"value": ReportType.MCC_WEIGHT_SHIFT_SUMMARY.value, "label": "MCC Weight Shift Summary"},
         {"value": ReportType.MCC_WEIGHT_DATE_WISE.value, "label": "MCC Weight Date Wise"},
         {"value": ReportType.MCC_WEIGHT_VLCC_WISE.value, "label": "MCC Weight VLCC Wise"},
@@ -291,8 +293,8 @@ async def vlcc_shift_summary(
     query = ReportQuery(
         actor_id=user_state.id,
         report_type=ReportType.VLCC_SHIFT_SUMMARY,
-        start_date=_parse_date(start_date) or datetime.now().date(),
-        end_date=_parse_date(end_date) or datetime.now().date(),
+        start_date=_parse_date(start_date) or today_ist(),
+        end_date=_parse_date(end_date) or today_ist(),
         start_shift=parsed_shift,
         end_shift=parsed_shift,
         vlcc_id=parsed_vlcc_id,

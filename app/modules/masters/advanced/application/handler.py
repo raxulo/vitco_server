@@ -19,6 +19,7 @@ from app.modules.masters.advanced.domain.exceptions import (
 )
 from app.modules.masters.advanced.infrastructure.repository import AdvanceRepository
 from app.modules.masters.advanced.domain.dto import AdvanceMasterDto, AdvanceMasterListDto
+from app.core.clock import now_naive_ist
 from app.modules.masters.advanced.application.command import (
     CreateAdvanceCommand,
     UpdateAdvanceCommand,
@@ -70,8 +71,8 @@ class AdvanceHandler:
             notes=command.notes,
             is_active=True,
             created_by=command.created_by,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
         )
 
         async with self._database.transaction():
@@ -103,7 +104,7 @@ class AdvanceHandler:
             advance.user_id = command.user_id
             advance.notes = command.notes
             advance.is_active = command.is_active
-            advance.updated_at = datetime.now(UTC)
+            advance.updated_at = now_naive_ist()
 
             await self._repository.update(advance)
 
@@ -185,8 +186,8 @@ class AdvanceHandler:
                 reference_number=command.reference_number,
                 notes=command.notes,
                 created_by=command.created_by,
-                created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
+                created_at=now_naive_ist(),
+                updated_at=now_naive_ist(),
             )
 
             await self._repository.save_payment(payment)

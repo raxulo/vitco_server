@@ -124,7 +124,13 @@
                             name="vlcc_code"
                             type="text"
                             class="form-control"
-                            placeholder="VLCC001"
+                            placeholder="101"
+                            {% if not vlcc %}
+                            inputmode="numeric"
+                            pattern="[0-9]+"
+                            title="VLCC code must contain digits only"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            {% endif %}
                             value="{{ vlcc.vlcc_code if vlcc else '' }}"
                             {% if vlcc %} readonly {% else %}
                             required
@@ -243,7 +249,12 @@
                             name="mobile"
                             type="tel"
                             class="form-control"
-                            placeholder="+91 99999 88888"
+                            placeholder="9999988888"
+                            inputmode="numeric"
+                            maxlength="10"
+                            pattern="[0-9]{10}"
+                            title="Mobile number must be exactly 10 digits"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"
                             value="{{ user.mobile if vlcc else '' }}"
                         />
                     </div>
@@ -918,7 +929,9 @@
                     <div class="form-field">
                         <label>Minimum FAT</label>
                         <input
+                            id="cow-min-fat"
                             name="cow_min_fat"
+                            min="0"
                             type="number"
                             step="0.1"
                             class="form-control"
@@ -928,7 +941,9 @@
                     <div class="form-field">
                         <label>Maximum FAT</label>
                         <input
+                            id="cow-max-fat"
                             name="cow_max_fat"
+                            min="0"
                             type="number"
                             step="0.1"
                             class="form-control"
@@ -938,7 +953,9 @@
                     <div class="form-field">
                         <label>Minimum SNF</label>
                         <input
+                            id="cow-min-snf"
                             name="cow_min_snf"
+                            min="0"
                             type="number"
                             step="0.1"
                             class="form-control"
@@ -948,7 +965,9 @@
                     <div class="form-field">
                         <label>Maximum SNF</label>
                         <input
+                            id="cow-max-snf"
                             name="cow_max_snf"
+                            min="0"
                             type="number"
                             step="0.1"
                             class="form-control"
@@ -972,17 +991,23 @@
                     <div class="form-field">
                         <label>Minimum FAT</label>
                         <input
+                            id="buffalo-min-fat"
                             name="buffalo_min_fat"
                             type="number"
                             step="0.1"
+                            min="0"
                             class="form-control"
+                            title="Automatically set to Cow maximum FAT + 0.1"
                             value="{{ milk_quality_config and milk_quality_config.buffalo_min_fat if vlcc else 0.0 }}"
+                            readonly
                         />
                     </div>
                     <div class="form-field">
                         <label>Maximum FAT</label>
                         <input
+                            id="buffalo-max-fat"
                             name="buffalo_max_fat"
+                            min="0"
                             type="number"
                             step="0.1"
                             class="form-control"
@@ -992,7 +1017,9 @@
                     <div class="form-field">
                         <label>Minimum SNF</label>
                         <input
+                            id="buffalo-min-snf"
                             name="buffalo_min_snf"
+                            min="0"
                             type="number"
                             step="0.1"
                             class="form-control"
@@ -1002,7 +1029,9 @@
                     <div class="form-field">
                         <label>Maximum SNF</label>
                         <input
+                            id="buffalo-max-snf"
                             name="buffalo_max_snf"
+                            min="0"
                             type="number"
                             step="0.1"
                             class="form-control"
@@ -1125,7 +1154,7 @@
             const emailVal = emailInput ? emailInput.value.trim() : "";
             const passwordVal = passwordInput ? passwordInput.value.trim() : "";
 
-            if (codeVal && uicVal && nameVal && mobileVal && emailVal && passwordVal) {
+            if (/^[0-9]+$/.test(codeVal) && uicVal && nameVal && /^[0-9]{10}$/.test(mobileVal) && emailVal && passwordVal) {
                 submitBtn.disabled = false;
                 submitBtn.style.opacity = "1";
                 submitBtn.style.cursor = "pointer";
@@ -1182,6 +1211,66 @@
             row.querySelectorAll("input").forEach(input => input.value = "");
         }
     };
+</script>
+
+<script>
+    /* =========================================================
+       MILK QUALITY LIMITS
+       - Buffalo minimum FAT always follows Cow maximum FAT + 0.1
+       - Every minimum must not be above its maximum (0 = not set)
+       Same rules are enforced on the server.
+    ========================================================= */
+    (function () {
+        const cowMaxFat = document.getElementById("cow-max-fat");
+        const buffaloMinFat = document.getElementById("buffalo-min-fat");
+
+        function syncBuffaloFat() {
+            const value = parseFloat(cowMaxFat.value);
+            if (!Number.isNaN(value) && value > 0) {
+                buffaloMinFat.value = (value + 0.1).toFixed(1);
+            }
+        }
+
+        if (cowMaxFat && buffaloMinFat) {
+            cowMaxFat.addEventListener("input", syncBuffaloFat);
+            cowMaxFat.addEventListener("change", syncBuffaloFat);
+            syncBuffaloFat();
+        }
+
+        const ranges = [
+            ["Cow FAT", "cow-min-fat", "cow-max-fat"],
+            ["Cow SNF", "cow-min-snf", "cow-max-snf"],
+            ["Buffalo FAT", "buffalo-min-fat", "buffalo-max-fat"],
+            ["Buffalo SNF", "buffalo-min-snf", "buffalo-max-snf"],
+        ];
+
+        function invalidRange() {
+            for (const [label, minId, maxId] of ranges) {
+                const min = parseFloat(document.getElementById(minId)?.value);
+                const max = parseFloat(document.getElementById(maxId)?.value);
+                if (!Number.isNaN(min) && !Number.isNaN(max) && max > 0 && min > max) {
+                    return label;
+                }
+            }
+            return null;
+        }
+
+        // Stop the HTMX submit when a range is invalid
+        const form = document.getElementById("vlccForm");
+        if (form) {
+            form.addEventListener("htmx:beforeRequest", function (evt) {
+                const label = invalidRange();
+                if (label) {
+                    evt.preventDefault();
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Invalid Range",
+                        text: `${label}: Minimum cannot be more than Maximum.`,
+                    });
+                }
+            });
+        }
+    })();
 </script>
 
 {% endblock %}

@@ -84,7 +84,7 @@
 
             <!-- Code From -->
             <div id="code-from-container" style="display: none;">
-                <label for="code_from" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code From</label>
+                <label for="code_from" id="code-from-label" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code From</label>
                 <input type="text" name="code_from" id="code_from" placeholder="e.g. 001" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
             </div>
 
@@ -305,6 +305,12 @@
                 shouldDisable = true;
             }
         }
+        // 4. MCC Duplicate Receipt: VLCC code empty -> disable
+        else if (reportType === 'mcc_duplicate_receipt') {
+            if (!codeFrom) {
+                shouldDisable = true;
+            }
+        }
 
         if (btnGenerate) {
             btnGenerate.disabled = shouldDisable;
@@ -333,6 +339,10 @@
         if (vlccContainer) vlccContainer.style.display = needsVlcc ? 'block' : 'none';
         if (vlccSelect) vlccSelect.disabled = !needsVlcc;
 
+        // Duplicate receipt reuses "Code From" as the single VLCC code
+        const codeFromLabel = document.getElementById('code-from-label');
+        if (codeFromLabel) codeFromLabel.textContent = reportType === 'mcc_duplicate_receipt' ? 'VLCC Code' : 'Code From';
+
         if (reportType === 'mcc_shift_summary' || reportType === 'mcc_weight_shift_summary' || reportType === 'mcc_fixed_rate_summary') {
             // Single date, single shift
             if (startDateLabel) startDateLabel.textContent = 'Date';
@@ -357,7 +367,13 @@
                 if (routeFromContainer) routeFromContainer.style.display = 'none';
                 if (routeToContainer) routeToContainer.style.display = 'none';
                 if (milkTypeContainer) milkTypeContainer.style.display = 'none';
-            } else if (reportType === 'mcc_bill_comparison') {
+            } else if (reportType === 'mcc_duplicate_receipt') {
+                if (codeFromContainer) codeFromContainer.style.display = 'block';
+                if (codeToContainer) codeToContainer.style.display = 'none';
+                if (routeFromContainer) routeFromContainer.style.display = 'none';
+                if (routeToContainer) routeToContainer.style.display = 'none';
+                if (milkTypeContainer) milkTypeContainer.style.display = 'none';
+            } else if (reportType === 'mcc_bill_comparison' || reportType === 'mcc_milk_bill_summary') {
                 if (codeFromContainer) codeFromContainer.style.display = 'none';
                 if (codeToContainer) codeToContainer.style.display = 'none';
                 if (routeFromContainer) routeFromContainer.style.display = 'none';

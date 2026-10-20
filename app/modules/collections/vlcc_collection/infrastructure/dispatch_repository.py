@@ -1,8 +1,10 @@
 from datetime import datetime
 from uuid import UUID
-from sqlalchemy import select
+from sqlalchemy import select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.middleware.authentication import CurrentUser
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.modules.vlcc.infrastructure.models import VlccModel
 from sqlalchemy import func
 from app.core.database.manager import DatabaseManager
@@ -11,6 +13,15 @@ from app.modules.collections.vlcc_collection.domain.dispatch_entities import Dis
 from app.modules.collections.vlcc_collection.domain.idispatch_repository import IDispatchRepository
 from app.modules.collections.vlcc_collection.infrastructure.dispatch_mapper import DispatchMapper
 from app.modules.collections.vlcc_collection.infrastructure.models import DispatchModel
+
+
+class DispatchAccessScope:
+    """Dispatches of the VLCCs a user controls — rules in `Hierarchy`."""
+
+    @staticmethod
+    def condition(owner: CurrentUser):
+        vlcc_ids = Hierarchy.vlcc_ids(owner)
+        return true() if vlcc_ids is None else DispatchModel.vlcc_id.in_(vlcc_ids)
 
 
 class DispatchRepository(IDispatchRepository):
@@ -27,20 +38,30 @@ class DispatchRepository(IDispatchRepository):
         model = DispatchMapper.to_model(entity)
         self._session.add(model)
 
-    async def get(self, id: UUID) -> Dispatch | None:
-        model = await self._session.get(DispatchModel, id)
+    async def get(self, id: UUID, owner: CurrentUser) -> Dispatch | None:
+        model = await self._session.scalar(
+            select(DispatchModel).where(DispatchModel.id == id, DispatchAccessScope.condition(owner))
+        )
         return DispatchMapper.to_entity(model) if model else None
 
-    async def get_with_vlcc(self, id: UUID) -> tuple[Dispatch, str] | None:
+    async def get_with_vlcc(self, id: UUID, owner: CurrentUser) -> tuple[Dispatch, str] | None:
         stmt = (
             select(DispatchModel, VlccModel.name)
             .join(VlccModel, VlccModel.id == DispatchModel.vlcc_id)
-            .where(DispatchModel.id == id)
+            .where(DispatchModel.id == id, DispatchAccessScope.condition(owner))
         )
         res = (await self._session.execute(stmt)).first()
         if res is None:
             return None
         return (DispatchMapper.to_entity(res[0]), res[1])
+
+    async def vlcc_in_scope(self, vlcc_id: UUID, owner: CurrentUser) -> bool:
+        """Whether the user may record / change dispatches for this VLCC."""
+        vlcc_ids = Hierarchy.vlcc_ids(owner)
+        stmt = select(VlccModel.id).where(VlccModel.id == vlcc_id)
+        if vlcc_ids is not None:
+            stmt = stmt.where(VlccModel.id.in_(vlcc_ids))
+        return await self._session.scalar(stmt) is not None
 
     async def update(self, entity: Dispatch) -> None:
         model = await self._session.get(DispatchModel, entity.id)
@@ -64,6 +85,7 @@ class DispatchRepository(IDispatchRepository):
 
     async def list(
         self,
+        owner: CurrentUser,
         vlcc_id: UUID | None = None,
         shift: CollectionShift | None = None,
         start_date: datetime | None = None,
@@ -71,11 +93,10 @@ class DispatchRepository(IDispatchRepository):
         page: int = 1,
         size: int = 20,
     ) -> list[tuple[Dispatch, str]]:
-        from app.modules.vlcc.infrastructure.models import VlccModel
-        from datetime import datetime
         stmt = (
             select(DispatchModel, VlccModel.name)
             .join(VlccModel, VlccModel.id == DispatchModel.vlcc_id)
+            .where(DispatchAccessScope.condition(owner))
         )
         if vlcc_id:
             stmt = stmt.where(DispatchModel.vlcc_id == vlcc_id)
@@ -85,10 +106,10 @@ class DispatchRepository(IDispatchRepository):
             stmt = stmt.where(DispatchModel.collected_at >= start_date)
         if end_date:
             stmt = stmt.where(DispatchModel.collected_at <= end_date)
-        
+
         stmt = stmt.order_by(DispatchModel.collected_at.desc())
         stmt = stmt.offset((page - 1) * size).limit(size)
-        
+
         res = await self._session.execute(stmt)
         return [
             (DispatchMapper.to_entity(row[0]), row[1])
@@ -97,6 +118,7 @@ class DispatchRepository(IDispatchRepository):
 
     async def count(
         self,
+        owner: CurrentUser,
         vlcc_id: UUID | None = None,
         shift: CollectionShift | None = None,
         start_date: datetime | None = None,
@@ -105,6 +127,7 @@ class DispatchRepository(IDispatchRepository):
         stmt = (
             select(func.count(DispatchModel.id))
             .join(VlccModel, VlccModel.id == DispatchModel.vlcc_id)
+            .where(DispatchAccessScope.condition(owner))
         )
         if vlcc_id:
             stmt = stmt.where(DispatchModel.vlcc_id == vlcc_id)

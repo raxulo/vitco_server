@@ -70,6 +70,7 @@ class RouteController:
                     route_code=route_code,
                     route_name=name,
                     created_by=owner.id,
+                    owner=owner,
                 )
             )
         except Exception as e:

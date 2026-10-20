@@ -4,19 +4,12 @@
 
 {% block content %}
 <div class="mp-index-page animate-fadeIn">
-    <!-- SuperAdmin & Post Setup Link Bar -->
+    <!-- SuperAdmin Setup Link Bar (setup is Super Admin only) -->
     {% if is_superadmin %}
     <div class="mp-admin-bar">
         <span><i class="fa-solid fa-user-shield"></i> You are logged in as SuperAdmin.</span>
         <a href="/marketplace/setup" class="btn-clean-primary" style="margin-left: auto; text-decoration: none; padding: 6px 14px; font-size: 12px;">
             <i class="fa-solid fa-sliders"></i> Go to Marketplace Setup Center
-        </a>
-    </div>
-    {% elif can_post %}
-    <div class="mp-admin-bar">
-        <span><i class="fa-solid fa-square-plus"></i> Post animal & product listings directly in Marketplace.</span>
-        <a href="/marketplace/setup" class="btn-clean-primary" style="margin-left: auto; text-decoration: none; padding: 6px 14px; font-size: 12px;">
-            <i class="fa-solid fa-plus"></i> Go to Post Setup
         </a>
     </div>
     {% endif %}

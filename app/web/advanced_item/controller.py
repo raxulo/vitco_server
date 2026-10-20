@@ -13,6 +13,7 @@ from app.modules.advanceditem.application.command import (
 from app.modules.farmer.application.command import ListFarmerQuery
 from app.modules.masters.items.application.command import ListItemMasterQuery
 from app.web.framework.renderer import Renderer
+from app.core.clock import now_naive_ist
 
 
 class AdvancedItemController:
@@ -114,7 +115,7 @@ class AdvancedItemController:
 
         try:
             user_id = UUID(user_id_str)
-            advance_date = datetime.fromisoformat(advance_date_str) if advance_date_str else datetime.utcnow()
+            advance_date = datetime.fromisoformat(advance_date_str) if advance_date_str else now_naive_ist()
 
             # Build item commands list
             item_commands = []
@@ -172,7 +173,7 @@ class AdvancedItemController:
     @staticmethod
     async def view_page(request: Request, id: UUID):
         advance_service = GetHandler.advance_item_service(request)
-        detail = await advance_service.get_detail(id)
+        detail = await advance_service.get_detail(id, request.state.user)
 
         if not detail:
             return RedirectResponse(url="/advance-items/", status_code=303)

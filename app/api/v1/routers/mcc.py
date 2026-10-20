@@ -30,6 +30,7 @@ from app.modules.mcc.application.command import GetMccQuery, ListMccQuery
 from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.common.settings.infrastructure.models import SettingsModel
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.core.clock import now_naive_ist
 from app.modules.collections.mcc_collection.application.command import (
     GetNextSampleNumberQuery,
     GetCollectionBySampleNumberQuery,
@@ -88,12 +89,12 @@ def _parse_shift(shift: Any) -> CollectionShift:
 
 def _parse_collected_at(val: str | datetime | None) -> datetime:
     if val is None:
-        return datetime.now()
+        return now_naive_ist()
     if isinstance(val, datetime):
         return val
     s = str(val).strip()
     if not s:
-        return datetime.now()
+        return now_naive_ist()
     for fmt in (
         "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%dT%H:%M",
@@ -108,7 +109,7 @@ def _parse_collected_at(val: str | datetime | None) -> datetime:
     try:
         return datetime.fromisoformat(s)
     except Exception:
-        return datetime.now()
+        return now_naive_ist()
 
 
 async def _resolve_mcc_id(request: Request, user: CurrentUser, mcc_id: UUID | None) -> UUID:

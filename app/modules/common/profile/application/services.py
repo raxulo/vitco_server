@@ -120,7 +120,7 @@ class ProfileService:
         user_id: UUID,
         bank_data: CreateBankAccountCommand,
     ) -> BankAccount:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         bank = BankAccount(
             id=uuid4(),
             user_id=user_id,
@@ -139,7 +139,7 @@ class ProfileService:
         user_id: UUID,
         address_data: CreateAddressCommand,
     ) -> Address:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         address = Address(
             id=uuid4(),
             user_id=user_id,

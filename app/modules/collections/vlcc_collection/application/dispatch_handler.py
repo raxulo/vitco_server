@@ -3,10 +3,13 @@ from datetime import datetime, UTC
 from uuid import UUID, uuid4
 
 from app.core.database.manager import DatabaseManager
+from app.core.exceptions.base import ForbiddenException
+from app.middleware.authentication import CurrentUser
 from app.modules.collections.vlcc_collection.domain.dispatch_entities import Dispatch
 from app.modules.collections.vlcc_collection.domain.dispatch_dto import DispatchDto, DispatchListDto
 from app.modules.collections.vlcc_collection.domain.dispatch_exceptions import DispatchNotFoundException
 from app.modules.collections.vlcc_collection.infrastructure.dispatch_repository import DispatchRepository
+from app.core.clock import now_naive_ist
 from app.modules.collections.vlcc_collection.application.dispatch_command import (
     CreateDispatchCommand,
     UpdateDispatchCommand,
@@ -31,7 +34,8 @@ class DispatchHandler:
         self._repository = repository
 
     async def create(self, command: CreateDispatchCommand) -> DispatchDto:
-        now = datetime.now(UTC)
+        await self._ensure_vlcc_allowed(command.vlcc_id, command.owner)
+        now = now_naive_ist()
         entity = Dispatch(
             id=uuid4(),
             vlcc_id=command.vlcc_id,
@@ -51,7 +55,7 @@ class DispatchHandler:
         return self._to_dto(entity)
 
     async def update(self, command: UpdateDispatchCommand) -> DispatchDto:
-        entity = await self._repository.get(command.id)
+        entity = await self._repository.get(command.id, self._require_owner(command.owner))
         if entity is None:
             raise DispatchNotFoundException()
 
@@ -63,27 +67,27 @@ class DispatchHandler:
         entity.can_count = command.can_count
         entity.quantity_collection_mode = command.quantity_collection_mode
         entity.measurement_mode = command.measurement_mode
-        entity.updated_at = datetime.now(UTC)
+        entity.updated_at = now_naive_ist()
 
         async with self._database.transaction():
             await self._repository.update(entity)
         return self._to_dto(entity)
 
     async def delete(self, command: DeleteDispatchCommand) -> None:
-        entity = await self._repository.get(command.id)
+        entity = await self._repository.get(command.id, self._require_owner(command.owner))
         if entity is None:
             raise DispatchNotFoundException()
         async with self._database.transaction():
             await self._repository.delete(command.id)
 
     async def get(self, query: GetDispatchQuery) -> DispatchDto:
-        entity = await self._repository.get(query.id)
+        entity = await self._repository.get(query.id, self._require_owner(query.owner))
         if entity is None:
             raise DispatchNotFoundException()
         return self._to_dto(entity)
 
-    async def get_with_vlcc(self, id: UUID) -> DispatchDto:
-        res = await self._repository.get_with_vlcc(id)
+    async def get_with_vlcc(self, id: UUID, owner: CurrentUser | None) -> DispatchDto:
+        res = await self._repository.get_with_vlcc(id, self._require_owner(owner))
         if res is None:
             raise DispatchNotFoundException()
         dto = self._to_dto(res[0], vlcc_name=res[1])
@@ -96,6 +100,7 @@ class DispatchHandler:
 
     async def list(self, query: ListDispatchesQuery) -> list[DispatchListDto]:
         results = await self._repository.list(
+            owner=self._require_owner(query.owner),
             vlcc_id=query.vlcc_id,
             shift=query.shift,
             start_date=query.start_date,
@@ -122,17 +127,32 @@ class DispatchHandler:
 
     async def count(
         self,
+        owner: CurrentUser | None,
         vlcc_id: UUID | None = None,
         shift: CollectionShift | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> int:
         return await self._repository.count(
+            owner=self._require_owner(owner),
             vlcc_id=vlcc_id,
             shift=shift,
             start_date=start_date,
             end_date=end_date,
         )
+
+    # ===== ACCESS =====
+
+    @staticmethod
+    def _require_owner(owner: CurrentUser | None) -> CurrentUser:
+        # Every dispatch read/write is scoped to the user's hierarchy; refuse unscoped calls
+        if owner is None:
+            raise ForbiddenException("Owner context is required")
+        return owner
+
+    async def _ensure_vlcc_allowed(self, vlcc_id: UUID, owner: CurrentUser | None) -> None:
+        if not await self._repository.vlcc_in_scope(vlcc_id, self._require_owner(owner)):
+            raise ForbiddenException("You are not allowed to record dispatches for this VLCC")
 
     def _to_dto(self, entity: Dispatch, vlcc_name: str | None = None) -> DispatchDto:
         return DispatchDto(

@@ -2,6 +2,7 @@ from typing import Any
 from datetime import datetime, UTC
 from sqlalchemy import func, select, exists, false, or_, true
 from app.modules.administration.infrastructure.models import UserModel
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.modules.administration.domain.enums import Role
 from app.middleware.authentication import CurrentUser
 from app.modules.farmer.infrastructure.models import FarmerModel
@@ -22,6 +23,7 @@ from app.modules.collections.vlcc_collection.domain.entities import VlccCollecti
 from app.modules.collections.vlcc_collection.domain.irepository import IVlccCollectionRepository
 from app.modules.collections.vlcc_collection.infrastructure.mapper import VlccCollectionMapper
 from app.modules.collections.vlcc_collection.infrastructure.models import VlccCollectionModel
+from app.core.clock import now_naive_ist
 
 
 class VlccCollectionAccessScope:
@@ -31,59 +33,10 @@ class VlccCollectionAccessScope:
 
         role = owner.role_type
 
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        if role == Role.ADMIN:
-            return exists(
-                select(1)
-                .select_from(VlccModel)
-                .join(
-                    UserModel,
-                    UserModel.id == VlccModel.created_by,
-                )
-                .where(
-                    VlccModel.id == VlccCollectionModel.vlcc_id,
-                    or_(
-                        UserModel.id == owner.id,
-                        UserModel.created_by == owner.id,
-                    ),
-                )
-                .correlate(VlccCollectionModel)
-            )
-
-        if role == Role.SUB_ADMIN:
-            return exists(
-                select(1)
-                .select_from(VlccModel)
-                .where(
-                    VlccModel.id == VlccCollectionModel.vlcc_id,
-                    VlccModel.created_by == owner.id,
-                )
-                .correlate(VlccCollectionModel)
-            )
-
-        if role == Role.MCC:
-            return exists(
-                select(1)
-                .select_from(VlccModel)
-                .where(
-                    VlccModel.id == VlccCollectionModel.vlcc_id,
-                    VlccModel.created_by == owner.id,
-                )
-                .correlate(VlccCollectionModel)
-            )
-
-        if role == Role.VLCC:
-            return exists(
-                select(1)
-                .select_from(VlccModel)
-                .where(
-                    VlccModel.id == VlccCollectionModel.vlcc_id,
-                    VlccModel.user_id == owner.id,
-                )
-                .correlate(VlccCollectionModel)
-            )
+        # Collections of the VLCCs the user controls (see `Hierarchy`)
+        if role in (Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN, Role.MCC, Role.VLCC):
+            vlcc_ids = Hierarchy.vlcc_ids(owner)
+            return true() if vlcc_ids is None else VlccCollectionModel.vlcc_id.in_(vlcc_ids)
 
         if role == Role.FARMER:
             return exists(
@@ -207,7 +160,7 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         deleted_ids: list[UUID] = []
         for model in models:
             model.is_deleted = True
-            model.updated_at = datetime.now(UTC)
+            model.updated_at = now_naive_ist()
             deleted_ids.append(model.id)
 
         if deleted_ids:
@@ -421,6 +374,12 @@ class VlccCollectionRepository(IVlccCollectionRepository):
             res = await self._session.scalar(stmt_alt)
         return res
 
+    async def farmer_belongs_to_vlcc(self, farmer_id: UUID, vlcc_id: UUID) -> bool:
+        found = await self._session.scalar(
+            select(FarmerModel.id).where(FarmerModel.id == farmer_id, FarmerModel.vlcc_id == vlcc_id)
+        )
+        return found is not None
+
     async def get_farmer_user_id(self, farmer_id: UUID) -> UUID | None:
         stmt = select(FarmerModel.user_id).where(FarmerModel.id == farmer_id)
         res = await self._session.scalar(stmt)
@@ -446,12 +405,9 @@ class VlccCollectionRepository(IVlccCollectionRepository):
             VlccCollectionModel.collected_at >= date_from,
             VlccCollectionModel.collected_at <= date_to,
             VlccCollectionModel.is_deleted == False,
+            # Same visibility as the collection list
+            VlccCollectionAccessScope.condition(owner),
         )
-
-        if owner.role == Role.VLCC:
-            stmt = stmt.where(VlccCollectionModel.vlcc_id == owner.own_id)
-        elif owner.role == Role.FARMER:
-            stmt = stmt.where(VlccCollectionModel.farmer_id == owner.own_id)
 
         if shift is not None:
             stmt = stmt.where(VlccCollectionModel.shift == shift)

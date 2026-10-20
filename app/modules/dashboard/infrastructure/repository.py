@@ -1,22 +1,56 @@
 # app/modules/dashboard/infrastructure/repository.py
+"""
+Dashboard read model.
 
-from decimal import Decimal
+Every query is scoped with the same AccessScope rules the module list
+screens use, so a user's dashboard never shows more than they can open.
+Collections are read from one of two "sources": VLCC collections (farmer ->
+VLCC) or MCC collections (VLCC -> MCC).
+"""
+
+from dataclasses import dataclass
+from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.manager import DatabaseManager
+from app.middleware.authentication import CurrentUser
 from app.modules.administration.domain.enums import Role
+from app.modules.administration.infrastructure.models import UserModel
+from app.modules.collections.mcc_collection.infrastructure.models import (
+    MccCollectionModel,
+)
+from app.modules.collections.mcc_collection.infrastructure.repository import (
+    MccCollectionAccessScope,
+)
 from app.modules.collections.vlcc_collection.infrastructure.models import (
+    DispatchModel,
     VlccCollectionModel,
 )
-from app.modules.dashboard.application.command import UserCommand
+from app.modules.collections.vlcc_collection.infrastructure.repository import (
+    VlccCollectionAccessScope,
+)
 from app.modules.dashboard.application.dto import (
-    DashboardStats,
-    RecentVlcc,
+    CollectionTotals,
+    RankRow,
+    RecentRow,
 )
 from app.modules.farmer.infrastructure.models import FarmerModel
+from app.modules.farmer.infrastructure.repository import FarmerAccessScope
+from app.modules.mcc.infrastructure.models import MccModel
+from app.modules.mcc.infrastructure.repository import MccAccessScope
 from app.modules.vlcc.infrastructure.models import VlccModel
+from app.modules.vlcc.infrastructure.repository import VlccAccessScope
+
+
+@dataclass(frozen=True, slots=True)
+class CollectionSource:
+    """A collection table plus the owner-scoped conditions that apply to it."""
+
+    model: Any
+    conditions: tuple
 
 
 class DashboardRepository:
@@ -34,369 +68,269 @@ class DashboardRepository:
         return self._database.session
 
     # =========================================================
-    # Public API
+    # Sources
     # =========================================================
 
-    async def get_stats(
-        self,
-        command: UserCommand,
-    ) -> DashboardStats:
-
-        vlcc_filter = self._vlcc_scope(command)
-        farmer_filter = self._farmer_scope(command)
-        collection_filter = self._collection_scope(command)
-
-        statement = select(
-            self._count_vlcc(vlcc_filter).label("total_vlcc"),
-            self._count_farmers(farmer_filter).label("total_farmers"),
-            self._sum_quantity(collection_filter).label("total_quantity"),
-            self._sum_amount(collection_filter).label("total_amount"),
+    @staticmethod
+    def vlcc_collections(owner: CurrentUser) -> CollectionSource:
+        m = VlccCollectionModel
+        return CollectionSource(
+            model=m,
+            conditions=(m.is_deleted.is_(False), VlccCollectionAccessScope.condition(owner)),
         )
 
-        result = await self._session.execute(statement)
-        row = result.one()
-
-        return DashboardStats(
-            total_vlcc=row.total_vlcc or 0,
-            total_farmers=row.total_farmers or 0,
-            total_quantity=row.total_quantity or Decimal("0.00"),
-            total_amount=row.total_amount or Decimal("0.00"),
+    @staticmethod
+    def mcc_collections(owner: CurrentUser) -> CollectionSource:
+        m = MccCollectionModel
+        return CollectionSource(
+            model=m,
+            conditions=(m.is_deleted.is_(False), MccCollectionAccessScope.condition(owner)),
         )
 
-    async def get_recent_vlcc(
+    # =========================================================
+    # Collection aggregates
+    # =========================================================
+
+    async def totals(
         self,
-        command: UserCommand,
+        source: CollectionSource,
+        start: datetime,
+        end: datetime,
         *,
-        limit: int = 5,
-    ) -> tuple[RecentVlcc, ...]:
+        party_column: str = "vlcc_id",
+    ) -> CollectionTotals:
+        m = source.model
+        row = (
+            await self._session.execute(
+                select(
+                    func.coalesce(func.sum(m.quantity), 0).label("quantity"),
+                    func.coalesce(func.sum(m.total_amount), 0).label("amount"),
+                    func.coalesce(func.sum(m.quantity * m.fat_percent), 0).label("fat_qty"),
+                    func.coalesce(func.sum(m.quantity * m.snf_percent), 0).label("snf_qty"),
+                    func.count(m.id).label("entries"),
+                    func.count(func.distinct(getattr(m, party_column))).label("parties"),
+                    func.count(func.distinct(func.date(m.collected_at))).label("days"),
+                ).where(*self._window(source, start, end))
+            )
+        ).one()
+        return CollectionTotals(
+            quantity=float(row.quantity),
+            amount=float(row.amount),
+            fat_qty=float(row.fat_qty),
+            snf_qty=float(row.snf_qty),
+            entries=row.entries,
+            parties=row.parties,
+            days=row.days,
+        )
 
-        statement = (
+    async def daily(
+        self,
+        source: CollectionSource,
+        start: datetime,
+        end: datetime,
+    ) -> dict[date, tuple[float, float]]:
+        """Quantity and amount per calendar day."""
+        m = source.model
+        day = func.date(m.collected_at)
+        rows = await self._session.execute(
             select(
-                VlccModel.name,
-                VlccModel.is_active,
+                day.label("day"),
+                func.coalesce(func.sum(m.quantity), 0).label("quantity"),
+                func.coalesce(func.sum(m.total_amount), 0).label("amount"),
             )
-            .where(
-                *self._vlcc_scope(command),
+            .where(*self._window(source, start, end))
+            .group_by(day)
+        )
+        return {self._as_date(r.day): (float(r.quantity), float(r.amount)) for r in rows}
+
+    async def quantity_by(
+        self,
+        source: CollectionSource,
+        start: datetime,
+        end: datetime,
+        column: str,
+    ) -> dict[Any, float]:
+        """Quantity grouped by an enum column such as `shift` or `milk_type`."""
+        m = source.model
+        col = getattr(m, column)
+        rows = await self._session.execute(
+            select(col.label("key"), func.coalesce(func.sum(m.quantity), 0).label("quantity"))
+            .where(*self._window(source, start, end))
+            .group_by(col)
+        )
+        return {r.key: float(r.quantity) for r in rows}
+
+    async def top_vlccs(
+        self,
+        source: CollectionSource,
+        start: datetime,
+        end: datetime,
+        *,
+        limit: int = 6,
+    ) -> tuple[RankRow, ...]:
+        m, v = source.model, VlccModel
+        qty = func.coalesce(func.sum(m.quantity), 0)
+        rows = await self._session.execute(
+            select(
+                v.vlcc_code.label("code"),
+                v.name.label("name"),
+                qty.label("quantity"),
+                func.coalesce(func.sum(m.total_amount), 0).label("amount"),
             )
-            .order_by(
-                VlccModel.created_at.desc(),
-            )
+            .join(v, v.id == m.vlcc_id)
+            .where(*self._window(source, start, end))
+            .group_by(v.id, v.vlcc_code, v.name)
+            .order_by(qty.desc())
             .limit(limit)
         )
+        return tuple(RankRow(code=r.code, name=r.name, quantity=float(r.quantity), amount=float(r.amount)) for r in rows)
 
-        result = await self._session.execute(statement)
-
-        return tuple(
-            RecentVlcc(
-                name=row.name,
-                city="jkk",
-                status=row.is_active,
-            )
-            for row in result
-        )
-
-    # =========================================================
-    # Aggregates
-    # =========================================================
-
-    @staticmethod
-    def _count_vlcc(filters: list):
-        return (
-            select(func.count(VlccModel.id))
-            .where(*filters)
-            .scalar_subquery()
-        )
-
-    @staticmethod
-    def _count_farmers(filters: list):
-        return (
-            select(func.count(FarmerModel.id))
-            .where(*filters)
-            .scalar_subquery()
-        )
-
-    @staticmethod
-    def _sum_quantity(filters: list):
-        return (
+    async def top_farmers(
+        self,
+        source: CollectionSource,
+        start: datetime,
+        end: datetime,
+        *,
+        limit: int = 6,
+    ) -> tuple[RankRow, ...]:
+        m, f, u = source.model, FarmerModel, UserModel
+        qty = func.coalesce(func.sum(m.quantity), 0)
+        rows = await self._session.execute(
             select(
-                func.coalesce(
-                    func.sum(VlccCollectionModel.quantity),
-                    Decimal("0.00"),
+                f.farmer_code.label("code"),
+                u.name.label("name"),
+                qty.label("quantity"),
+                func.coalesce(func.sum(m.total_amount), 0).label("amount"),
+            )
+            .join(f, f.id == m.farmer_id)
+            .outerjoin(u, u.id == f.user_id)
+            .where(*self._window(source, start, end))
+            .group_by(f.id, f.farmer_code, u.name)
+            .order_by(qty.desc())
+            .limit(limit)
+        )
+        return tuple(RankRow(code=r.code, name=r.name or "—", quantity=float(r.quantity), amount=float(r.amount)) for r in rows)
+
+    async def recent(
+        self,
+        source: CollectionSource,
+        *,
+        party: str,
+        limit: int = 8,
+    ) -> tuple[RecentRow, ...]:
+        """Latest entries; `party` is "vlcc" or "farmer" (who the milk came from)."""
+        m = source.model
+        if party == "farmer":
+            code_col, name_col = FarmerModel.farmer_code, UserModel.name
+            stmt = (
+                select(m, code_col.label("code"), name_col.label("name"))
+                .join(FarmerModel, FarmerModel.id == m.farmer_id)
+                .outerjoin(UserModel, UserModel.id == FarmerModel.user_id)
+            )
+        else:
+            stmt = select(m, VlccModel.vlcc_code.label("code"), VlccModel.name.label("name")).join(
+                VlccModel, VlccModel.id == m.vlcc_id
+            )
+        rows = await self._session.execute(
+            stmt.where(*source.conditions).order_by(m.collected_at.desc()).limit(limit)
+        )
+        result = []
+        for r in rows:
+            entry = r[0]
+            result.append(
+                RecentRow(
+                    collected_at=entry.collected_at,
+                    shift=int(entry.shift),
+                    code=r.code,
+                    name=r.name or "—",
+                    quantity=float(entry.quantity or 0),
+                    fat=float(entry.fat_percent or 0),
+                    snf=float(entry.snf_percent or 0),
+                    amount=float(entry.total_amount or 0),
                 )
             )
-            .where(*filters)
-            .scalar_subquery()
+        return tuple(result)
+
+    # =========================================================
+    # Entity counts
+    # =========================================================
+
+    async def count_mccs(self, owner: CurrentUser) -> int:
+        return await self._count(MccModel, MccModel.is_deleted.is_(False), MccAccessScope.condition(owner))
+
+    async def count_vlccs(self, owner: CurrentUser) -> int:
+        conditions = [VlccModel.is_deleted.is_(False)]
+        if owner.role_type == Role.VLCC:
+            conditions.append(VlccModel.user_id == owner.id)
+        else:
+            conditions.append(VlccAccessScope.condition(owner))
+        return await self._count(VlccModel, *conditions)
+
+    async def count_farmers(self, owner: CurrentUser) -> int:
+        conditions = [FarmerModel.is_deleted.is_(False)]
+        if owner.role_type == Role.VLCC:
+            conditions.append(
+                FarmerModel.vlcc_id.in_(select(VlccModel.id).where(VlccModel.user_id == owner.id))
+            )
+        else:
+            conditions.append(FarmerAccessScope.condition(owner))
+        return await self._count(FarmerModel, *conditions)
+
+    async def dispatch_quantity(self, owner: CurrentUser, start: datetime, end: datetime) -> float:
+        """Milk the VLCC user dispatched to the MCC in the window."""
+        d = DispatchModel
+        value = await self._session.scalar(
+            select(func.coalesce(func.sum(d.quantity), 0))
+            .join(VlccModel, VlccModel.id == d.vlcc_id)
+            .where(
+                VlccModel.user_id == owner.id,
+                d.collected_at >= start,
+                d.collected_at < end,
+            )
         )
+        return float(value or 0)
+
+    # =========================================================
+    # Scope labels
+    # =========================================================
+
+    async def scope_label(self, owner: CurrentUser) -> str | None:
+        """Name of the unit an MCC / VLCC / farmer user operates, for the header."""
+        role = owner.role_type
+        if role == Role.MCC:
+            row = (await self._session.execute(
+                select(MccModel.name, MccModel.code).where(MccModel.user_id == owner.id)
+            )).first()
+            return f"{row.name} ({row.code})" if row else None
+        if role == Role.VLCC:
+            row = (await self._session.execute(
+                select(VlccModel.name, VlccModel.vlcc_code).where(VlccModel.user_id == owner.id)
+            )).first()
+            return f"{row.name} ({row.vlcc_code})" if row else None
+        if role == Role.FARMER:
+            row = (await self._session.execute(
+                select(FarmerModel.farmer_code, VlccModel.name)
+                .outerjoin(VlccModel, VlccModel.id == FarmerModel.vlcc_id)
+                .where(FarmerModel.user_id == owner.id)
+            )).first()
+            return f"Code {row.farmer_code} · {row.name or '—'}" if row else None
+        return None
+
+    # =========================================================
+    # Helpers
+    # =========================================================
 
     @staticmethod
-    def _sum_amount(filters: list):
-        return (
-            select(
-                func.coalesce(
-                    func.sum(VlccCollectionModel.total_amount),
-                    Decimal("0.00"),
-                )
-            )
-            .where(*filters)
-            .scalar_subquery()
-        )
+    def _window(source: CollectionSource, start: datetime, end: datetime) -> tuple:
+        m = source.model
+        return (*source.conditions, m.collected_at >= start, m.collected_at < end)
 
-    # =========================================================
-    # Scope
-    # =========================================================
+    async def _count(self, model, *conditions) -> int:
+        return int(await self._session.scalar(select(func.count(model.id)).where(*conditions)) or 0)
 
-    def _vlcc_scope(
-        self,
-        command: UserCommand,
-    ) -> list:
-
-        role = command.role
-
-        if role == Role.SUPER_ADMIN:
-            return []
-
-        if role == Role.ADMIN:
-            from sqlalchemy import exists, or_
-            from sqlalchemy.orm import aliased
-            from app.modules.administration.infrastructure.models import UserModel
-            parent_user = aliased(UserModel)
-            return [
-                or_(
-                    VlccModel.created_by == command.id,
-                    exists(
-                        select(1)
-                        .select_from(UserModel)
-                        .where(
-                            UserModel.id == VlccModel.created_by,
-                            or_(
-                                UserModel.created_by == command.id,
-                                exists(
-                                    select(1)
-                                    .select_from(parent_user)
-                                    .where(
-                                        parent_user.id == UserModel.created_by,
-                                        parent_user.created_by == command.id,
-                                    )
-                                ),
-                            ),
-                        )
-                        .correlate(VlccModel)
-                    ),
-                )
-            ]
-
-        if role == Role.SUB_ADMIN:
-            from sqlalchemy import exists, or_
-            from app.modules.administration.infrastructure.models import UserModel
-            return [
-                or_(
-                    VlccModel.created_by == command.id,
-                    exists(
-                        select(1)
-                        .select_from(UserModel)
-                        .where(
-                            UserModel.id == VlccModel.created_by,
-                            UserModel.created_by == command.id,
-                        )
-                        .correlate(VlccModel)
-                    ),
-                )
-            ]
-
-        if role == Role.VLCC:
-            return [
-                VlccModel.user_id == command.id,
-            ]
-
-        if role == Role.MCC:
-            return [
-                VlccModel.created_by == command.id,
-            ]
-
-        return [
-            VlccModel.id == None,
-        ]
-
-    def _farmer_scope(
-        self,
-        command: UserCommand,
-    ) -> list:
-
-        role = command.role
-
-        if role == Role.SUPER_ADMIN:
-            return []
-
-        if role == Role.ADMIN:
-            from sqlalchemy import exists, or_
-            from sqlalchemy.orm import aliased
-            from app.modules.administration.infrastructure.models import UserModel
-            parent_user = aliased(UserModel)
-            return [
-                exists(
-                    select(1)
-                    .select_from(VlccModel)
-                    .where(
-                        VlccModel.id == FarmerModel.vlcc_id,
-                        or_(
-                            VlccModel.created_by == command.id,
-                            exists(
-                                select(1)
-                                .select_from(UserModel)
-                                .where(
-                                    UserModel.id == VlccModel.created_by,
-                                    or_(
-                                        UserModel.created_by == command.id,
-                                        exists(
-                                            select(1)
-                                            .select_from(parent_user)
-                                            .where(
-                                                parent_user.id == UserModel.created_by,
-                                                parent_user.created_by == command.id,
-                                            )
-                                        ),
-                                    ),
-                                )
-                                .correlate(VlccModel)
-                            ),
-                        )
-                    )
-                    .correlate(FarmerModel)
-                )
-            ]
-
-        if role == Role.SUB_ADMIN:
-            from sqlalchemy import exists, or_
-            from app.modules.administration.infrastructure.models import UserModel
-            return [
-                exists(
-                    select(1)
-                    .select_from(VlccModel)
-                    .where(
-                        VlccModel.id == FarmerModel.vlcc_id,
-                        or_(
-                            VlccModel.created_by == command.id,
-                            exists(
-                                select(1)
-                                .select_from(UserModel)
-                                .where(
-                                    UserModel.id == VlccModel.created_by,
-                                    UserModel.created_by == command.id,
-                                )
-                                .correlate(VlccModel)
-                            ),
-                        )
-                    )
-                    .correlate(FarmerModel)
-                )
-            ]
-
-        if role == Role.VLCC:
-            return [
-                FarmerModel.vlcc_id == command.id,
-            ]
-
-        if role == Role.MCC:
-            return [
-                FarmerModel.vlcc_id == command.id,
-            ]
-
-        return [
-            FarmerModel.id == None,
-        ]
-
-    def _collection_scope(
-        self,
-        command: UserCommand,
-    ) -> list:
-
-        role = command.role
-
-        base = [
-            VlccCollectionModel.is_deleted.is_(False),
-        ]
-
-        if role == Role.SUPER_ADMIN:
-            return base
-
-        if role == Role.ADMIN:
-            from sqlalchemy import exists, or_
-            from sqlalchemy.orm import aliased
-            from app.modules.administration.infrastructure.models import UserModel
-            parent_user = aliased(UserModel)
-            return [
-                *base,
-                exists(
-                    select(1)
-                    .select_from(VlccModel)
-                    .where(
-                        VlccModel.id == VlccCollectionModel.vlcc_id,
-                        or_(
-                            VlccModel.created_by == command.id,
-                            exists(
-                                select(1)
-                                .select_from(UserModel)
-                                .where(
-                                    UserModel.id == VlccModel.created_by,
-                                    or_(
-                                        UserModel.created_by == command.id,
-                                        exists(
-                                            select(1)
-                                            .select_from(parent_user)
-                                            .where(
-                                                parent_user.id == UserModel.created_by,
-                                                parent_user.created_by == command.id,
-                                            )
-                                        ),
-                                    ),
-                                )
-                                .correlate(VlccModel)
-                            ),
-                        )
-                    )
-                    .correlate(VlccCollectionModel)
-                )
-            ]
-
-        if role == Role.SUB_ADMIN:
-            from sqlalchemy import exists, or_
-            from app.modules.administration.infrastructure.models import UserModel
-            return [
-                *base,
-                exists(
-                    select(1)
-                    .select_from(VlccModel)
-                    .where(
-                        VlccModel.id == VlccCollectionModel.vlcc_id,
-                        or_(
-                            VlccModel.created_by == command.id,
-                            exists(
-                                select(1)
-                                .select_from(UserModel)
-                                .where(
-                                    UserModel.id == VlccModel.created_by,
-                                    UserModel.created_by == command.id,
-                                )
-                                .correlate(VlccModel)
-                            ),
-                        )
-                    )
-                    .correlate(VlccCollectionModel)
-                )
-            ]
-
-        if role == Role.VLCC:
-            return [
-                *base,
-                VlccCollectionModel.vlcc_id == command.id,
-            ]
-
-        if role == Role.MCC:
-            return [
-                *base,
-                VlccCollectionModel.vlcc_id == command.id,
-            ]
-
-        return [
-            VlccCollectionModel.id == None,
-        ]
+    @staticmethod
+    def _as_date(value) -> date:
+        # SQLite returns func.date() as text, PostgreSQL as a date
+        if isinstance(value, date):
+            return value
+        return date.fromisoformat(str(value)[:10])

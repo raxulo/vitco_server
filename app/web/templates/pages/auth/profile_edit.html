@@ -1,0 +1,168 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Edit My Profile - VITCO{% endblock %}
+
+{% block content %}
+{# Values: re-submitted form first (after a validation error), then saved data #}
+{% macro val(key, saved) -%}{{ form[key] if key in form else (saved if saved is not none else '') }}{%- endmacro %}
+
+<div class="pe animate-fadeIn">
+<style>
+    .pe { width: 100%; max-width: 980px; margin: 0 auto; padding: 20px; box-sizing: border-box; }
+    .pe * { box-sizing: border-box; }
+    .pe-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .pe-head h2 { margin: 0; font-size: 22px; font-weight: 800; color: #0f172a; }
+    .pe-head p { margin: 4px 0 0; font-size: 13px; color: #64748b; }
+    .pe-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px 22px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    .pe-card h3 { margin: 0 0 16px; font-size: 15px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+    .pe-card h3 i { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 13px; background: #eef2ff; color: #4f6ef7; }
+    .pe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 16px; }
+    .pe label { display: block; font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 6px; }
+    .pe input[type=text], .pe input[type=email], .pe input[type=tel], .pe input[type=time], .pe select {
+        width: 100%; height: 42px; padding: 0 12px; border: 1px solid #cbd5e1; border-radius: 9px; font-size: 14px; color: #0f172a; background: #fff;
+    }
+    .pe input:focus, .pe select:focus { outline: none; border-color: #4f6ef7; box-shadow: 0 0 0 3px rgba(79,110,247,.15); }
+    .pe-check { display: flex; align-items: center; gap: 8px; height: 42px; font-size: 14px; font-weight: 600; color: #334155; }
+    .pe-readonly { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .pe-chip { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: #f1f5f9; color: #475569; }
+    .pe-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; font-size: 13px; color: #64748b; }
+    .pe-error { padding: 12px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+    .pe-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .pe-btn { height: 42px; padding: 0 18px; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }
+    .pe-btn.primary { background: #2563eb; color: #fff; border: none; }
+    .pe-btn.ghost { background: #fff; color: #475569; border: 1px solid #cbd5e1; }
+    @media (max-width: 640px) { .pe { padding: 12px; } .pe-actions { flex-direction: column-reverse; } .pe-btn { justify-content: center; } }
+</style>
+
+    <div class="pe-head">
+        <div>
+            <h2>Edit My Profile</h2>
+            <p>Update your contact, address and bank details.</p>
+        </div>
+        <a href="/profile" class="pe-btn ghost"><i class="fa-solid fa-arrow-left"></i> Back to Profile</a>
+    </div>
+
+    {% if error %}<div class="pe-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ error }}</div>{% endif %}
+
+    <form method="POST" action="/profile/edit">
+
+        <!-- Personal -->
+        <div class="pe-card">
+            <h3><i class="fa-solid fa-user"></i> Personal Details</h3>
+            <div class="pe-readonly">
+                <span class="pe-chip"><i class="fa-solid fa-shield-halved"></i> {{ user.role.name|replace('_', ' ')|title if user.role.name is defined else user.role }}</span>
+                <span class="pe-chip"><i class="fa-solid fa-lock"></i> Role and account status can only be changed by your administrator</span>
+            </div>
+            <div class="pe-grid">
+                <div>
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" required maxlength="150" value="{{ val('name', user.name) }}">
+                </div>
+                <div>
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" name="email" required value="{{ val('email', user.email) }}">
+                </div>
+                <div>
+                    <label for="mobile">Mobile No</label>
+                    <input type="tel" id="mobile" name="mobile" maxlength="20" value="{{ val('mobile', user.mobile) }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- Address -->
+        <div class="pe-card">
+            <h3><i class="fa-solid fa-location-dot"></i> Address</h3>
+            <div class="pe-grid">
+                <div style="grid-column: 1 / -1;">
+                    <label for="address_line">Address Line</label>
+                    <input type="text" id="address_line" name="address_line" value="{{ val('address_line', address.line if address else none) }}">
+                </div>
+                <div>
+                    <label for="city">City</label>
+                    <input type="text" id="city" name="city" value="{{ val('city', address.city if address else none) }}">
+                </div>
+                <div>
+                    <label for="state">State</label>
+                    <input type="text" id="state" name="state" value="{{ val('state', address.state if address else none) }}">
+                </div>
+                <div>
+                    <label for="pincode">Pincode</label>
+                    <input type="text" id="pincode" name="pincode" maxlength="10" value="{{ val('pincode', address.pincode if address else none) }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank -->
+        <div class="pe-card">
+            <h3><i class="fa-solid fa-building-columns"></i> Bank Details</h3>
+            <div class="pe-grid">
+                <div>
+                    <label for="account_holder">Account Holder</label>
+                    <input type="text" id="account_holder" name="account_holder" value="{{ val('account_holder', bank.account_holder if bank else none) }}">
+                </div>
+                <div>
+                    <label for="bank_name">Bank Name</label>
+                    <input type="text" id="bank_name" name="bank_name" value="{{ val('bank_name', bank.bank_name if bank else none) }}">
+                </div>
+                <div>
+                    <label for="account_number">Account Number</label>
+                    <input type="text" id="account_number" name="account_number" maxlength="30" value="{{ val('account_number', bank.account_number if bank else none) }}">
+                </div>
+                <div>
+                    <label for="ifsc_code">IFSC Code</label>
+                    <input type="text" id="ifsc_code" name="ifsc_code" maxlength="20" style="text-transform: uppercase;" value="{{ val('ifsc_code', bank.ifsc_code if bank else none) }}">
+                </div>
+                <div>
+                    <label for="upi_id">UPI ID</label>
+                    <input type="text" id="upi_id" name="upi_id" value="{{ val('upi_id', bank.upi_id if bank else none) }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings (only when the account is allowed to edit them) -->
+        {% if can_edit_settings %}
+        <div class="pe-card">
+            <h3><i class="fa-solid fa-sliders"></i> Device Settings</h3>
+            <input type="hidden" name="settings_submitted" value="1">
+            {% macro opt(field, enum_cls, current) %}
+                <select id="{{ field }}" name="{{ field }}">
+                    {% for member in enum_cls %}
+                    <option value="{{ member.value }}" {{ 'selected' if (form[field] if field in form else current|int)|string == member.value|string else '' }}>{{ member.name|replace('_', ' ')|title }}</option>
+                    {% endfor %}
+                </select>
+            {% endmacro %}
+            <div class="pe-grid">
+                <div><label for="analyzer_type">Analyzer Type</label>{{ opt('analyzer_type', options.analyzer_type, settings.analyzer_type) }}</div>
+                <div><label for="analyzer_collection_mode">Analyzer Mode</label>{{ opt('analyzer_collection_mode', options.collection_mode, settings.analyzer_collection_mode) }}</div>
+                <div><label for="weight_unit">Weight Unit</label>{{ opt('weight_unit', options.weight_unit, settings.weight_unit) }}</div>
+                <div><label for="weight_collection_mode">Weight Mode</label>{{ opt('weight_collection_mode', options.collection_mode, settings.weight_collection_mode) }}</div>
+                <div><label for="cattle_type">Cattle Type</label>{{ opt('cattle_type', options.cattle_type, settings.cattle_type) }}</div>
+                <div><label for="receipt_size">Receipt Size</label>{{ opt('receipt_size', options.receipt_size, settings.receipt_size) }}</div>
+                <div><label for="printer_type">Printer Type</label>{{ opt('printer_type', options.printer_type, settings.printer_type) }}</div>
+                <div><label for="morning_collection_start">Morning Start</label><input type="time" id="morning_collection_start" name="morning_collection_start" required value="{{ val('morning_collection_start', settings.morning_collection_start) }}"></div>
+                <div><label for="morning_collection_end">Morning End</label><input type="time" id="morning_collection_end" name="morning_collection_end" required value="{{ val('morning_collection_end', settings.morning_collection_end) }}"></div>
+                <div><label for="evening_collection_start">Evening Start</label><input type="time" id="evening_collection_start" name="evening_collection_start" required value="{{ val('evening_collection_start', settings.evening_collection_start) }}"></div>
+                <div><label for="evening_collection_end">Evening End</label><input type="time" id="evening_collection_end" name="evening_collection_end" required value="{{ val('evening_collection_end', settings.evening_collection_end) }}"></div>
+                <div>
+                    <label>&nbsp;</label>
+                    <label class="pe-check"><input type="checkbox" name="auto_tare_enabled" {{ 'checked' if (form.get('auto_tare_enabled') == 'on' if form else settings.auto_tare_enabled) else '' }}> Auto Tare</label>
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <label class="pe-check"><input type="checkbox" name="printer_enabled" {{ 'checked' if (form.get('printer_enabled') == 'on' if form else settings.printer_enabled) else '' }}> Printer Enabled</label>
+                </div>
+            </div>
+        </div>
+        {% elif settings %}
+        <div class="pe-card">
+            <div class="pe-note"><i class="fa-solid fa-lock" style="margin-top: 2px;"></i> Device settings are locked for your account. Ask your administrator to enable settings editing.</div>
+        </div>
+        {% endif %}
+
+        <div class="pe-actions">
+            <a href="/profile" class="pe-btn ghost">Cancel</a>
+            <button type="submit" class="pe-btn primary"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

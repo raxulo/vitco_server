@@ -13,9 +13,12 @@
             <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">View and manage transit routes linked to MCC</p>
         </div>
         <div class="page-actions">
+            {# Only Super Admin (1), Admin (2) and Sub Admin (3) create route codes #}
+            {% if current_user and current_user.role_type|int in [1, 2, 3] %}
             <button onclick="openRouteModal()" class="btn btn-primary" style="background: #2563eb; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; transition: background 0.2s;">
                 <i class="fa-solid fa-plus"></i> NEW ROUTE MASTER
             </button>
+            {% endif %}
         </div>
     </div>
 

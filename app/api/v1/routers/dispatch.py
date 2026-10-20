@@ -166,6 +166,7 @@ async def list_dispatches(
 
     try:
         total_count = await handler.count(
+            owner=user_state,
             vlcc_id=effective_vlcc_id,
             shift=shift,
             start_date=s_date,
@@ -180,6 +181,7 @@ async def list_dispatches(
                 end_date=e_date,
                 page=page,
                 size=limit,
+                owner=user_state,
             )
         )
     except Exception as exc:
@@ -227,6 +229,7 @@ async def create_dispatch(
         can_count=payload.can_count,
         quantity_collection_mode=payload.quantity_collection_mode,
         measurement_mode=payload.measurement_mode,
+        owner=user_state,
     )
 
     try:
@@ -258,7 +261,7 @@ async def get_dispatch(
     handler = GetHandler.dispatch_handler(request)
 
     try:
-        dto = await handler.get_with_vlcc(id)
+        dto = await handler.get_with_vlcc(id, user_state)
     except DispatchNotFoundException:
         raise HTTPException(status_code=404, detail="Dispatch not found")
     except Exception as exc:
@@ -299,7 +302,7 @@ async def update_dispatch(
         raise HTTPException(status_code=400, detail="Unauthorized or dispatch ID is required")
 
     try:
-        existing = await handler.get(GetDispatchQuery(id=id_uuid))
+        existing = await handler.get(GetDispatchQuery(id=id_uuid, owner=user_state))
     except DispatchNotFoundException:
         raise HTTPException(status_code=404, detail="Dispatch not found")
 
@@ -324,6 +327,7 @@ async def update_dispatch(
         can_count=cans,
         quantity_collection_mode=qty_mode,
         measurement_mode=meas_mode,
+        owner=user_state,
     )
 
     try:
@@ -357,7 +361,7 @@ async def delete_dispatch(
     handler = GetHandler.dispatch_handler(request)
 
     try:
-        await handler.delete(DeleteDispatchCommand(id=id))
+        await handler.delete(DeleteDispatchCommand(id=id, owner=user_state))
     except DispatchNotFoundException:
         raise HTTPException(status_code=404, detail="Dispatch not found")
     except Exception as exc:

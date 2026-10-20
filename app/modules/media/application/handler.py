@@ -22,6 +22,7 @@ from app.modules.vlcc.domain.exceptions import (
 )
 from app.modules.vlcc.infrastructure.repository import VlccRepository
 from app.modules.vlcc.domain.dto import VlccDto, VlccListDto
+from app.core.clock import now_naive_ist
 from app.modules.vlcc.application.command import (
     CreateVlccCommand,
     UpdateVlccCommand,
@@ -181,7 +182,7 @@ class VlccHandler:
         )
 
     def _build_user(self, command: CreateVlccCommand) -> User:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         return User(
             id=uuid4(),
             name=command.name,
@@ -201,7 +202,7 @@ class VlccHandler:
         command: CreateVlccCommand,
         user_id: UUID,
     ) -> Vlcc:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         return Vlcc(
             id=uuid4(),
             user_id=user_id,
@@ -253,7 +254,7 @@ class VlccHandler:
         if command.password:
             user.password_hash = self._password.hash(command.password)
 
-        user.updated_at = datetime.now(UTC)
+        user.updated_at = now_naive_ist()
         user.updated_by = command.updated_by
 
     def _update_vlcc(
@@ -275,7 +276,7 @@ class VlccHandler:
         vlcc.soc_percentage = command.soc_percentage
         vlcc.farmer_enabled = command.farmer_enabled
         vlcc.is_active = command.is_active
-        vlcc.updated_at = datetime.now(UTC)
+        vlcc.updated_at = now_naive_ist()
 
     def _to_dto(self, vlcc: Vlcc) -> VlccDto:
         return VlccDto(

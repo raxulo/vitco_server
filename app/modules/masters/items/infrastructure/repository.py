@@ -14,76 +14,16 @@ from app.modules.masters.items.infrastructure.mapper import ItemMasterMapper
 from app.modules.masters.items.infrastructure.models import ItemMasterModel
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.models import UserModel
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.middleware.authentication import CurrentUser
 
 
 class ItemMasterAccessScope:
+    """Same hierarchy as route codes / rate charts — rules in `Hierarchy.shared_*`."""
 
     @staticmethod
     def condition(owner: CurrentUser):
-
-        if owner.role_type == Role.SUPER_ADMIN:
-            return true()
-
-        same_role_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == ItemMasterModel.created_by,
-                UserModel.role == owner.role,
-            )
-            .correlate(ItemMasterModel)
-        )
-
-        global_items_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == ItemMasterModel.created_by,
-                UserModel.role == Role.SUPER_ADMIN,
-            )
-            .correlate(ItemMasterModel)
-        )
-
-        hierarchy_condition = false()
-        if owner.role_type == Role.ADMIN:
-            parent_user = aliased(UserModel)
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == ItemMasterModel.created_by,
-                    or_(
-                        UserModel.created_by == owner.id,
-                        exists(
-                            select(1)
-                            .select_from(parent_user)
-                            .where(
-                                parent_user.id == UserModel.created_by,
-                                parent_user.created_by == owner.id,
-                            )
-                        )
-                    )
-                )
-                .correlate(ItemMasterModel)
-            )
-        elif owner.role_type == Role.SUB_ADMIN:
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == ItemMasterModel.created_by,
-                    UserModel.created_by == owner.id,
-                )
-                .correlate(ItemMasterModel)
-            )
-
-        return or_(
-            ItemMasterModel.created_by == owner.id,
-            global_items_condition,
-            same_role_condition,
-            hierarchy_condition
-        )
+        return Hierarchy.shared_visible(owner, ItemMasterModel.created_by)
 
     # =========================================================
     # MODIFY ACCESS
@@ -91,62 +31,7 @@ class ItemMasterAccessScope:
 
     @staticmethod
     def can_modify(owner: CurrentUser | None, item_created_by):
-        if owner is None:
-            return false()
-        role = owner.role_type
-
-        # SuperAdmin -> everything
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        # Admin -> own + direct SubAdmin/MCC/VLCC
-        if role == Role.ADMIN:
-            return or_(
-                item_created_by == owner.id,
-
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_(
-                            (
-                                Role.SUB_ADMIN,
-                                Role.MCC,
-                                Role.VLCC,
-                            )
-                        ),
-                    )
-                ),
-            )
-
-        # SubAdmin -> own + own MCC/VLCC
-        if role == Role.SUB_ADMIN:
-            return or_(
-                item_created_by == owner.id,
-
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_(
-                            (
-                                Role.MCC,
-                                Role.VLCC,
-                            )
-                        ),
-                    )
-                ),
-            )
-
-        # MCC / VLCC -> own only
-        if role in (Role.MCC, Role.VLCC):
-            return item_created_by == owner.id
-
-        return false()
+        return Hierarchy.shared_modifiable(owner, item_created_by)
 
     @staticmethod
     def name_condition(owner: CurrentUser):
@@ -252,8 +137,8 @@ class ItemMasterRepository(IItemMasterRepository):
         owner: CurrentUser | None = None,
     ) -> None:
         stmt = select(ItemMasterModel).where(ItemMasterModel.id == entity.id)
-        if owner is not None and owner.role_type != Role.SUPER_ADMIN:
-            stmt = stmt.where(ItemMasterModel.created_by == owner.id)
+        if owner is not None:
+            stmt = stmt.where(ItemMasterAccessScope.can_modify(owner, ItemMasterModel.created_by))
 
         model = await self._session.scalar(stmt)
         if model is None:
@@ -276,8 +161,8 @@ class ItemMasterRepository(IItemMasterRepository):
         owner: CurrentUser | None = None,
     ) -> None:
         stmt = select(ItemMasterModel).where(ItemMasterModel.id == id)
-        if owner is not None and owner.role_type != Role.SUPER_ADMIN:
-            stmt = stmt.where(ItemMasterModel.created_by == owner.id)
+        if owner is not None:
+            stmt = stmt.where(ItemMasterAccessScope.can_modify(owner, ItemMasterModel.created_by))
 
         model = await self._session.scalar(stmt)
         if model is not None:

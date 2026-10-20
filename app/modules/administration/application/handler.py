@@ -25,6 +25,7 @@ from app.modules.auth.application.command import LoginCommand
 from app.modules.auth.infrastructure.password import PasswordService
 from app.modules.administration.infrastructure.repository import UserRepository
 from app.core.database.manager import DatabaseManager
+from app.core.clock import now_naive_ist
 
 class UserHandler:
 
@@ -248,7 +249,7 @@ class UserHandler:
 
 
     def _build_user(self, command: CreateUserCommand, password_hash: str) -> User:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         return User(
             id=uuid4(),
             name=command.name.strip(),
@@ -299,4 +300,4 @@ class UserHandler:
         user.mobile = command.mobile
         user.role_id = command.role_id
         user.is_active = command.is_active
-        user.updated_at = datetime.now(UTC)
+        user.updated_at = now_naive_ist()

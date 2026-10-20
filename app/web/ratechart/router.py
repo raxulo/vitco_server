@@ -24,6 +24,18 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/edit/{chart_id}",
+    RateChartController.get_edit_page,
+    methods=["GET"],
+)
+
+router.add_api_route(
+    "/edit/{chart_id}",
+    RateChartController.post_update_page,
+    methods=["POST"],
+)
+
+router.add_api_route(
     "/view/{chart_id}",
     RateChartController.view_page,
     methods=["GET"],

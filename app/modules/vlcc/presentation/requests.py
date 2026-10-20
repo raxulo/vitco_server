@@ -1,7 +1,8 @@
 from fastapi import UploadFile
 from typing import Any
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from app.core.validators import apply_milk_quality_rules, digits_only, mobile_number
 from app.modules.vlcc.domain.enums import CollectionMode
 from app.modules.common.settings.domain.enums import (
     AnalyzerType,
@@ -22,6 +23,16 @@ class CreateVlccRequest(BaseModel):
     mobile: str
     password: str | None = None
     contact_person: str | None = Field(None, max_length=150)
+
+    @field_validator("vlcc_code")
+    @classmethod
+    def _code_digits(cls, value: str) -> str:
+        return digits_only(value, "VLCC code")
+
+    @field_validator("mobile", mode="before")
+    @classmethod
+    def _mobile_digits(cls, value: str) -> str:
+        return mobile_number(value)
     
     # Relationships/Ids
     address_id: UUID | None = None
@@ -80,6 +91,11 @@ class CreateVlccRequest(BaseModel):
     buffalo_min_snf: float = Field(default=0.0, ge=0)
     buffalo_max_snf: float = Field(default=0.0, ge=0)
 
+    @model_validator(mode="after")
+    def _milk_quality_rules(self):
+        apply_milk_quality_rules(self)
+        return self
+
     @model_validator(mode="before")
     @classmethod
     def empty_str_to_none(cls, data: any) -> any:
@@ -113,7 +129,11 @@ class CreateVlccRequest(BaseModel):
 
 
 class UpdateVlccRequest(CreateVlccRequest):
-    pass
+    # Code is read-only after creation, so it is not re-validated on update
+    @field_validator("vlcc_code")
+    @classmethod
+    def _code_digits(cls, value: str) -> str:
+        return value
 
 
 class PartialUpdateVlccUserRequest(BaseModel):

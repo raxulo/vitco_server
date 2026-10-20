@@ -6,6 +6,8 @@ from sqlalchemy import func
 from datetime import datetime
 from uuid import UUID
 
+from app.core.clock import now_naive_ist
+
 from sqlalchemy import (
     DateTime,
     ForeignKey,
@@ -83,6 +85,8 @@ class AdvanceRecordModel(
         ),
 
         server_default=func.now(),
+        # App-side IST time (the DB server default would be UTC on SQLite)
+        default=now_naive_ist,
 
         nullable=False,
 

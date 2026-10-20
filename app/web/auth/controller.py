@@ -101,10 +101,180 @@ class AuthController:
                 "bank": profile.bank_account,
                 "creator_name": profile.user.owner_name or "System / Auto-registered",
                 "balance": balance,
-                "edit_url": edit_url,
+                # Everyone edits their own profile through the restricted self-service form
+                "edit_url": "/profile/edit",
                 "view_url": view_url,
             }
         )
+
+    # =========================================================
+    # SELF-SERVICE PROFILE EDIT
+    #
+    # Only name, email, mobile, address and bank details. Settings only for
+    # MCC / VLCC users whose settings have `settings_edit_enabled`; the
+    # permission flags themselves are never editable here.
+    # =========================================================
+
+    @staticmethod
+    async def _own_settings(request: Request):
+        """The logged-in MCC / VLCC user's settings, or None."""
+        from sqlalchemy import select
+        from app.modules.mcc.infrastructure.models import MccModel
+        from app.modules.vlcc.infrastructure.models import VlccModel
+
+        user = request.state.user
+        model = {Role.MCC: MccModel, Role.VLCC: VlccModel}.get(user.role_type)
+        if model is None:
+            return None
+        db = request.app.state.application.container.database
+        settings_id = await db.session.scalar(select(model.settings_id).where(model.user_id == user.id))
+        if settings_id is None:
+            return None
+        try:
+            return await GetHandler.settings_handler(request).get_by_id(settings_id=settings_id)
+        except Exception:
+            return None
+
+    @staticmethod
+    async def _render_profile_edit(request: Request, error: str | None = None, form: dict | None = None):
+        from app.modules.common.settings.domain.enums import (
+            AnalyzerType, CattleType, CollectionMode, PrinterType, ReceiptSize, WeightUnit,
+        )
+
+        profile = await GetHandler.profile_service(request).get_profile(user_id=request.state.user.id)
+        settings = await AuthController._own_settings(request)
+        return Renderer.page(
+            request=request,
+            template="pages/auth/profile_edit.html",
+            model={
+                "user": profile.user,
+                "address": profile.address,
+                "bank": profile.bank_account,
+                "settings": settings,
+                "can_edit_settings": bool(settings and settings.settings_edit_enabled),
+                "error": error,
+                "form": form or {},
+                "options": {
+                    "analyzer_type": AnalyzerType,
+                    "collection_mode": CollectionMode,
+                    "weight_unit": WeightUnit,
+                    "receipt_size": ReceiptSize,
+                    "printer_type": PrinterType,
+                    "cattle_type": CattleType,
+                },
+            },
+        )
+
+    @staticmethod
+    async def profile_edit_page(request: Request):
+        return await AuthController._render_profile_edit(request)
+
+    @staticmethod
+    async def profile_edit_post(request: Request):
+        from app.modules.administration.application.command import UpdateUserCommand
+        from app.modules.common.address.application.command import CreateAddressCommand, UpdateAddressCommand
+        from app.modules.common.bank.application.command import CreateBankAccountCommand, UpdateBankAccountCommand
+        from app.modules.common.settings.application.command import UpdateSettingsCommand
+        from app.modules.common.settings.domain.enums import (
+            AnalyzerType, CattleType, CollectionMode, PrinterType, ReceiptSize, WeightUnit,
+        )
+
+        user = request.state.user
+        form = dict(await request.form())
+        profile_service = GetHandler.profile_service(request)
+        existing = await profile_service.get_profile(user_id=user.id)
+
+        name = (form.get("name") or "").strip()
+        email = (form.get("email") or "").strip().lower()
+        if not name or not email:
+            return await AuthController._render_profile_edit(request, "Name and email are required.", form)
+        if email != (existing.user.email or "").lower() and await profile_service._user_repository.exists_email(email):
+            return await AuthController._render_profile_edit(request, "This email is already used by another account.", form)
+
+        # Role / status / owner stay exactly as they are
+        user_command = UpdateUserCommand(
+            id=user.id,
+            name=name,
+            email=email,
+            mobile=(form.get("mobile") or "").strip() or None,
+            role=existing.user.role,
+            is_active=True,
+            password_hash=None,
+            profile_image=None,
+        )
+
+        address_fields = dict(
+            line=form.get("address_line") or "",
+            city=form.get("city") or "",
+            state=form.get("state") or "",
+            pincode=form.get("pincode") or "",
+        )
+        bank_fields = dict(
+            account_holder=form.get("account_holder") or name,
+            bank_name=form.get("bank_name") or "",
+            account_number=form.get("account_number") or "",
+            ifsc_code=(form.get("ifsc_code") or "").upper(),
+            upi_id=form.get("upi_id") or None,
+        )
+        has_address = any(address_fields.values())
+        has_bank = any(v for k, v in bank_fields.items() if k != "account_holder")
+
+        address_command = (
+            UpdateAddressCommand(id=existing.address.id, **address_fields)
+            if has_address and existing.address else None
+        )
+        bank_command = (
+            UpdateBankAccountCommand(id=existing.bank_account.id, **bank_fields)
+            if has_bank and existing.bank_account else None
+        )
+
+        # Settings: only when this account is allowed to edit them
+        settings_command = None
+        settings = await AuthController._own_settings(request)
+        if settings and settings.settings_edit_enabled and form.get("settings_submitted"):
+            try:
+                settings_command = UpdateSettingsCommand(
+                    settings_id=settings.id,
+                    analyzer_type=AnalyzerType(int(form["analyzer_type"])),
+                    analyzer_collection_mode=CollectionMode(int(form["analyzer_collection_mode"])),
+                    weight_unit=WeightUnit(int(form["weight_unit"])),
+                    weight_collection_mode=CollectionMode(int(form["weight_collection_mode"])),
+                    auto_tare_enabled=form.get("auto_tare_enabled") == "on",
+                    morning_collection_start=form["morning_collection_start"],
+                    morning_collection_end=form["morning_collection_end"],
+                    evening_collection_start=form["evening_collection_start"],
+                    evening_collection_end=form["evening_collection_end"],
+                    receipt_size=ReceiptSize(int(form["receipt_size"])),
+                    printer_type=PrinterType(int(form["printer_type"])),
+                    printer_enabled=form.get("printer_enabled") == "on",
+                    cattle_type=CattleType(int(form["cattle_type"])),
+                    # Permission flags are kept as granted by the account's parent
+                    max_rate_chart_count=settings.max_rate_chart_count,
+                    settings_edit_enabled=settings.settings_edit_enabled,
+                    rate_chart_edit_enabled=settings.rate_chart_edit_enabled,
+                    master_enabled=settings.master_enabled,
+                )
+            except (KeyError, ValueError):
+                return await AuthController._render_profile_edit(request, "Please fill all settings fields correctly.", form)
+
+        async with profile_service._database.transaction():
+            await profile_service.update(
+                user_data=user_command,
+                address_data=address_command,
+                bank_data=bank_command,
+            )
+            if has_address and not existing.address:
+                await profile_service.create_address(
+                    user_id=user.id, address_data=CreateAddressCommand(**address_fields)
+                )
+            if has_bank and not existing.bank_account:
+                await profile_service.create_bank_account(
+                    user_id=user.id, bank_data=CreateBankAccountCommand(user_id=user.id, **bank_fields)
+                )
+            if settings_command is not None:
+                await GetHandler.settings_handler(request).update(settings_command)
+
+        return Renderer.redirect("/profile")
 
     @staticmethod
     async def logout(request: Request):

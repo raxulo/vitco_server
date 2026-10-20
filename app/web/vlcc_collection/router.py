@@ -48,6 +48,12 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/delete-bulk",
+    VlccCollectionController.delete_bulk_post,
+    methods=["POST"],
+)
+
+router.add_api_route(
     "/api/calculate-rate",
     VlccCollectionController.calculate_rate,
     methods=["GET"],

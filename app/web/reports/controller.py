@@ -11,6 +11,7 @@ from app.modules.mcc.domain.enums import MccType
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.domain.enums import ReportType
 from app.web.framework.renderer import Renderer
+from app.core.clock import now_naive_ist, today_ist
 
 REPORT_TITLES = {
     ReportType.MCC_WEIGHT_SHIFT_SUMMARY.value: "Weight Shift Summary",
@@ -25,6 +26,7 @@ REPORT_TITLES = {
     ReportType.MCC_VLCC_BILL.value: "MCC VLCC Bill",
     ReportType.MCC_BILL_COMPARISON.value: "Milk Bill Comparison",
     ReportType.MCC_MILK_BILL_SUMMARY.value: "MCC Milk Bill Summary",
+    ReportType.MCC_DUPLICATE_RECEIPT.value: "MCC Duplicate Receipt",
     ReportType.VLCC_SHIFT_SUMMARY.value: "VLCC Shift Summary",
     ReportType.DISPATCH_SUMMARY.value: "Dispatch Summary",
 }
@@ -66,7 +68,7 @@ class ReportsController:
                 "mccs": mccs,
                 "vlccs": vlccs,
                 "reports": initial_reports,
-                "today": datetime.now().date().isoformat(),
+                "today": today_ist().isoformat(),
             },
         )
 
@@ -90,7 +92,7 @@ class ReportsController:
             model={
                 "vlccs": vlccs,
                 "reports": reports,
-                "today": datetime.now().date().isoformat(),
+                "today": today_ist().isoformat(),
             },
         )
 
@@ -174,8 +176,8 @@ class ReportsController:
             model={
                 "result": result,
                 "report_type": query.report_type.value,
-                "today": datetime.now().strftime("%d/%m/%Y"),
-                "time": datetime.now().strftime("%H:%M:%S"),
+                "today": now_naive_ist().strftime("%d/%m/%Y"),
+                "time": now_naive_ist().strftime("%H:%M:%S"),
             },
         )
 
@@ -200,5 +202,7 @@ class ReportsController:
                 ReportType.MCC_VLCC_BILL,
                 ReportType.MCC_BILL_COMPARISON,
                 ReportType.MCC_PAYMENT_SUMMARY,
+                ReportType.MCC_MILK_BILL_SUMMARY,
+                ReportType.MCC_DUPLICATE_RECEIPT,
             ]
         return [{"value": t.value, "label": REPORT_TITLES.get(t.value, t.name)} for t in types]

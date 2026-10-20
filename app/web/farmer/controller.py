@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 
 from app.middleware.authentication import CurrentUser
 from app.modules.dependencies import GetHandler
+from app.web.framework.helpers import WebHelper
 from app.modules.farmer.application.command import (
     GetFarmerQuery,
     ListFarmerQuery,
@@ -96,6 +97,7 @@ class FarmerController:
         request: Request,
         farmer_id: UUID,
     ):
+        WebHelper.deny_role(request, Role.FARMER)
         handler = GetHandler.farmer_handler(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
 
@@ -198,6 +200,7 @@ class FarmerController:
         request: Request,
         farmer_id: UUID,
     ):
+        WebHelper.deny_role(request, Role.FARMER)
         current_user: CurrentUser = request.state.user
 
         form_data = await request.form()

@@ -12,121 +12,29 @@ from app.modules.masters.route.infrastructure.mapper import RouteMasterMapper
 from app.modules.masters.route.infrastructure.models import RouteMasterModel
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.models import UserModel
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.middleware.authentication import CurrentUser
 
 
 class RouteMasterAccessScope:
+    """
+    Route codes follow the same hierarchy as rate charts (see `Hierarchy`):
+
+    - View: Super Admin routes -> everyone; otherwise the creator, everyone
+      below it and everyone above it. Another Admin's tree never sees them.
+    - Modify / delete: the creator and everyone above it.
+    - Create: only Super Admin, Admin and Sub Admin (`CREATOR_ROLES`).
+    """
+
+    CREATOR_ROLES = (Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN)
 
     @staticmethod
     def condition(owner: CurrentUser):
-        if owner.role_type == Role.SUPER_ADMIN:
-            return true()
-
-        same_role_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == RouteMasterModel.created_by,
-                UserModel.role == owner.role,
-            )
-            .correlate(RouteMasterModel)
-        )
-
-        global_routes_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == RouteMasterModel.created_by,
-                UserModel.role == Role.SUPER_ADMIN,
-            )
-            .correlate(RouteMasterModel)
-        )
-
-        hierarchy_condition = false()
-        if owner.role_type == Role.ADMIN:
-            parent_user = aliased(UserModel)
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == RouteMasterModel.created_by,
-                    or_(
-                        UserModel.created_by == owner.id,
-                        exists(
-                            select(1)
-                            .select_from(parent_user)
-                            .where(
-                                parent_user.id == UserModel.created_by,
-                                parent_user.created_by == owner.id,
-                            )
-                        )
-                    )
-                )
-                .correlate(RouteMasterModel)
-            )
-        elif owner.role_type == Role.SUB_ADMIN:
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == RouteMasterModel.created_by,
-                    UserModel.created_by == owner.id,
-                )
-                .correlate(RouteMasterModel)
-            )
-
-        return or_(
-            RouteMasterModel.created_by == owner.id,
-            global_routes_condition,
-            same_role_condition,
-            hierarchy_condition
-        )
+        return Hierarchy.shared_visible(owner, RouteMasterModel.created_by)
 
     @staticmethod
     def can_modify(owner: CurrentUser | None, item_created_by):
-        if owner is None:
-            return false()
-        role = owner.role_type
-
-        # SuperAdmin -> everything
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        # Admin -> own + direct SubAdmin/MCC/VLCC
-        if role == Role.ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.SUB_ADMIN, Role.MCC, Role.VLCC)),
-                    )
-                ),
-            )
-
-        # SubAdmin -> own + own MCC/VLCC
-        if role == Role.SUB_ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.MCC, Role.VLCC)),
-                    )
-                ),
-            )
-
-        # MCC / VLCC -> own only
-        if role in (Role.MCC, Role.VLCC):
-            return item_created_by == owner.id
-
-        return false()
+        return Hierarchy.shared_modifiable(owner, item_created_by)
 
 
 class RouteMasterRepository(IRouteMasterRepository):
@@ -164,8 +72,8 @@ class RouteMasterRepository(IRouteMasterRepository):
         owner: CurrentUser | None = None,
     ) -> None:
         stmt = select(RouteMasterModel).where(RouteMasterModel.id == entity.id)
-        if owner is not None and owner.role_type != Role.SUPER_ADMIN:
-            stmt = stmt.where(RouteMasterModel.created_by == owner.id)
+        if owner is not None:
+            stmt = stmt.where(RouteMasterAccessScope.can_modify(owner, RouteMasterModel.created_by))
 
         model = await self._session.scalar(stmt)
         if model is None:
@@ -186,8 +94,8 @@ class RouteMasterRepository(IRouteMasterRepository):
         owner: CurrentUser | None = None,
     ) -> None:
         stmt = select(RouteMasterModel).where(RouteMasterModel.id == id)
-        if owner is not None and owner.role_type != Role.SUPER_ADMIN:
-            stmt = stmt.where(RouteMasterModel.created_by == owner.id)
+        if owner is not None:
+            stmt = stmt.where(RouteMasterAccessScope.can_modify(owner, RouteMasterModel.created_by))
 
         model = await self._session.scalar(stmt)
         if model is not None:

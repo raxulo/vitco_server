@@ -11,6 +11,7 @@ from app.modules.farmer.application.command import UpdateFarmer
 from app.modules.farmer.application.command import CreateFarmer
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.vlcc.infrastructure.repository import VlccAccessScope
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,45 +23,24 @@ from app.modules.farmer.infrastructure.models import FarmerModel
 
 
 class FarmerAccessScope:
+    """Farmers of the VLCCs a user controls (see `Hierarchy`); a farmer sees itself."""
 
     @staticmethod
     def condition(owner: CurrentUser):
-        if owner.role_type == Role.SUPER_ADMIN:
-            return true()
-
         if owner.role_type == Role.FARMER:
             return FarmerModel.user_id == owner.id
 
-        return exists(
-            select(1)
-            .select_from(VlccModel)
-            .where(
-                VlccModel.id == FarmerModel.vlcc_id,
-                VlccAccessScope.condition(owner),
-            )
-            .correlate(FarmerModel)
-        )
+        vlcc_ids = Hierarchy.vlcc_ids(owner)
+        return true() if vlcc_ids is None else FarmerModel.vlcc_id.in_(vlcc_ids)
 
     @staticmethod
     def can_modify(owner: CurrentUser | None, farmer_vlcc_id):
-        if owner is None:
+        if owner is None or owner.role_type == Role.FARMER:
             return false()
-        role = owner.role_type
 
-        # SuperAdmin -> everything
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        # Check if they can modify the VLCC center
-        return exists(
-            select(1)
-            .select_from(VlccModel)
-            .where(
-                VlccModel.id == farmer_vlcc_id,
-                VlccAccessScope.can_modify(owner, VlccModel.created_by),
-            )
-            .correlate(FarmerModel)
-        )
+        # Same rule as viewing: Admin / Sub Admin / MCC / VLCC modify farmers of their VLCCs
+        vlcc_ids = Hierarchy.vlcc_ids(owner)
+        return true() if vlcc_ids is None else farmer_vlcc_id.in_(vlcc_ids)
 
 
 class FarmerRepository():

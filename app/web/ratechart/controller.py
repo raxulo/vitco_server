@@ -7,7 +7,7 @@ from pydantic import validate_call_decorator
 from uuid import UUID
 from datetime import datetime, date
 from fastapi import Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from app.modules.ratechart.application.command import SaveFormulaConfigCommand
 from app.modules.dependencies import GetHandler
 from app.modules.ratechart.application.command import (
@@ -16,7 +16,9 @@ from app.modules.ratechart.application.command import (
     DeleteRateChartCommand,
     GetAssignmentsByOwnerQuery,
     CreateRateChartAssignmentCommand,
+    UpdateRateChartCommand,
 )
+from app.modules.ratechart.domain.exceptions import RateChartNotFoundException
 from app.modules.vlcc.application.command import ListVlccQuery, GetVlccQuery
 from app.modules.mcc.application.command import ListMccQuery, GetMccQuery
 from app.modules.administration.domain.enums import Role
@@ -30,6 +32,7 @@ from app.modules.ratechart.domain.enums import MilkType, RateCalculationType, Ra
 from app.core.database.manager import DatabaseManager
 from app.modules.administration.infrastructure.models import UserModel
 from sqlalchemy import select, text
+from app.core.clock import today_ist
 
 
 class RateChartController:
@@ -107,7 +110,7 @@ class RateChartController:
             template="pages/ratechart/create_edit.html",
             model={
                 "chart": None,
-                "today": date.today().strftime("%Y-%m-%d"),
+                "today": today_ist().strftime("%Y-%m-%d"),
                 "grids_data": [],
                 "prodata_data": [],
             },
@@ -133,7 +136,7 @@ class RateChartController:
         if "effective_date" in body:
             body["effective_from"] = body["effective_date"]
         if "effective_from" not in body or not body["effective_from"]:
-            body["effective_from"] = date.today().strftime("%Y-%m-%d")
+            body["effective_from"] = today_ist().strftime("%Y-%m-%d")
         if "status" in body:
             # Handle status coercion
             status_val = body["status"]
@@ -150,14 +153,20 @@ class RateChartController:
         if not result:
             return JSONResponse({"detail": "Unable to create rate chart"}, status_code=400)
 
-        # Handle child configurations based on type
-        chart_type = int(body.get("chart_type", 0))
-        user = request.state.user
+        await RateChartController._save_chart_config(
+            handler, result.id, int(body.get("chart_type", 0)), body, request.state.user
+        )
+        return JSONResponse({"status": "success", "id": str(result.id)})
+
+    @staticmethod
+    async def _save_chart_config(handler, chart_id: UUID, chart_type: int, body: dict, user: CurrentUser) -> None:
+        """Formula / grid / prodata rows for a chart (grid and prodata rows are replaced)."""
+        result_id = chart_id
         if chart_type == 0:
             # Formula Configuration
-            
+
             formula_command = SaveFormulaConfigCommand(
-                rate_chart_id=result.id,
+                rate_chart_id=result_id,
                 milk_type=2,  # Mixed default
                 cow_standard_fat=float(body.get("cow_std_fat", 0.0) or 0.0),
                 cow_standard_snf=float(body.get("cow_std_snf", 0.0) or 0.0),
@@ -186,7 +195,7 @@ class RateChartController:
                         rate=float(g.get("rate", 0.0)),
                     )
                 )
-            await handler.save_grid_rows(SaveGridRowsCommand(rate_chart_id=result.id, rows=rows), user)
+            await handler.save_grid_rows(SaveGridRowsCommand(rate_chart_id=result_id, rows=rows), user)
 
         elif chart_type == 2:
             # Prodata Configuration rows
@@ -207,9 +216,112 @@ class RateChartController:
                         snf_deduction=float(r.get("snf_deduction", 0.0)) if r.get("snf_deduction") is not None else None,
                     )
                 )
-            await handler.save_prodata_rows(SaveProdataRowsCommand(rate_chart_id=result.id, rows=rows), user)
+            await handler.save_prodata_rows(SaveProdataRowsCommand(rate_chart_id=result_id, rows=rows), user)
 
-        return JSONResponse({"status": "success", "id": str(result.id)})
+    # =========================================================
+    # EDIT PAGE
+    # =========================================================
+
+    @staticmethod
+    async def get_edit_page(request: Request, chart_id: UUID):
+        user = request.state.user
+        handler = GetHandler.ratechart_handler(request)
+        # Charts created above the user are read-only: open them in view mode
+        try:
+            await handler.ensure_modifiable(chart_id, user)
+        except RateChartNotFoundException:
+            return RedirectResponse(f"/ratecharts/view/{chart_id}", status_code=303)
+
+        dto = await handler.get(GetRateChartQuery(id=chart_id, owner=user))
+        formula = None
+        grids_data, prodata_data = [], []
+        if int(dto.chart_type) == 0:
+            formula = await handler.get_formula_config(rate_chart_id=chart_id)
+        elif int(dto.chart_type) in (1, 3):
+            grids = await handler.get_grid_rows(rate_chart_id=chart_id)
+            grids_data = [{"fat": float(g.fat), "snf": float(g.snf), "rate": float(g.rate)} for g in grids]
+        elif int(dto.chart_type) == 2:
+            prodata = await handler.get_prodata_rows(rate_chart_id=chart_id)
+            prodata_data = [{
+                "fat_min": float(p.fat_min),
+                "fat_max": float(p.fat_max),
+                "snf_min": float(p.snf_min) if p.snf_min is not None else None,
+                "snf_max": float(p.snf_max) if p.snf_max is not None else None,
+                "kg_fat_rate": float(p.fat_rate_per_kg) if p.fat_rate_per_kg is not None else 0.0,
+                "kg_snf_rate": float(p.snf_rate_per_kg) if p.snf_rate_per_kg is not None else 0.0,
+                "snf_cut_off": float(p.snf_cutoff) if p.snf_cutoff is not None else 0.0,
+                "snf_deduction": float(p.snf_deduction) if p.snf_deduction is not None else 0.0,
+            } for p in prodata]
+
+        # View model in the shape create_edit.html reads (chart + flattened formula fields)
+        chart = {
+            "id": str(dto.id),
+            "chart_name": dto.chart_name,
+            "chart_type": int(dto.chart_type),
+            "rate_type": int(dto.calculation_type),
+            "status": int(dto.status) == RateChartStatus.ACTIVE,
+            "is_default": False,
+            "cow_fat_pct": formula.cow_fat_percentage if formula else 0,
+            "cow_snf_pct": formula.cow_snf_percentage if formula else 100,
+            "cow_std_fat": formula.cow_standard_fat if formula else "",
+            "cow_std_snf": formula.cow_standard_snf if formula else "",
+            "cow_std_rate": formula.cow_standard_rate if formula else "",
+            "buf_fat_pct": formula.buffalo_fat_percentage if formula else 0,
+            "buf_snf_pct": formula.buffalo_snf_percentage if formula else 100,
+            "buf_std_fat": formula.buffalo_standard_fat if formula else "",
+            "buf_std_snf": formula.buffalo_standard_snf if formula else "",
+            "buf_std_rate": formula.buffalo_standard_rate if formula else "",
+        }
+        return Renderer.page(
+            request=request,
+            template="pages/ratechart/create_edit.html",
+            model={
+                "chart": chart,
+                "today": dto.effective_from.strftime("%Y-%m-%d"),
+                "grids_data": grids_data,
+                "prodata_data": prodata_data,
+            },
+        )
+
+    # =========================================================
+    # POST EDIT
+    # =========================================================
+
+    @staticmethod
+    async def post_update_page(request: Request, chart_id: UUID):
+        user = request.state.user
+        handler = GetHandler.ratechart_handler(request)
+        try:
+            await handler.ensure_modifiable(chart_id, user)
+        except RateChartNotFoundException:
+            return JSONResponse({"detail": "You can only edit rate charts created by you or below you"}, status_code=403)
+
+        body = await request.json()
+        current = await handler.get(GetRateChartQuery(id=chart_id, owner=user))
+
+        status_val = body.get("status", True)
+        if isinstance(status_val, str):
+            status_val = status_val.lower() == "true"
+
+        # Chart type is fixed after creation; milk type / end date / description are not on this form
+        command = UpdateRateChartCommand(
+            id=chart_id,
+            chart_name=(body.get("chart_name") or "").strip(),
+            chart_type=current.chart_type,
+            milk_type=current.milk_type,
+            calculation_type=RateCalculationType(int(body.get("rate_type", int(current.calculation_type)))),
+            effective_from=date.fromisoformat(body["effective_date"]) if body.get("effective_date") else current.effective_from,
+            effective_to=current.effective_to,
+            status=RateChartStatus.ACTIVE if status_val else RateChartStatus.INACTIVE,
+            description=current.description,
+            owner=user,
+        )
+        if not command.chart_name:
+            return JSONResponse({"detail": "Chart name is required"}, status_code=400)
+
+        await handler.update(command)
+        await RateChartController._save_chart_config(handler, chart_id, int(current.chart_type), body, user)
+        return JSONResponse({"status": "success", "id": str(chart_id)})
 
     # =========================================================
     # VIEW PAGE
@@ -368,6 +480,16 @@ class RateChartController:
         return JSONResponse(assigned_charts)
 
     @staticmethod
+    async def _charts_visible(handler, chart_ids: list[str], owner: CurrentUser) -> bool:
+        """A chart can only be mapped by users who can see it (rate chart access scope)."""
+        try:
+            for cid in chart_ids:
+                await handler.get(GetRateChartQuery(id=UUID(cid), owner=owner))
+        except Exception:
+            return False
+        return True
+
+    @staticmethod
     async def post_assign_bulk_api(request: Request):
         body = await request.json()
         shop_id = UUID(body.get("shop_id"))
@@ -385,6 +507,8 @@ class RateChartController:
             return JSONResponse({"detail": "VLCC not found"}, status_code=404)
 
         handler = GetHandler.ratechart_handler(request)
+        if not await RateChartController._charts_visible(handler, chart_ids, request.state.user):
+            return JSONResponse({"detail": "You can only map rate charts you have access to"}, status_code=403)
         await handler.delete_assignments_by_owner(user_id)
         for idx, cid in enumerate(chart_ids):
             cmd = CreateRateChartAssignmentCommand(
@@ -413,6 +537,8 @@ class RateChartController:
             return JSONResponse({"detail": "MCC not found"}, status_code=404)
 
         handler = GetHandler.ratechart_handler(request)
+        if not await RateChartController._charts_visible(handler, chart_ids, request.state.user):
+            return JSONResponse({"detail": "You can only map rate charts you have access to"}, status_code=403)
         await handler.delete_assignments_by_owner(user_id)
 
         for idx, cid in enumerate(chart_ids):

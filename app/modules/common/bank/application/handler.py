@@ -12,6 +12,7 @@ from app.modules.common.bank.domain.entities import BankAccount
 from app.modules.common.bank.domain.exceptions import BankAccountNotFoundException, InvalidBankAccountException
 from app.modules.common.bank.domain.repository import IBankAccountRepository
 from app.core.database.manager import DatabaseManager
+from app.core.clock import now_naive_ist
 
 
 class BankAccountHandler:
@@ -45,7 +46,7 @@ class BankAccountHandler:
             upi_id=command.upi_id,
         )
 
-        now = datetime.now(UTC)
+        now = now_naive_ist()
 
         account = BankAccount(
             id=uuid4(),
@@ -180,7 +181,7 @@ class BankAccountHandler:
                 else None
             )
 
-            account.updated_at = datetime.now(UTC)
+            account.updated_at = now_naive_ist()
 
             await self._repository.update(
                 account

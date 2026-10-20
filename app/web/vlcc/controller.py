@@ -13,6 +13,8 @@ from fastapi.responses import HTMLResponse
 
 from app.middleware.authentication import CurrentUser
 from app.modules.dependencies import GetHandler
+from app.modules.administration.domain.enums import Role
+from app.web.framework.helpers import WebHelper
 
 from app.modules.vlcc.application.command import (
     GetVlccQuery,
@@ -87,6 +89,7 @@ class VlccController:
         request: Request,
         vlcc_id: UUID,
     ):
+        WebHelper.deny_role(request, Role.VLCC)
         handler = GetHandler.vlcc_handler(request)
 
         detail: VlccDetailDto = await handler.get_full_detail(
@@ -208,6 +211,7 @@ class VlccController:
         request: Request,
         vlcc_id: UUID,
     ):
+        WebHelper.deny_role(request, Role.VLCC)
         current_user: CurrentUser = request.state.user
 
         form_data = await request.form()
@@ -285,6 +289,7 @@ class VlccController:
 
         result = await handler.get_vlccs_by_mcc(
             mcc_id=mcc_id,
+            owner=request.state.user,
         )
 
         return result

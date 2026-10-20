@@ -48,6 +48,7 @@ from app.api.v1.schemas.dashboard import (
 )
 
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift, MilkType
+from app.core.clock import now_ist, now_naive_ist
 IST = ZoneInfo("Asia/Kolkata")
 
 def format_shift_str(shift: Any) -> str:
@@ -95,10 +96,10 @@ router = APIRouter(
 
 
 def get_day_and_month_bounds() -> tuple[datetime, datetime]:
-    """Returns today's start UTC datetime and current month start UTC datetime."""
-    now = datetime.now(timezone.utc)
-    today_start = datetime(now.year, now.month, now.day, 0, 0, 0, tzinfo=timezone.utc)
-    month_start = datetime(now.year, now.month, 1, 0, 0, 0, tzinfo=timezone.utc)
+    """Start of today and of the current month in IST (naive, like stored collection times)."""
+    now = now_naive_ist()
+    today_start = datetime(now.year, now.month, now.day)
+    month_start = datetime(now.year, now.month, 1)
     return today_start, month_start
 
 
@@ -648,7 +649,7 @@ def get_period_bounds(
     period: PeriodType,
     setting: Settings,
 ) -> tuple[datetime, datetime, PeriodType]:
-    now_datetime = datetime.now(IST)
+    now_datetime = now_ist()
     full_day_now = now_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
 
     if period in (PeriodType.MORNING, PeriodType.EVENING, PeriodType.CURRENT):
@@ -856,7 +857,7 @@ async def get_dashboard_data(
     return DashboardDataResponse(
         status=True,
         message="Dashboard data fetched successfully",
-        synced_time=datetime.now(IST).strftime("%H:%M"),
+        synced_time=now_ist().strftime("%H:%M"),
         role=user_state.role_type,
         collection_payment_summary=collection_payment_summary,
         payment_summary=payment_summary,

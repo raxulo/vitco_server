@@ -67,6 +67,7 @@ from app.modules.common.address.domain.entities import Address
 from app.modules.common.bank.domain.entities import BankAccount
 from app.modules.common.settings.domain.entities import Settings
 from app.modules.common.milk_quality.domain.entities import MilkQualityConfig
+from app.core.clock import now_naive_ist
 
 
 class VlccHandler:
@@ -181,7 +182,7 @@ class VlccHandler:
             if user is None:
                 raise UserNotFoundException()
 
-            now = datetime.now(UTC)
+            now = now_naive_ist()
 
             # Soft delete user
             user.is_active = False
@@ -305,7 +306,7 @@ class VlccHandler:
         )
 
     def _build_user(self, command: CreateVlccCommand) -> User:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         return User(
             id=uuid4(),
             name=command.name,
@@ -381,7 +382,7 @@ class VlccHandler:
         if command.password:
             user.password_hash = self._password.hash(command.password)
 
-        user.updated_at = datetime.now(UTC)
+        user.updated_at = now_naive_ist()
         user.updated_by = command.updated_by
 
     def _updated_vlcc(
@@ -407,7 +408,7 @@ class VlccHandler:
             farmer_enabled=command.farmer_enabled,
             is_active=command.is_active,
             assigned_chart_rank=command.assigned_chart_rank,
-            updated_at=datetime.now(UTC)
+            updated_at=now_naive_ist()
         )
 
     async def full_create(
@@ -441,8 +442,8 @@ class VlccHandler:
                         device_id=profile.user.id,
                         item_name=item.item_name,
                         version=item.version,
-                        created_at=datetime.now(UTC),
-                        updated_at=datetime.now(UTC),
+                        created_at=now_naive_ist(),
+                        updated_at=now_naive_ist(),
                     )
                     self._database.session.add(dev_version)
 
@@ -647,8 +648,8 @@ class VlccHandler:
                         device_id=vlcc_relation.user_id,
                         item_name=item.item_name,
                         version=item.version,
-                        created_at=datetime.now(UTC),
-                        updated_at=datetime.now(UTC),
+                        created_at=now_naive_ist(),
+                        updated_at=now_naive_ist(),
                     )
                     self._database.session.add(dev_version)
 
@@ -699,8 +700,8 @@ class VlccHandler:
             milk_quality_config=MilkQualityConfigResponse.model_validate(milk_quality_config) if milk_quality_config else None,
         )
 
-    async def get_vlccs_by_mcc(self, mcc_id: UUID):
-        result = await self._vlcc_repository.get_vlccs_half_detail_by_mcc(mcc_id)
+    async def get_vlccs_by_mcc(self, mcc_id: UUID, owner: CurrentUser):
+        result = await self._vlcc_repository.get_vlccs_half_detail_by_mcc(mcc_id, owner)
 
         return [VlccWithMccListDto(
             vlcc_id=row.VlccModel.id,
@@ -719,7 +720,7 @@ class VlccHandler:
         owner: CurrentUser | None = None,
     ) -> list[SubUserProfileSyncDto]:
 
-        rows = await self._vlcc_repository.get_vlccs_half_detail_by_mcc(mcc_id)
+        rows = await self._vlcc_repository.get_vlccs_half_detail_by_mcc(mcc_id, owner)
 
         owner_id = owner.id if owner is not None else None
 
@@ -934,8 +935,8 @@ class VlccHandler:
                             device_id=vlcc_relation.user_id,
                             item_name=item.item_name,
                             version=item.version,
-                            created_at=datetime.now(UTC),
-                            updated_at=datetime.now(UTC),
+                            created_at=now_naive_ist(),
+                            updated_at=now_naive_ist(),
                         )
                         self._database.session.add(dev_version)
 

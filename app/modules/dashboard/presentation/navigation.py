@@ -25,6 +25,10 @@ class MenuGroup:
     items: tuple[MenuItem, ...]
 
 
+SUPER_ADMIN_ONLY: Final = frozenset({1})
+FARMER_ONLY: Final = frozenset({6})
+# Super Admin, Admin, Sub Admin (Role values) — the roles allowed to create route codes
+ROUTE_CREATOR_ROLES: Final = frozenset({1, 2, 3})
 ADMIN_ROLES: Final = frozenset({0, 1})
 MANAGEMENT_ROLES: Final = frozenset({0, 1, 2})
 ALL_ROLES: Final = frozenset({0, 1, 2, 3, 4, 5})
@@ -56,8 +60,23 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "Dashboard",
                 "/dashboard",
                 "fa-solid fa-house-chimney-window",
-                ALL_ROLES,
+                ALL_ROLES | FARMER_ONLY,
                 "/dashboard",
+            ),
+            # Farmer sees only its own collections and received payments
+            item(
+                "My Collections",
+                "/vlcc-collections/",
+                "fa-solid fa-flask",
+                FARMER_ONLY,
+                "/vlcc-collections",
+            ),
+            item(
+                "My Payments",
+                "/payments/history",
+                "fa-solid fa-indian-rupee-sign",
+                FARMER_ONLY,
+                "/payments/history",
             ),
             item(
                 "Managed Admins",
@@ -161,7 +180,7 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "Route Master",
                 "/routes/",
                 "fa-solid fa-route",
-                MANAGEMENT_ROLES,
+                ROUTE_CREATOR_ROLES,
                 "/routes/",
             ),
             item(
@@ -245,7 +264,7 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "Marketplace Setup",
                 "/marketplace/setup",
                 "fa-solid fa-sliders",
-                ALL_ROLES,
+                SUPER_ADMIN_ONLY,
                 "/marketplace/setup",
             ),
             item(

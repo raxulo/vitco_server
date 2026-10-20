@@ -12,10 +12,11 @@ from app.modules.collections.mcc_collection.domain.dto import (
     MccDetailedCollectionDto,
 )
 from datetime import datetime, UTC, time, timedelta
-from app.core.clock import day_bounds_ist
+from app.core.clock import day_bounds_ist, now_naive_ist
 
 from app.modules.mcc.domain.enums import MccType
 from app.modules.administration.infrastructure.models import UserModel
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.collections.mcc_collection.application.command import (
@@ -44,108 +45,13 @@ class MccCollectionAccessScope:
         role = owner.role_type
 
         # =====================================================
-        # SUPER ADMIN
+        # SUPER ADMIN / ADMIN / SUB ADMIN / MCC
+        # Collections received at the MCCs the user controls
+        # (see `Hierarchy`; an MCC user controls its own MCC)
         # =====================================================
-        if role == Role.SUPER_ADMIN:
-            return true()
-
-        # =====================================================
-        # ADMIN
-        # Own MCC
-        # + Direct SubAdmin MCC
-        # + Their VLCC collections
-        # =====================================================
-        if role == Role.ADMIN:
-            return or_(
-                # -------------------------------------------------
-                # MCC belongs to Admin / SubAdmin
-                # -------------------------------------------------
-                exists(
-                    select(1)
-                    .select_from(MccModel)
-                    .join(
-                        UserModel,
-                        UserModel.id == MccModel.created_by,
-                    )
-                    .where(
-                        MccModel.id == MccCollectionModel.mcc_id,
-                        or_(
-                            UserModel.id == owner.id,
-                            UserModel.created_by == owner.id,
-                        ),
-                    )
-                    .correlate(MccCollectionModel)
-                ),
-
-                # -------------------------------------------------
-                # VLCC belongs to Admin / SubAdmin
-                # -------------------------------------------------
-                exists(
-                    select(1)
-                    .select_from(VlccModel)
-                    .join(
-                        UserModel,
-                        UserModel.id == VlccModel.created_by,
-                    )
-                    .where(
-                        VlccModel.id == MccCollectionModel.vlcc_id,
-                        or_(
-                            UserModel.id == owner.id,
-                            UserModel.created_by == owner.id,
-                        ),
-                    )
-                    .correlate(MccCollectionModel)
-                ),
-            )
-
-        # =====================================================
-        # SUB ADMIN
-        # Own MCC
-        # + Own VLCC
-        # =====================================================
-        if role == Role.SUB_ADMIN:
-            return or_(
-                # -------------------------------------------------
-                # Own MCC
-                # -------------------------------------------------
-                exists(
-                    select(1)
-                    .select_from(MccModel)
-                    .where(
-                        MccModel.id == MccCollectionModel.mcc_id,
-                        MccModel.created_by == owner.id,
-                    )
-                    .correlate(MccCollectionModel)
-                ),
-
-                # -------------------------------------------------
-                # Own VLCC
-                # -------------------------------------------------
-                exists(
-                    select(1)
-                    .select_from(VlccModel)
-                    .where(
-                        VlccModel.id == MccCollectionModel.vlcc_id,
-                        VlccModel.created_by == owner.id,
-                    )
-                    .correlate(MccCollectionModel)
-                ),
-            )
-
-        # =====================================================
-        # MCC
-        # Only own MCC collection
-        # =====================================================
-        if role == Role.MCC:
-            return exists(
-                select(1)
-                .select_from(MccModel)
-                .where(
-                    MccModel.id == MccCollectionModel.mcc_id,
-                    MccModel.user_id == owner.id,
-                )
-                .correlate(MccCollectionModel)
-            )
+        if role in (Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN, Role.MCC):
+            mcc_ids = Hierarchy.mcc_ids(owner)
+            return true() if mcc_ids is None else MccCollectionModel.mcc_id.in_(mcc_ids)
 
         # =====================================================
         # VLCC
@@ -271,7 +177,7 @@ class MccCollectionRepository(IMccCollectionRepository):
         deleted_ids: list[UUID] = []
         for model in models:
             model.is_deleted = True
-            model.updated_at = datetime.now(UTC)
+            model.updated_at = now_naive_ist()
             deleted_ids.append(model.id)
 
         if deleted_ids:
@@ -549,6 +455,58 @@ class MccCollectionRepository(IMccCollectionRepository):
             quantity_collection_mode=result.get("quantity_collection_mode"),
         )
 
+    async def sample_number_problem(
+        self,
+        query: GetCollectionBySampleNumberQuery,
+        exclude_collection_id: UUID | None = None,
+    ) -> str | None:
+        """
+        Validate a sample number entered at a non-weight MCC, across every MCC
+        of the same owner (creator):
+
+        - "not_exists": outside the sample range of all the owner's weight MCCs
+        - "taken": another non-weight MCC of the owner already used it on the
+          same date and shift
+        - None: usable (also for weight MCCs, which issue the samples)
+        """
+        mcc = (await self._session.execute(
+            select(MccModel.created_by, MccModel.mcc_type).where(MccModel.id == query.mcc_id)
+        )).one_or_none()
+        if mcc is None or mcc.mcc_type == MccType.WEIGHT or query.sample_number is None:
+            return None
+
+        in_range = await self._session.scalar(
+            select(exists().where(
+                MccModel.created_by == mcc.created_by,
+                MccModel.mcc_type == MccType.WEIGHT,
+                MccModel.is_deleted.is_(False),
+                MccModel.sample_start <= query.sample_number,
+                MccModel.sample_end >= query.sample_number,
+            ))
+        )
+        if not in_range:
+            return "not_exists"
+
+        day_start, day_end = day_bounds_ist(query.collected_at)
+        taken = (
+            select(MccCollectionModel.id)
+            .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
+            .where(
+                MccModel.created_by == mcc.created_by,
+                MccModel.mcc_type != MccType.WEIGHT,
+                MccCollectionModel.sample_number == query.sample_number,
+                MccCollectionModel.shift == query.shift,
+                MccCollectionModel.collected_at >= day_start,
+                MccCollectionModel.collected_at < day_end,
+                MccCollectionModel.is_deleted.is_(False),
+            )
+        )
+        if exclude_collection_id is not None:
+            taken = taken.where(MccCollectionModel.id != exclude_collection_id)
+        if await self._session.scalar(select(exists(taken))):
+            return "taken"
+        return None
+
     async def is_sample_number_collected(
         self,
         query: GetCollectionBySampleNumberQuery,
@@ -618,7 +576,8 @@ class MccCollectionRepository(IMccCollectionRepository):
             MccCollectionModel.collected_at >= date_from,
             MccCollectionModel.collected_at <= date_to,
             MccCollectionModel.is_deleted == False,
-            MccCollectionModel.mcc_id == owner.own_id
+            # Same visibility as the collection list
+            MccCollectionAccessScope.condition(owner),
         )
 
         if shift is not None:

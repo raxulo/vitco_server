@@ -20,6 +20,7 @@ from app.modules.ratechart.domain.exceptions import (
 )
 from app.modules.ratechart.infrastructure.repository import RateChartRepository
 from app.middleware.authentication import CurrentUser
+from app.core.clock import now_naive_ist
 from app.modules.ratechart.domain.dto import (
     RateChartDto,
     RateChartListDto,
@@ -80,8 +81,8 @@ class RateChartHandler:
             effective_to=command.effective_to,
             status=command.status,
             created_by=command.created_by,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
             description=command.description,
         )
 
@@ -110,7 +111,7 @@ class RateChartHandler:
             chart.effective_to = command.effective_to
             chart.status = command.status
             chart.description = command.description
-            chart.updated_at = datetime.now(UTC)
+            chart.updated_at = now_naive_ist()
 
             await self._repository.update(chart, command.owner)
 
@@ -125,6 +126,11 @@ class RateChartHandler:
             if chart is None:
                 raise RateChartNotFoundException()
             await self._repository.delete(chart.id, command.owner)
+
+    async def ensure_modifiable(self, chart_id: UUID, owner: CurrentUser) -> None:
+        """Charts made above the user are read-only for it."""
+        if not await self._repository.is_modifiable(chart_id, owner):
+            raise RateChartNotFoundException()
 
     async def get(
         self,
@@ -186,6 +192,9 @@ class RateChartHandler:
             chart = await self._repository.get_by_id(command.rate_chart_id, owner)
             if chart is None:
                 raise RateChartNotFoundException()
+            # Visible is not enough: only the creator or someone above it may change the rows
+            if owner is not None and not await self._repository.is_modifiable(command.rate_chart_id, owner):
+                raise RateChartNotFoundException()
 
             existing = await self._repository.get_formula_config(command.rate_chart_id)
             config_id = existing.id if existing else uuid4()
@@ -226,6 +235,9 @@ class RateChartHandler:
             chart = await self._repository.get_by_id(command.rate_chart_id, owner)
             if chart is None:
                 raise RateChartNotFoundException()
+            # Visible is not enough: only the creator or someone above it may change the rows
+            if owner is not None and not await self._repository.is_modifiable(command.rate_chart_id, owner):
+                raise RateChartNotFoundException()
 
             rows = [
                 RateGridRow(
@@ -258,6 +270,9 @@ class RateChartHandler:
         async with self._database.transaction():
             chart = await self._repository.get_by_id(command.rate_chart_id, owner)
             if chart is None:
+                raise RateChartNotFoundException()
+            # Visible is not enough: only the creator or someone above it may change the rows
+            if owner is not None and not await self._repository.is_modifiable(command.rate_chart_id, owner):
                 raise RateChartNotFoundException()
 
             rows = [
@@ -321,8 +336,8 @@ class RateChartHandler:
             is_default=command.is_default,
             is_active=True,
             created_by=command.created_by,
-            created_at=datetime.now(IST),
-            updated_at=datetime.now(IST),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
         )
 
         async with self._database.transaction():
@@ -345,7 +360,7 @@ class RateChartHandler:
             assignment.priority = command.priority
             assignment.is_default = command.is_default
             assignment.is_active = command.is_active
-            assignment.updated_at = datetime.now(UTC)
+            assignment.updated_at = now_naive_ist()
 
             await self._repository.update_assignment(assignment)
 

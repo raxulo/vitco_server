@@ -3,6 +3,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.modules.dependencies import GetHandler
+from app.modules.common.settings.infrastructure.permissions import can_create_masters
 from app.modules.masters.units.application.command import (
     CreateUnitMasterCommand,
     UpdateUnitMasterCommand,
@@ -40,6 +41,7 @@ class UnitController:
             owner=owner,
         )
         items = await handler.list(query)
+        db = request.app.state.application.container.database
 
         return Renderer.page(
             request=request,
@@ -51,6 +53,7 @@ class UnitController:
                 "total_pages": total_pages,
                 "total": total_items,
                 "error": None,
+                "can_create": await can_create_masters(db.session, owner),
             },
         )
 
@@ -66,7 +69,8 @@ class UnitController:
                 CreateUnitMasterCommand(
                     name=name,
                     created_by=owner.id,
-                )
+                ),
+                owner=owner,
             )
         except Exception as e:
             # Re-render with error

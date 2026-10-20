@@ -18,6 +18,7 @@ from app.modules.collections.vlcc_collection.domain.exceptions import (
 )
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
 from app.modules.collections.vlcc_collection.infrastructure.repository import VlccCollectionRepository
+from app.core.clock import now_naive_ist
 from app.modules.collections.vlcc_collection.domain.dto import (
     VlccCollectionDto,
     VlccCollectionListDto,
@@ -71,6 +72,7 @@ class VlccCollectionHandler:
             raise InvalidVlccCollectionException(message="VLCC user account not found.")
         if not farmer_user_id:
             raise InvalidVlccCollectionException(message="Farmer user account not found.")
+        await self._ensure_farmer_of_vlcc(command.farmer_id, command.vlcc_id)
 
         collection_id = uuid4()
         collection = VlccCollection(
@@ -93,8 +95,8 @@ class VlccCollectionHandler:
             calibration_fat=command.calibration_fat,
             calibration_snf=command.calibration_snf,
             is_deleted=False,
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
         )
 
         payment_cmd = PostPaymentCommand(
@@ -125,6 +127,7 @@ class VlccCollectionHandler:
         owner: CurrentUser,
     ) -> VlccCollectionDto:
         self._validate(command)
+        await self._ensure_farmer_of_vlcc(command.farmer_id, command.vlcc_id)
 
         async with self._database.transaction():
             collection = await self._repository.get_by_id(command.id, owner)
@@ -149,11 +152,17 @@ class VlccCollectionHandler:
             collection.rank = command.rank
             collection.calibration_fat = command.calibration_fat
             collection.calibration_snf = command.calibration_snf
-            collection.updated_at = datetime.now(UTC)
+            collection.updated_at = now_naive_ist()
 
             await self._repository.update(collection, owner)
 
         return self._to_dto(collection)
+
+    async def _ensure_farmer_of_vlcc(self, farmer_id, vlcc_id) -> None:
+        # A collection must be recorded under the farmer's own VLCC, otherwise it
+        # shows up (and is paid) under the wrong VLCC
+        if not await self._repository.farmer_belongs_to_vlcc(farmer_id, vlcc_id):
+            raise InvalidVlccCollectionException(message="This farmer does not belong to the selected VLCC.")
 
     # =========================================================
     # DELETE

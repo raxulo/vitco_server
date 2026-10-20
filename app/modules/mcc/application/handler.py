@@ -123,7 +123,7 @@ class MccHandler:
         if command.mobile and command.mobile.strip():
             await self._ensure_mobile_available(command.mobile.strip())
 
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         user_id = uuid4()
         address_id = None
         bank_account_id = None
@@ -173,7 +173,7 @@ class MccHandler:
         command: CreateFullDetailMcc,
         owner: CurrentUser
     ) -> MccDetailDto:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         self._password_validate(password=command.mcc.password)
 
         user_exists = await self._user_repository.exists_user(command.mcc.email, command.mcc.mobile)
@@ -504,7 +504,7 @@ class MccHandler:
                     fixed_rate_config_id=fixed_rate_id,
                     profile_image=command.mcc.profile_image,
                     is_active=command.mcc.is_active,
-                    updated_at=datetime.now(UTC),
+                    updated_at=now_naive_ist(),
                     updated_by=command.updated_by,
                 ), owner=owner
             )
@@ -525,8 +525,8 @@ class MccHandler:
                         device_id=mcc_relation.user_id,
                         item_name=item.item_name,
                         version=item.version,
-                        created_at=datetime.now(UTC),
-                        updated_at=datetime.now(UTC),
+                        created_at=now_naive_ist(),
+                        updated_at=now_naive_ist(),
                     )
                     self._database.session.add(dev_version)
 
@@ -552,7 +552,7 @@ class MccHandler:
             if user is None:
                 raise UserNotFoundException()
 
-            now = datetime.now(UTC)
+            now = now_naive_ist()
 
             # Update Address
             address_id = mcc.address_id
@@ -774,7 +774,7 @@ class MccHandler:
         rate_config_id: UUID | None = None,
     ) -> Mcc:
         if now is None:
-            now = datetime.now(UTC)
+            now = now_naive_ist()
         return Mcc(
             id=uuid4(),
             user_id=user_id,
@@ -854,7 +854,7 @@ class MccHandler:
         if command.password:
             user.password_hash = self._password.hash(command.password)
 
-        user.updated_at = datetime.now(UTC)
+        user.updated_at = now_naive_ist()
         user.updated_by = command.updated_by
 
     def _update_mcc(
@@ -877,14 +877,14 @@ class MccHandler:
         mcc.profile_image = command.profile_image
         mcc.is_active = command.is_active
         mcc.updated_by = command.updated_by
-        mcc.updated_at = datetime.now(UTC)
+        mcc.updated_at = now_naive_ist()
 
     def _soft_delete_mcc(
         self,
         mcc: Mcc,
         deleted_by: UUID,
     ) -> None:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         mcc.is_active = False
         mcc.is_deleted = True
         mcc.deleted_at = now
@@ -896,7 +896,7 @@ class MccHandler:
         user: User,
         deleted_by: UUID,
     ) -> None:
-        now = datetime.now(UTC)
+        now = now_naive_ist()
         user.is_active = False
         user.is_deleted = True
         user.deleted_at = now

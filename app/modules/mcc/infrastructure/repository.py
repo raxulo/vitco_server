@@ -10,6 +10,7 @@ from app.modules.mcc.domain.irepository import IMccRepository
 from uuid import UUID
 from sqlalchemy.orm import aliased
 from app.modules.administration.infrastructure.models import UserModel
+from app.modules.administration.infrastructure.hierarchy import Hierarchy
 
 from app.core.database.manager import DatabaseManager
 from app.modules.common.address.infrastructure.models import AddressModel
@@ -18,75 +19,12 @@ from app.modules.mcc.infrastructure.models import MccModel
 
 
 class MccAccessScope:
+    """Which MCCs a user may see / modify — rules in `Hierarchy`."""
 
     @staticmethod
     def condition(owner: CurrentUser):
-        if owner.role_type == Role.SUPER_ADMIN:
-            return true()
-
-        same_role_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == MccModel.created_by,
-                UserModel.role == owner.role,
-            )
-            .correlate(MccModel)
-        )
-
-        global_condition = exists(
-            select(1)
-            .select_from(UserModel)
-            .where(
-                UserModel.id == MccModel.created_by,
-                UserModel.role == Role.SUPER_ADMIN,
-            )
-            .correlate(MccModel)
-        )
-
-        hierarchy_condition = false()
-        if owner.role_type == Role.ADMIN:
-            parent_user = aliased(UserModel)
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == MccModel.created_by,
-                    or_(
-                        UserModel.created_by == owner.id,
-                        exists(
-                            select(1)
-                            .select_from(parent_user)
-                            .where(
-                                parent_user.id == UserModel.created_by,
-                                parent_user.created_by == owner.id,
-                            )
-                        )
-                    )
-                )
-                .correlate(MccModel)
-            )
-        elif owner.role_type == Role.SUB_ADMIN:
-            hierarchy_condition = exists(
-                select(1)
-                .select_from(UserModel)
-                .where(
-                    UserModel.id == MccModel.created_by,
-                    UserModel.created_by == owner.id,
-                )
-                .correlate(MccModel)
-            )
-
-        # An MCC user can also see their own MCC record
-        mcc_own_condition = MccModel.user_id == owner.id
-
-        return or_(
-            MccModel.created_by == owner.id,
-            mcc_own_condition,
-            global_condition,
-            same_role_condition,
-            hierarchy_condition
-        )
+        mcc_ids = Hierarchy.mcc_ids(owner)
+        return true() if mcc_ids is None else MccModel.id.in_(mcc_ids)
 
     @staticmethod
     def can_modify(owner: CurrentUser | None, item_created_by):
@@ -94,45 +32,13 @@ class MccAccessScope:
             return false()
         role = owner.role_type
 
-        # SuperAdmin -> everything
         if role == Role.SUPER_ADMIN:
             return true()
 
-        # Admin -> own + direct SubAdmin/MCC/VLCC
-        if role == Role.ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.SUB_ADMIN, Role.MCC, Role.VLCC)),
-                    )
-                    .correlate(MccModel)
-                ),
-            )
-
-        # SubAdmin -> own + own MCC/VLCC
-        if role == Role.SUB_ADMIN:
-            return or_(
-                item_created_by == owner.id,
-                exists(
-                    select(1)
-                    .select_from(UserModel)
-                    .where(
-                        UserModel.id == item_created_by,
-                        UserModel.created_by == owner.id,
-                        UserModel.role.in_((Role.MCC, Role.VLCC)),
-                    )
-                    .correlate(MccModel)
-                ),
-            )
-
-        # MCC / VLCC -> own only
-        if role in (Role.MCC, Role.VLCC):
-            return item_created_by == owner.id
+        # Admin / Sub Admin -> MCCs created by themselves or (Admin) their Sub Admins.
+        # An MCC user only views its own MCC.
+        if role in (Role.ADMIN, Role.SUB_ADMIN):
+            return item_created_by.in_(Hierarchy.managers(owner))
 
         return false()
 

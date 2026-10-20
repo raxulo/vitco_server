@@ -35,6 +35,7 @@ from app.modules.ratechart.application.command import (
     SaveProdataRowsCommand,
 )
 from app.modules.ratechart.domain.exceptions import RateChartNotFoundException
+from app.core.clock import today_ist
 
 router = APIRouter(
     prefix="/ratecharts",
@@ -177,11 +178,11 @@ async def create_rate_chart(
         try:
             eff_from = date.fromisoformat(raw_eff.strip())
         except Exception:
-            eff_from = date.today()
+            eff_from = today_ist()
     elif isinstance(raw_eff, date):
         eff_from = raw_eff
     else:
-        eff_from = date.today()
+        eff_from = today_ist()
 
     status_raw = body.status.ACTIVE
     if isinstance(status_raw, bool):
