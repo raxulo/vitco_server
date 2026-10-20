@@ -30,9 +30,11 @@
                 <i class="fa-solid fa-trash-can"></i> Delete Center
             </button>
             {% endif %}
+            {% if mcc.can_modify %}
             <a href="/mcc/edit/{{ mcc.id }}" class="btn-action edit">
                 <i class="fa-solid fa-pen-to-square"></i> Edit Profile
             </a>
+            {% endif %}
         </div>
     </div>
 

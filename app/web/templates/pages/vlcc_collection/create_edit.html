@@ -103,7 +103,7 @@
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; text-align:left;">
                     <div style="background: white; padding: 14px 16px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
                         <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">UNIT RATE</div>
-                        <div style="font-weight:800; color:#1e293b; font-size:18px;">₹<span id="lbl-rate">45.00</span></div>
+                        <div style="font-weight:800; color:#1e293b; font-size:18px;">₹<span id="lbl-rate">0.00</span></div>
                     </div>
                     <div style="background: white; padding: 14px 16px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.01);">
                         <div style="font-size:10px; color:#94a3b8; font-weight:700; text-transform:uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">TOTAL WEIGHT</div>
@@ -157,6 +157,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', path='js/collection_form.js') }}?v=2"></script>
 <script>
     const getRateInput = () => document.getElementById("cf-rate");
 
@@ -182,6 +183,8 @@
 
     document.addEventListener("input", (event) => {
         if (event.target.matches("#cf-fat, #cf-snf")) {
+            // FAT decides Cow / Buffalo for Cow-Buffalo VLCCs, then the rate is recalculated
+            applyAutoMilkType();
             calculateRate();
         }
     });
@@ -189,7 +192,7 @@
 
     let isSelectingFarmer = false;
 
-    function selectFarmer(id, name, code, assignedRateChartId, mobile = '') {
+    function selectFarmer(id, name, code, rank, mobile = '') {
         isSelectingFarmer = true;
         
         const searchInput = document.getElementById('cf-farmer-search');
@@ -204,19 +207,9 @@
         if (hiddenNameInput) hiddenNameInput.value = name;
         if (hiddenMobileInput) hiddenMobileInput.value = mobile || '';
         
-        if (assignedRateChartId) {
-            const rateChartSelect = document.getElementById('cf-ratechart');
-            if (rateChartSelect) {
-                for (let i = 0; i < rateChartSelect.options.length; i++) {
-                    if (rateChartSelect.options[i].value === assignedRateChartId) {
-                        rateChartSelect.value = assignedRateChartId;
-                        rateChartSelect.dispatchEvent(new Event('change'));
-                        break;
-                    }
-                }
-            }
-        }
-        
+        // Farmer's assigned rank -> R<rank> (R1 when the rank is not in the list)
+        selectRateChartByRank(rank || 1);
+
         const results = document.getElementById('farmer-search-results');
         if (results) results.innerHTML = '';
         
@@ -297,36 +290,9 @@
         }
     });
 
-    function getSavedSessionTotals() {
-        let totalPayout = 0;
-        let totalWeight = 0;
-        const items = document.querySelectorAll('#recent-list [data-total]');
-        items.forEach(el => {
-            totalPayout += parseFloat(el.getAttribute('data-total')) || 0;
-            totalWeight += parseFloat(el.getAttribute('data-qty')) || 0;
-        });
-        return { totalPayout, totalWeight };
-    }
-
+    // Summary box = this entry only (amount, rate, quantity); it resets when the form is saved
     function calcTotal() {
-        const qty = parseFloat(document.getElementById('cf-qty')?.value) || 0;
-        const rate = parseFloat(document.getElementById('cf-rate')?.value) || 0;
-        const currentTotal = qty * rate;
-        
-        const savedTotals = getSavedSessionTotals();
-        const grandTotalPayout = savedTotals.totalPayout + currentTotal;
-        const grandTotalWeight = savedTotals.totalWeight + qty;
-
-        const totalDisplay = document.getElementById('cf-total-display');
-        const lblQty = document.getElementById('lbl-qty');
-        const lblRate = document.getElementById('lbl-rate');
-        const totalHidden = document.getElementById('cf-total-hidden');
-        
-        if (totalDisplay) totalDisplay.innerText = grandTotalPayout.toFixed(2);
-        if (lblQty) lblQty.innerText = grandTotalWeight.toFixed(2);
-        if (lblRate && rate > 0) lblRate.innerText = rate.toFixed(2);
-        if (totalHidden) totalHidden.value = currentTotal.toFixed(2);
-
+        updateCollectionAmount();
         updatePreviewSaveBtnState();
     }
 

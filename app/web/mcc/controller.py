@@ -29,7 +29,8 @@ class MccController:
     @staticmethod
     async def page(request: Request, page: int = 1, limit: int = 10, search: str = ""):
         user:CurrentUser = request.state.user
-        if int(user.role) >= Role.MCC.value:
+        # An MCC user sees only its own MCC (view-only); VLCC and farmer have no access
+        if int(user.role) > Role.MCC.value:
             raise ForbiddenException("You are not authorized to access this page")
         handler = GetHandler.mcc_handler(request)
         query: ListMccQuery = ListMccQuery(
@@ -245,6 +246,7 @@ class MccController:
         from fastapi.responses import RedirectResponse, Response
         from app.modules.mcc.application.command import DeleteMccCommand
         
+        WebHelper.deny_role(request, Role.MCC, "An MCC cannot delete an MCC")
         user: CurrentUser = request.state.user
         handler = GetHandler.mcc_handler(request)
         try:

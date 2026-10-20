@@ -30,7 +30,11 @@
 
     {% for data in ledger_data %}
         {% set firstindex = loop.first %}
+        {% set lastindex = loop.last %}
+        {# Animal-type groups (Cow / Buffalo / Mixed) run on without a divider between them #}
+        {% set is_animal = data.head and "Animal Type" in data.head %}
 
+        {# Per-animal ledgers (VLCC Shift Summary) share one page header; every ledger still gets its own table #}
         {% if "Animal Type" not in data.head or firstindex %}
 
             <div style="text-align: center; margin-bottom: 24px; line-height: 1.4;">
@@ -88,6 +92,7 @@
             {% endif%}
             <!-- Dashed Line separator -->
             <div style="border-top: 1px dashed #000; margin-bottom: 2px;"></div>
+        {% endif %}
 
             <!-- Table content -->
             <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; font-family: 'Courier New', Courier, monospace;">
@@ -114,10 +119,11 @@
                 {% endif %}
                 <tbody>
                     <!-- Dashed Line separator -->
-                     
+                    {% if not is_animal or firstindex %}
                     <tr>
                         <td colspan="{{ header|length }}" style="border-top: 1px dashed #000; padding: 4px 0 0 0;"></td>
                     </tr>
+                    {% endif %}
                     {% if data.head and ("Animal Type" in data.head) %}
 
                     <tr>
@@ -183,14 +189,15 @@
                 </div>
                 {% endfor %}
             </div>
+            {% if not is_animal or lastindex %}
             <div style="margin-top: 1px; border-top: 1px dashed #000; padding-top: 2px; font-size: 12px; color: #333; font-weight: bold;"></div>
+            {% endif %}
             {% endif %}
 
             <!-- Asterisk separator between ledgers -->
             {% if not loop.last and "Animal Type" not in data.head %}
             <div style="margin: 16px 0 24px 0; font-weight: bold; white-space: nowrap; overflow: hidden; letter-spacing: 2px;">{{ '*' * 200 }}</div>
             {% endif %}
-        {% endif %}
     {% endfor %}
 
     <!-- Footer Summary Totals -->

@@ -18,11 +18,17 @@
                 <label for="mcc_id" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Select MCC</label>
                 <select name="mcc_id" id="mcc_id" hx-get="/mcc-reports/mcc-type-reports" hx-target="#report_type" hx-swap="outerHTML" 
                  hx-trigger="change" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
+                    {% if mccs|length != 1 %}
+                    <option value="">— Select MCC —</option>
+                    {% endif %}
                     {% for mcc in mccs %}
                     <option value="{{ mcc.id }}">{{ mcc.name }} ({{ mcc.code }})</option>
                     {% endfor %}
                 </select>
             </div>
+
+            <!-- Every filter below stays disabled until an MCC is selected -->
+            <fieldset id="report-filter-fields" class="report-filter-fields">
 
             <!-- Report Type (HTMX dynamic dropdown) -->
             <div>
@@ -133,6 +139,7 @@
                     <i class="fa-solid fa-eye"></i> Preview
                 </button>
             </div>
+            </fieldset>
         </form>
     </div>
 
@@ -188,6 +195,16 @@
     }
     .htmx-request#report-result-container {
         display: none;
+    }
+    /* The fieldset only groups the filters for disabling; it must not break the form grid */
+    .report-filter-fields {
+        display: contents;
+    }
+    .report-filter-fields:disabled select,
+    .report-filter-fields:disabled input {
+        background: #f1f5f9 !important;
+        color: #94a3b8 !important;
+        cursor: not-allowed !important;
     }
     .report-actions-wrapper {
         display: flex;
@@ -433,8 +450,42 @@
         }
     }
 
+    // "No Report Generated" placeholder, restored whenever the selection changes
+    let reportPlaceholderHtml = null;
+
+    // Filters are usable only once an MCC is selected
+    function syncUnitLock() {
+        const fields = document.getElementById('report-filter-fields');
+        const unitId = (document.getElementById('mcc_id')?.value || '').trim();
+        if (fields) fields.disabled = !unitId;
+    }
+
+    // Clears the generated report and puts every filter (except Report Type) back to its default
+    function resetReportFilters() {
+        const fields = document.getElementById('report-filter-fields');
+        if (fields) {
+            fields.querySelectorAll('input, select').forEach(function(el) {
+                if (el.id === 'report_type') return;
+                if (el.tagName === 'SELECT') {
+                    const index = Array.from(el.options).findIndex(function(o) { return o.defaultSelected; });
+                    el.selectedIndex = index < 0 ? 0 : index;
+                } else {
+                    el.value = el.defaultValue;
+                    el.classList.remove('is-invalid');
+                }
+            });
+        }
+        const result = document.getElementById('report-result-container');
+        if (result && reportPlaceholderHtml !== null) result.innerHTML = reportPlaceholderHtml;
+        const preview = document.getElementById('mcc-report-preview-content');
+        if (preview) preview.innerHTML = '';
+    }
+
     // Toggle fields and button states on initial load
     document.addEventListener('DOMContentLoaded', function() {
+        const result = document.getElementById('report-result-container');
+        if (result) reportPlaceholderHtml = result.innerHTML;
+        syncUnitLock();
         const reportTypeSelect = document.getElementById('report_type');
         if (reportTypeSelect) {
             toggleFilterFields(reportTypeSelect.value);
@@ -452,7 +503,12 @@
 
     // Toggle fields when dropdown manually changes
     document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'mcc_id') {
+            syncUnitLock();
+            resetReportFilters();
+        }
         if (e.target && e.target.id === 'report_type') {
+            resetReportFilters();
             toggleFilterFields(e.target.value);
         }
         if (e.target && e.target.id === 'vlcc_id') {
@@ -473,6 +529,11 @@
             if (evt.detail.elt.disabled) {
                 evt.preventDefault();
             }
+        }
+        // No report requests while the filters are locked (no MCC selected)
+        const fields = document.getElementById('report-filter-fields');
+        if (fields && fields.disabled && evt.detail.elt && fields.closest('form')?.contains(evt.detail.elt) && evt.detail.elt.id !== 'mcc_id') {
+            evt.preventDefault();
         }
     });
 

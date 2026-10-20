@@ -1,12 +1,26 @@
-<form hx-post="{% if collection %}/vlcc-collections/edit/{{ collection.id }}{% else %}/vlcc-collections/create{% endif %}" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection">
+{# data-cattle-type: 0 = Cow / Buffalo (milk type from FAT), 1 = Mixed. See static/js/collection_form.js #}
+<form hx-post="{% if collection %}/vlcc-collections/edit/{{ collection.id }}{% else %}/vlcc-collections/create{% endif %}" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection"
+    data-cattle-type="{{ setting.cattle_type|int if setting and setting.cattle_type is not none else 0 }}"
+    data-buffalo-min-fat="{{ buffalo_min_fat if buffalo_min_fat is not none else '' }}">
+    <style>
+        /* Values the system fills in (locked unit, milk type, device readings, rate, amount) */
+        #form-collection .form-control.cf-locked,
+        #form-collection .form-control[readonly] {
+            background-color: #f1f5f9;
+            color: #334155;
+            cursor: not-allowed;
+        }
+        #form-collection select.cf-locked { pointer-events: none; }
+        #form-collection .cf-auto-hint { font-size: 10px; font-weight: 600; color: #94a3b8; margin-left: 4px; }
+    </style>
     <div class="grid-forms" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 24px;">
 
-        <!-- VLCC Shop -->
+        <!-- VLCC Shop (a logged-in VLCC is pre-selected and cannot change it) -->
         <div class="form-group">
-            <label>VLCC Shop *</label>
-            <select name="vlcc_id" id="cf-vlccid" class="form-control" required hx-get="/vlcc-collections/load-form"
-                hx-trigger="change" hx-target="#form-collection" hx-swap="outerHTML">
-                <option value=""> -- Select VLCC -- </option>
+            <label>VLCC Shop *{% if lock_vlcc %}<span class="cf-auto-hint"><i class="fa-solid fa-lock"></i> your VLCC</span>{% endif %}</label>
+            <select {% if lock_vlcc %}id="cf-vlccid" class="form-control cf-locked" tabindex="-1" aria-disabled="true"{% else %}name="vlcc_id" id="cf-vlccid" class="form-control" required hx-get="/vlcc-collections/load-form"
+                hx-trigger="change" hx-target="#form-collection" hx-swap="outerHTML"{% endif %}>
+                {% if not lock_vlcc %}<option value=""> -- Select VLCC -- </option>{% endif %}
                 {% for v in vlccs %}
                 <option value="{{ v.id }}" data-code="{{ v.vlcc_code }}" data-uic="{{ v.uic_code or '' }}" data-route="{{ v.route_code if v.route_code is not none else '' }}" data-city="{{ v.city or '' }}" {{ 'selected' if (selected_vlcc_id|string==v.id|string) or (collection and
                     collection.vlcc_id|string==v.id|string) else '' }}>
@@ -14,6 +28,7 @@
                 </option>
                 {% endfor %}
             </select>
+            {% if lock_vlcc %}<input type="hidden" name="vlcc_id" value="{{ selected_vlcc_id }}">{% endif %}
         </div>
 
         <!-- Custom Searchable Farmer Select -->
@@ -227,11 +242,12 @@
                             const id = item.getAttribute('data-id');
                             const code = item.getAttribute('data-code');
                             const name = item.getAttribute('data-name');
-                            const assignedRateChartId = item.getAttribute('data-assigned-rate-chart-id');
+                            // The farmer's assigned rank picks R<rank> from the rate chart list
+                            const rank = item.getAttribute('data-assigned-chart-rank') || 1;
                             const mobile = item.getAttribute('data-mobile') || '';
 
                             if (typeof selectFarmer === 'function') {
-                                selectFarmer(id, name, code, assignedRateChartId, mobile);
+                                selectFarmer(id, name, code, rank, mobile);
                             } else {
                                 searchInput.value = `${name} (${code})`;
 
@@ -242,17 +258,8 @@
                                 if (hiddenCode) hiddenCode.value = code;
                                 if (hiddenMobile) hiddenMobile.value = mobile;
 
-                                if (assignedRateChartId) {
-                                    const rateChartSelect = document.getElementById('cf-ratechart');
-                                    if (rateChartSelect) {
-                                        for (let i = 0; i < rateChartSelect.options.length; i++) {
-                                            if (rateChartSelect.options[i].value === assignedRateChartId) {
-                                                rateChartSelect.value = assignedRateChartId;
-                                                rateChartSelect.dispatchEvent(new Event('change'));
-                                                break;
-                                            }
-                                        }
-                                    }
+                                if (typeof selectRateChartByRank === 'function') {
+                                    selectRateChartByRank(rank);
                                 }
                             }
 
@@ -293,10 +300,10 @@
             </select>
         </div>
 
-        <!-- Milk Type -->
+        <!-- Milk Type: set automatically (Mixed VLCC -> Mixed; Cow/Buffalo -> from FAT) -->
         <div class="form-group">
-            <label>Milk Type *</label>
-            <select name="milk_type" id="cf-type" class="form-control">
+            <label>Milk Type *<span class="cf-auto-hint"><i class="fa-solid fa-wand-magic-sparkles"></i> auto</span></label>
+            <select name="milk_type" id="cf-type" class="form-control cf-locked" tabindex="-1" aria-readonly="true">
                 <option value="0" {{ 'selected' if collection and collection.milk_type|int==0 else '' }}>Cow</option>
                 <option value="1" {{ 'selected' if collection and collection.milk_type|int==1 else '' }}>Buffalo
                 </option>
@@ -315,10 +322,11 @@
 
                 {% for chart in rate_charts %}
 
-                <option value="{{ chart.id }}" {% if collection and collection.rate_chart_id|string==chart.id|string %}
+                {# Rank order: R1, R2, ... (the farmer's assigned rank selects one) #}
+                <option value="{{ chart.id }}" data-rank="{{ loop.index }}" {% if collection and collection.rate_chart_id|string==chart.id|string %}
                     selected {% endif %}>
 
-                    {{ chart.chart_name }}
+                    R{{ loop.index }} · {{ chart.chart_name }}
 
                 </option>
 
@@ -386,6 +394,22 @@
                     value="{{ collection.rate_per_unit if collection else '' }}"
                     required hx-get="/ratecharts/get-rate" hx-trigger="rate:calculate"
                     hx-include="#cf-ratechart, #cf-fat, #cf-snf, #cf-type" hx-target="#group-rate" hx-swap="outerHTML">
+
+            </div>
+
+        </div>
+
+        <!-- Amount = quantity x rate (calculated, not editable) -->
+        <div class="form-group" id="group-amount">
+
+            <label>Amount (₹)</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-sack-dollar"></i>
+
+                <input readonly type="number" step="0.01" id="cf-amount" class="form-control" tabindex="-1"
+                    placeholder="0.00" value="{{ '%.2f'|format(collection.total_amount|float) if collection and collection.total_amount else '' }}">
 
             </div>
 

@@ -2,7 +2,7 @@ from sqlalchemy.orm import aliased
 from sqlalchemy import alias
 from app.modules.common.bank.infrastructure.models import BankAccountModel
 from app.modules.common.address.infrastructure.models import AddressModel
-from sqlalchemy import true, false, exists, or_, delete, update, func, select
+from sqlalchemy import true, false, exists, or_, and_, delete, update, func, select
 from app.modules.administration.domain.enums import Role
 from app.middleware.authentication import CurrentUser
 from app.modules.vlcc.infrastructure.models import VlccModel
@@ -40,7 +40,13 @@ class FarmerAccessScope:
 
         # Same rule as viewing: Admin / Sub Admin / MCC / VLCC modify farmers of their VLCCs
         vlcc_ids = Hierarchy.vlcc_ids(owner)
-        return true() if vlcc_ids is None else farmer_vlcc_id.in_(vlcc_ids)
+        scope = true() if vlcc_ids is None else farmer_vlcc_id.in_(vlcc_ids)
+
+        # A VLCC modifies its farmers only while its farmer permission is on
+        # (callers join VlccModel on the farmer's VLCC)
+        if owner.role_type == Role.VLCC:
+            return and_(scope, VlccModel.farmer_enabled.is_(True))
+        return scope
 
 
 class FarmerRepository():
@@ -56,6 +62,25 @@ class FarmerRepository():
     @property
     def _session(self) -> AsyncSession:
         return self._database.session
+
+    # =========================================================
+    # PERMISSION
+    # =========================================================
+
+    async def can_manage_farmers(self, owner: CurrentUser | None) -> bool:
+        """
+        Whether the owner may create / modify farmers. A VLCC needs its farmer
+        permission (`farmer_enabled`); a farmer never may; other roles are
+        limited by their scope only.
+        """
+        if owner is None or owner.role_type == Role.FARMER:
+            return False
+        if owner.role_type != Role.VLCC:
+            return True
+        enabled = await self._session.scalar(
+            select(VlccModel.farmer_enabled).where(VlccModel.user_id == owner.id)
+        )
+        return bool(enabled)
 
     # =========================================================
     # CREATE

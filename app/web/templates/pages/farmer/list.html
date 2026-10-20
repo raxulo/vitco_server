@@ -19,9 +19,11 @@
             </div>
         </div>
         <div class="mcc-header-actions">
+            {% if can_create %}
             <a href="/farmer/create" class="btn-action-primary">
                 <i class="fa-solid fa-plus"></i> New Farmer
             </a>
+            {% endif %}
         </div>
     </div>
 

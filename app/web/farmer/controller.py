@@ -2,6 +2,7 @@
 Farmer Web Presentation Controller
 """
 
+from app.core.exceptions.base import ForbiddenException
 from app.modules.administration.domain.enums import Role
 from app.modules.ratechart.application.command import ListRateChartsQuery
 from uuid import UUID
@@ -66,6 +67,7 @@ class FarmerController:
                 "limit": limit,
                 "total_pages": total_pages,
                 "search": search,
+                "can_create": await handler.can_manage(current_user),
             },
         )
 
@@ -74,7 +76,16 @@ class FarmerController:
     # =========================================================
 
     @staticmethod
+    async def _ensure_can_manage(request: Request) -> None:
+        """A VLCC without the farmer permission only views farmers."""
+        try:
+            await GetHandler.farmer_handler(request).ensure_can_manage(request.state.user)
+        except PermissionError as exc:
+            raise ForbiddenException(str(exc))
+
+    @staticmethod
     async def get_create_page(request: Request):
+        await FarmerController._ensure_can_manage(request)
         # Fetch VLCC centers for dropdown selection
         vlcc_handler = GetHandler.vlcc_handler(request)
         vlccs = await vlcc_handler.list(ListVlccQuery(size=500, owner=request.state.user))
@@ -98,6 +109,7 @@ class FarmerController:
         farmer_id: UUID,
     ):
         WebHelper.deny_role(request, Role.FARMER)
+        await FarmerController._ensure_can_manage(request)
         handler = GetHandler.farmer_handler(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
 

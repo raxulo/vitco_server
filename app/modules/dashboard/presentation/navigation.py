@@ -35,6 +35,8 @@ FARMER_ONLY: Final = frozenset({Role.FARMER})
 ADMIN_ROLES: Final = frozenset({Role.SUPER_ADMIN})
 # Super Admin, Admin, Sub Admin: MCC management and the System Setup masters
 MANAGEMENT_ROLES: Final = frozenset({Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN})
+# MCC Management pages an MCC user also sees (its own MCC is view-only for it)
+MCC_VIEW_ROLES: Final = MANAGEMENT_ROLES | {Role.MCC}
 # Route codes can only be created by the management roles
 ROUTE_CREATOR_ROLES: Final = MANAGEMENT_ROLES
 # Every staff role (farmers get their own FARMER_ONLY items)
@@ -103,14 +105,14 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "MCC Master",
                 "/mcc/",
                 "fa-solid fa-sitemap",
-                MANAGEMENT_ROLES,
+                MCC_VIEW_ROLES,
                 "/mcc",
             ),
             item(
                 "MCC Collection",
                 "/mcc-collections/",
                 "fa-solid fa-truck-ramp-box",
-                MANAGEMENT_ROLES,
+                MCC_VIEW_ROLES,
                 "/mcc-collections",
             ),
             item(
@@ -124,7 +126,7 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "MCC Reports",
                 "/mcc-reports",
                 "fa-solid fa-file-invoice-dollar",
-                MANAGEMENT_ROLES,
+                MCC_VIEW_ROLES,
                 "/mcc-reports",
             ),
         ),

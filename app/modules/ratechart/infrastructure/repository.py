@@ -529,7 +529,15 @@ class RateChartRepository(IRateChartRepository):
                 RateChartModel,
                 RateChartModel.id == RateChartAssignmentModel.rate_chart_id,
             )
-            .where(RateChartAssignmentModel.owner_id == owner_id)
+            .where(
+                RateChartAssignmentModel.owner_id == owner_id,
+                RateChartAssignmentModel.is_active.is_(True),
+            )
+            # Rank order: index 0 is R1 (a farmer's / VLCC's assigned_chart_rank picks R<n>)
+            .order_by(
+                RateChartAssignmentModel.priority.asc(),
+                RateChartAssignmentModel.created_at.asc(),
+            )
         )
 
         rows = (await self._session.execute(stmt)).mappings().all()

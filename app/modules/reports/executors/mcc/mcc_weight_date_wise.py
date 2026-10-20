@@ -1,7 +1,7 @@
+from datetime import date
+
 from app.modules.reports.application.dto import LedgerResult
-from ntpath import join
 from sqlalchemy import Integer
-import asyncio
 from app.modules.reports.executors.base import ReportExecutor
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.collections.mcc_collection.infrastructure.models import MccCollectionModel
@@ -39,10 +39,12 @@ class MccWeightDateWiseExecutor(ReportExecutor):
         if query.code_to:
             filters.append(cast(v.vlcc_code, Integer) <= int(query.code_to))
 
-        # One row per VLCC: totals across the selected date range
+        # One row per VLCC per day: that day's cans and quantity
+        day = func.date(m.collected_at)
         rows_stmt = (
             select(
                 v.vlcc_code.label("vlcc_code"),
+                day.label("day"),
                 v.name.label("vlcc_name"),
                 func.sum(m.can_count).label("can"),
                 func.sum(m.quantity).label("quantity"),
@@ -50,8 +52,8 @@ class MccWeightDateWiseExecutor(ReportExecutor):
             .select_from(m)
             .join(v, v.id == m.vlcc_id)
             .where(*filters)
-            .group_by(v.vlcc_code, v.name)
-            .order_by(cast(v.vlcc_code, Integer).asc())
+            .group_by(v.vlcc_code, v.name, day)
+            .order_by(cast(v.vlcc_code, Integer).asc(), day.asc())
             .offset(query.offset)
             .limit(query.size)
         )
@@ -73,10 +75,15 @@ class MccWeightDateWiseExecutor(ReportExecutor):
 
         rows = []
         for row in rows_result.mappings():
-            r = dict(row)
-            # A VLCC's total quantity: totals never carry the manual '*'
-            r["quantity"] = f"{float(r['quantity'] or 0):.2f}"
-            rows.append(r)
+            # Keys follow `headers` order: report templates render rows positionally.
+            # A day's quantity is a total, so it never carries the manual '*'.
+            rows.append({
+                "vlcc_code": row["vlcc_code"],
+                "date": self._day_label(row["day"]),
+                "vlcc_name": row["vlcc_name"],
+                "can": int(row["can"] or 0),
+                "quantity": f"{float(row['quantity'] or 0):.2f}",
+            })
 
         totals = totals_result.mappings().one()
 
@@ -103,11 +110,21 @@ class MccWeightDateWiseExecutor(ReportExecutor):
             
         )
 
+    @staticmethod
+    def _day_label(day) -> str:
+        """SQL date(...) gives 'YYYY-MM-DD' (SQLite) or a date (PostgreSQL) -> 'dd/mm'."""
+        if day is None:
+            return "—"
+        if isinstance(day, str):
+            day = date.fromisoformat(day[:10])
+        return day.strftime("%d/%m")
+
     @property
     def headers(self) -> list[str]:
         return [
-            "VLCC Code",
-            "VLCC Name",
+            "V.Code",
+            "Date",
+            "Name",
             "Can",
             "Quantity",
         ]
@@ -119,7 +136,8 @@ class MccWeightDateWiseExecutor(ReportExecutor):
             date_range=True,
             code_range=True,
             mcc_id=True,
-            milk_type=False,  
+            milk_type=False,
+            is_deleted=True,
         )
 
     def build_metadata(self, query: ReportQuery, mcc):

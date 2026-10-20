@@ -18,6 +18,7 @@ from app.modules.collections.vlcc_collection.application.command import (
 from app.modules.vlcc.application.command import ListVlccQuery, GetVlccQuery
 from app.modules.farmer.application.command import ListFarmerQuery, GetFarmerQuery
 from app.modules.ratechart.application.command import GetAssignmentsByOwnerQuery
+from app.modules.common.milk_quality.application.command import GetMilkQualityConfigQuery
 from app.web.framework.renderer import Renderer
 from app.web.vlcc_collection.assembler import VlccCollectionAssembler
 from app.modules.collections.vlcc_collection.presentation.requests import (
@@ -107,40 +108,70 @@ class VlccCollectionController:
             raise ForbiddenException("Farmers can only view their collections")
 
     @staticmethod
+    async def _form_model(request: Request, vlcc_id: UUID | None) -> dict:
+        """
+        Everything the collection form needs for one VLCC:
+        - a logged-in VLCC gets its own VLCC pre-selected and locked,
+        - settings (weight / analyzer modes, cattle type),
+        - its rate charts in rank order (index 0 = R1),
+        - its farmers,
+        - buffalo minimum FAT (milk type is derived from FAT for Cow / Buffalo VLCCs).
+        """
+        user = request.state.user
+        vlcc_handler = GetHandler.vlcc_handler(request)
+        vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=user))
+
+        lock_vlcc = user.role_type == Role.VLCC
+        if lock_vlcc and vlccs:
+            vlcc_id = vlccs[0].id  # a VLCC only ever sees its own VLCC
+
+        model = {
+            "vlccs": vlccs,
+            "selected_vlcc_id": vlcc_id,
+            "lock_vlcc": lock_vlcc,
+            "setting": None,
+            "rate_charts": [],
+            "farmers": [],
+            "buffalo_min_fat": None,
+        }
+        if vlcc_id is None:
+            return model
+        try:
+            vlcc = await vlcc_handler.get(GetVlccQuery(id=vlcc_id, owner=user))
+        except Exception:
+            return model
+
+        model["farmers"] = await GetHandler.farmer_handler(request).list(
+            ListFarmerQuery(vlcc_id=vlcc_id, limit=200, owner=user)
+        )
+        if vlcc.settings_id:
+            model["setting"] = await GetHandler.settings_handler(request).get_by_id(settings_id=vlcc.settings_id)
+        try:
+            model["rate_charts"] = await GetHandler.ratechart_handler(request).get_charts_by_owner_id(
+                query=GetAssignmentsByOwnerQuery(owner_id=vlcc.user_id)
+            )
+        except Exception:
+            pass
+        if vlcc.milk_quality_config_id:
+            try:
+                quality = await GetHandler.milk_quality_config_handler(request).get(
+                    GetMilkQualityConfigQuery(id=vlcc.milk_quality_config_id)
+                )
+                model["buffalo_min_fat"] = quality.buffalo_min_fat
+            except Exception:
+                pass
+        return model
+
+    @staticmethod
     async def get_create_page(request: Request):
         VlccCollectionController._deny_farmer(request)
-        vlcc_handler = GetHandler.vlcc_handler(request)
-        vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=request.state.user))
-        default_date = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
-
-        # Resolve farmers for the first VLCC if any
-        selected_vlcc_id = vlccs[0].id if vlccs else None
-        
-        rate_charts = []
-        farmers = []
-        if selected_vlcc_id:
-            try:
-                vlcc = await vlcc_handler.get(GetVlccQuery(id=selected_vlcc_id, owner=request.state.user))
-                rate_charts = await GetHandler.ratechart_handler(request).get_charts_by_owner_id(
-                    query=GetAssignmentsByOwnerQuery(owner_id=vlcc.user_id)
-                )
-            except Exception:
-                pass
-            try:
-                farmers = await GetHandler.farmer_handler(request).list(ListFarmerQuery(vlcc_id=selected_vlcc_id, limit=200, owner=request.state.user))
-            except Exception:
-                pass
+        model = await VlccCollectionController._form_model(request, None)
+        model["default_date"] = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
             template="pages/vlcc_collection/create_edit.html",
-            model={
-                "vlccs": vlccs,
-                "farmers": farmers,
-                "default_date": default_date,
-                "selected_vlcc_id": None,
-                "rate_charts": rate_charts
-            },
+            model=model,
         )
 
     # =========================================================
@@ -154,27 +185,23 @@ class VlccCollectionController:
     ):
         VlccCollectionController._deny_farmer(request)
         handler = GetHandler.vlcc_collection_handler(request)
-        vlcc_handler = GetHandler.vlcc_handler(request)
-        farmer_handler = GetHandler.farmer_handler(request)
         owner = request.state.user
 
         collection = await handler.get(GetVlccCollectionQuery(id=collection_id), owner=owner)
-        vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=owner))
-        farmers = await farmer_handler.list(ListFarmerQuery(vlcc_id=collection.vlcc_id, limit=200, owner=owner))
+        model = await VlccCollectionController._form_model(request, collection.vlcc_id)
 
         default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
+        model.update({
+            "collection": collection,
+            "default_date": default_date,
+            "collection_number": collection.collection_number,
+            "selected_vlcc_id": collection.vlcc_id,
+        })
         return Renderer.page(
             request=request,
             template="pages/vlcc_collection/create_edit.html",
-            model={
-                "collection": collection,
-                "vlccs": vlccs,
-                "farmers": farmers,
-                "default_date": default_date,
-                "collection_number": collection.collection_number,
-                "selected_vlcc_id": collection.vlcc_id,
-            },
+            model=model,
         )
 
     # =========================================================
@@ -239,63 +266,29 @@ class VlccCollectionController:
 
         result = await handler.create(command)
         if result:
-            vlcc_handler = GetHandler.vlcc_handler(request)
-            vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=user))
-            
-            vlcc = None
-            try:
-                vlcc = await vlcc_handler.get(GetVlccQuery(id=data.vlcc_id, owner=user))
-            except Exception:
-                pass
-            
-            farmer_handler = GetHandler.farmer_handler(request)
             farmer_name = "Farmer"
             if result.farmer_id:
                 try:
-                    f_ent = await farmer_handler.get(GetFarmerQuery(id=result.farmer_id, owner=user))
+                    f_ent = await GetHandler.farmer_handler(request).get(GetFarmerQuery(id=result.farmer_id, owner=user))
                     farmer_name = f_ent.name
                 except Exception:
                     pass
 
-            default_date = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
-            setting = None
-            rate_charts = []
-            if vlcc:
-                setting = await GetHandler.settings_handler(request).get_by_id(settings_id=vlcc.settings_id)
-                try:
-                    rate_charts = await GetHandler.ratechart_handler(request).get_charts_by_owner_id(
-                        query=GetAssignmentsByOwnerQuery(owner_id=vlcc.user_id)
-                    )
-                except Exception:
-                    pass
-
-            farmers = []
-            if data.vlcc_id:
-                try:
-                    farmers = await farmer_handler.list(ListFarmerQuery(vlcc_id=data.vlcc_id, limit=200, owner=user))
-                except Exception:
-                    pass
-
-            formatted_date = result.collected_at.strftime("%d/%m %H:%M")
+            # A fresh, empty form for the next entry (the summary box resets with it)
+            model = await VlccCollectionController._form_model(request, data.vlcc_id)
+            model["default_date"] = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+            model["new_item"] = {
+                "farmer_name": farmer_name,
+                "date": result.collected_at.strftime("%d/%m %H:%M"),
+                "qty": result.quantity,
+                "fat": result.fat_percent or 0.0,
+                "total": result.total_amount,
+            }
 
             return Renderer.partial(
                 request=request,
                 template="pages/vlcc_collection/collection_form.html",
-                model={
-                    "vlccs": vlccs,
-                    "farmers": farmers,
-                    "default_date": default_date,
-                    "selected_vlcc_id": data.vlcc_id,
-                    "setting": setting,
-                    "rate_charts": rate_charts,
-                    "new_item": {
-                        "farmer_name": farmer_name,
-                        "date": formatted_date,
-                        "qty": result.quantity,
-                        "fat": result.fat_percent or 0.0,
-                        "total": result.total_amount
-                    }
-                },
+                model=model,
             ).success("Collection add successfully").build()
 
         return Renderer.empty().error(
@@ -381,42 +374,12 @@ class VlccCollectionController:
         vlcc_id: UUID | None = None,
         collected_at: datetime | None = None,
     ):
-        vlcc_handler = GetHandler.vlcc_handler(request)
-        farmer_handler = GetHandler.farmer_handler(request)
-        settings_handler = GetHandler.settings_handler(request)
-        user = request.state.user
-        vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=user), )
-        vlcc = None
-        try:
-            vlcc = await vlcc_handler.get(GetVlccQuery(id=vlcc_id, owner=user))
-        except Exception:
-            pass
-        farmers = []
-        if vlcc_id:
-            farmers = await farmer_handler.list(ListFarmerQuery(vlcc_id=vlcc_id, limit=200, owner=user))
-
-        default_date = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
-        setting = None
-        rate_charts = []
-        if vlcc:
-            setting = await settings_handler.get_by_id(settings_id=vlcc.settings_id)
-            try:
-                rate_charts = await GetHandler.ratechart_handler(request).get_charts_by_owner_id(
-                    query=GetAssignmentsByOwnerQuery(owner_id=vlcc.user_id)
-                )
-            except Exception:
-                pass
+        model = await VlccCollectionController._form_model(request, vlcc_id)
+        model["default_date"] = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
         return Renderer.partial(
             request=request,
             template="pages/vlcc_collection/collection_form.html",
-            model={
-                "vlccs": vlccs,
-                "default_date": default_date,
-                "selected_vlcc_id": vlcc_id,
-                "setting": setting,
-                "farmers": farmers,
-                "rate_charts": rate_charts,
-            },
+            model=model,
         ).build()
 
     @staticmethod

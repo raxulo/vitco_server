@@ -8,6 +8,7 @@ from app.middleware.authentication import CurrentUser
 from app.modules.ratechart.application.command import ListRateChartsQuery
 from app.modules.ratechart.domain.dto import RateChartListDto
 from app.modules.ratechart.application.command import GetAssignmentsByOwnerQuery
+from app.modules.common.milk_quality.application.command import GetMilkQualityConfigQuery
 from app.modules.collections.mcc_collection.domain.dto import MccCollectionResult
 from app.modules.collections.mcc_collection.domain.dto import MccSampleResult
 from app.modules.mcc.domain.enums import MccType
@@ -90,20 +91,85 @@ class MccCollectionController:
     # =========================================================
 
     @staticmethod
-    async def get_create_page(request: Request):
+    async def _form_model(
+        request: Request,
+        mcc_id: UUID | None,
+        shift: CollectionShift | None = None,
+        collected_at: datetime | None = None,
+    ) -> dict:
+        """
+        Everything the MCC collection form needs for one MCC:
+        - a logged-in MCC gets its own MCC pre-selected and locked,
+        - settings (weight / analyzer modes, cattle type),
+        - its assigned rate charts in rank order (index 0 = R1; a VLCC's rank selects one),
+        - its supplying VLCCs, the next sample number (weight MCCs),
+        - buffalo minimum FAT (milk type is derived from FAT for Cow / Buffalo MCCs).
+        """
+        user = request.state.user
         mcc_handler = GetHandler.mcc_handler(request)
+        mccs = await mcc_handler.list(ListMccQuery(size=200, owner=user))
 
-        mccs = await mcc_handler.list(ListMccQuery(size=200, owner=request.state.user))
-        default_date = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        lock_mcc = user.role_type == Role.MCC
+        if lock_mcc and mccs:
+            mcc_id = mccs[0].id  # an MCC only ever sees its own MCC
+
+        model = {
+            "mccs": mccs,
+            "mcc": None,
+            "mcc_id": mcc_id,
+            "lock_mcc": lock_mcc,
+            "vlccs": [],
+            "setting": {},
+            "rate_charts": [],
+            "next_sample_number": None,
+            "buffalo_min_fat": None,
+        }
+        if mcc_id is None:
+            return model
+        try:
+            mcc = await mcc_handler.get(GetMccQuery(id=mcc_id, owner=user))
+        except Exception:
+            return model
+        model["mcc"] = mcc
+
+        if mcc.settings_id:
+            model["setting"] = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id) or {}
+        if mcc.mcc_type == MccType.WEIGHT:
+            sample_result: MccSampleResult = await GetHandler.mcc_collection_handler(request).genext_sample_number(
+                query=GetNextSampleNumberQuery(
+                    mcc_id=mcc.id,
+                    collected_at=collected_at or now_naive_ist(),
+                    shift=shift or CollectionShift.MORNING,
+                )
+            )
+            model["next_sample_number"] = sample_result.next_sample_number
+        else:
+            model["rate_charts"] = await GetHandler.ratechart_handler(request).get_charts_by_owner_id(
+                query=GetAssignmentsByOwnerQuery(owner_id=mcc.user_id)
+            )
+        try:
+            model["vlccs"] = await GetHandler.vlcc_handler(request).get_vlccs_by_mcc(mcc_id=mcc.id, owner=user)
+        except Exception:
+            pass
+        if mcc.milk_quality_config_id:
+            try:
+                quality = await GetHandler.milk_quality_config_handler(request).get(
+                    GetMilkQualityConfigQuery(id=mcc.milk_quality_config_id)
+                )
+                model["buffalo_min_fat"] = quality.buffalo_min_fat
+            except Exception:
+                pass
+        return model
+
+    @staticmethod
+    async def get_create_page(request: Request):
+        model = await MccCollectionController._form_model(request, None)
+        model["default_date"] = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
             template="pages/mcc_collection/create_edit.html",
-            model={
-                "mccs": mccs,
-                "vlccs": [],
-                "default_date": default_date,
-            },
+            model=model,
         )
 
     # =========================================================
@@ -116,28 +182,17 @@ class MccCollectionController:
         collection_id: UUID,
     ):
         handler = GetHandler.mcc_collection_handler(request)
-        mcc_handler = GetHandler.mcc_handler(request)
-        vlcc_handler = GetHandler.vlcc_handler(request)
         user = request.state.user
 
         collection = await handler.get(GetMccCollectionQuery(id=collection_id), owner=user)
-        mccs = await mcc_handler.list(ListMccQuery(size=200, owner=user))
-        vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=collection.mcc_id, owner=user)
-        
-        mcc = await mcc_handler.get(GetMccQuery(id=collection.mcc_id, owner=user))
-        setting = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id)
-        default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        model = await MccCollectionController._form_model(request, collection.mcc_id)
+        model["collection"] = collection
+        model["default_date"] = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
             template="pages/mcc_collection/create_edit.html",
-            model={
-                "collection": collection,
-                "mccs": mccs,
-                "vlccs": vlccs,
-                "setting": setting,
-                "default_date": default_date,
-            },
+            model=model,
         )
 
     # =========================================================
@@ -227,33 +282,6 @@ class MccCollectionController:
         result = await handler.create(command)
 
         if result:
-            
-            next_sample_number = None
-            mcc_handler = GetHandler.mcc_handler(request)
-            vlcc_handler = GetHandler.vlcc_handler(request)
-
-            mccs = await mcc_handler.list(ListMccQuery(size=200, owner=request.state.user))
-            mcc = await mcc_handler.get(GetMccQuery(id=data.mcc_id, owner=request.state.user))
-            settings = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id)
-            if mcc.mcc_type == MccType.WEIGHT:
-                sample_result: MccSampleResult = await GetHandler.mcc_collection_handler(request).genext_sample_number(
-                    query=GetNextSampleNumberQuery(mcc_id=mcc.id,
-                    collected_at=data.collection_date,
-                    shift=data.shift)
-                )
-                next_sample_number = sample_result.next_sample_number
-            assigned_rate_charts = []
-            if mcc.mcc_type != MccType.WEIGHT:
-                assigned_rate_charts = await GetHandler.ratechart_handler(request).get_charts_by_owner_id(query= GetAssignmentsByOwnerQuery(owner_id=mcc.user_id))
-            vlccs = []
-            if data.mcc_id and mcc.mcc_type == MccType.WEIGHT:
-                try:
-                    vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=data.mcc_id, owner=request.state.user)
-                except Exception:
-                    pass
-
-            default_date = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
-
             vlcc_name = "VLCC"
             if result.vlcc_id:
                 try:
@@ -262,28 +290,23 @@ class MccCollectionController:
                 except Exception:
                     pass
 
-            formatted_date = result.collected_at.strftime("%d/%m %H:%M")
+            # A fresh, empty form for the next entry (the summary box resets with it)
+            model = await MccCollectionController._form_model(
+                request, data.mcc_id, shift=data.shift, collected_at=data.collection_date
+            )
+            model["default_date"] = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+            model["new_item"] = {
+                "vlcc_name": vlcc_name,
+                "date": result.collected_at.strftime("%d/%m %H:%M"),
+                "qty": result.quantity,
+                "fat": result.fat_percent or 0.0,
+                "total": MccCollectionAssembler.get_total_amount(data),
+            }
 
             return Renderer.partial(
                 request=request,
                 template="pages/mcc_collection/collection_form.html",
-                model={
-                    "mcc": mcc,
-                    "mccs": mccs,
-                    "vlccs": vlccs,
-                    "mcc_id": data.mcc_id,
-                    "setting": settings or {},
-                    "default_date": default_date,
-                    "next_sample_number" : next_sample_number,
-                    "rate_charts": assigned_rate_charts,
-                    "new_item": {
-                        "vlcc_name": vlcc_name,
-                        "date": formatted_date,
-                        "qty": result.quantity,
-                        "fat": result.fat_percent or 0.0,
-                        "total": MccCollectionAssembler.get_total_amount(data)
-                    }
-                },
+                model=model,
             ).success("Collection add successfully").build()
 
         return Renderer.empty().error(
@@ -431,48 +454,13 @@ class MccCollectionController:
         shift: CollectionShift | None = None,
         collected_at: datetime | None = None,
     ):
-        next_sample_number = None
-        mcc_handler = GetHandler.mcc_handler(request)
-        vlcc_handler = GetHandler.vlcc_handler(request)
-
-        mccs = await mcc_handler.list(ListMccQuery(size=200, owner=request.state.user))
-        mcc = await mcc_handler.get(GetMccQuery(id=mcc_id, owner=request.state.user))
-        settings = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id)
-        if mcc.mcc_type == MccType.WEIGHT:
-            sample_result: MccSampleResult = await GetHandler.mcc_collection_handler(request).genext_sample_number(
-                query=GetNextSampleNumberQuery(mcc_id=mcc.id,
-                collected_at=collected_at or now_naive_ist(),
-                shift=shift or CollectionShift.MORNING)
-            )
-            next_sample_number = sample_result.next_sample_number
-        assigned_rate_charts = []
-        if mcc.mcc_type != MccType.WEIGHT:
-            user = request.state.user
-            assigned_rate_charts = await GetHandler.ratechart_handler(request).list(
-                    ListRateChartsQuery(owner=CurrentUser(id=user.id, role=user.role))
-                )
-        vlccs = []
-        if mcc_id and mcc.mcc_type == MccType.WEIGHT:
-            try:
-                vlccs = await vlcc_handler.get_vlccs_by_mcc(mcc_id=mcc_id, owner=request.state.user)
-            except Exception:
-                pass
-
-        default_date = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        model = await MccCollectionController._form_model(request, mcc_id, shift=shift, collected_at=collected_at)
+        model["default_date"] = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
         return Renderer.page(
             request=request,
             template="pages/mcc_collection/collection_form.html",
-            model={
-                "mcc": mcc,
-                "mccs": mccs,
-                "vlccs": vlccs,
-                "mcc_id": mcc_id,
-                "setting": settings or {},
-                "default_date": default_date,
-                "next_sample_number" : next_sample_number,
-                "rate_charts": assigned_rate_charts
-            },
+            model=model,
         )
 
     @staticmethod

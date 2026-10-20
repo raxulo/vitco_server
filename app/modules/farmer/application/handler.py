@@ -76,6 +76,18 @@ class FarmerHandler:
         self._profile_service = profile_service
 
     # =========================================================
+    # PERMISSION
+    # =========================================================
+
+    async def can_manage(self, owner: CurrentUser | None) -> bool:
+        """Create / modify farmers: a VLCC needs its farmer permission; viewing is always allowed."""
+        return await self._farmer_repository.can_manage_farmers(owner)
+
+    async def ensure_can_manage(self, owner: CurrentUser | None) -> None:
+        if not await self.can_manage(owner):
+            raise PermissionError("Farmer permission is not enabled for this VLCC. Farmers can be viewed but not created or modified.")
+
+    # =========================================================
     # CREATE
     # =========================================================
 
@@ -95,6 +107,7 @@ class FarmerHandler:
         self, command: CreateFarmerDetailCommand,
         owner: CurrentUser
     ) -> bool:
+        await self.ensure_can_manage(owner)
         exists_farmer = await self._farmer_repository.exists_code_in_vlcc(command.farmer.farmer_code, command.farmer.vlcc_id, owner)
         if exists_farmer:
             raise FarmerCodeAlreadyExistsException()
@@ -132,6 +145,7 @@ class FarmerHandler:
         self, command: UpdateFarmerDetailCommand,
         owner: CurrentUser
     ) -> bool:
+        await self.ensure_can_manage(owner)
         relations = await self._farmer_repository.get_relations(command.farmer.id)
         if relations is None:
             raise FarmerNotFoundException()
@@ -282,6 +296,7 @@ class FarmerHandler:
     ) -> None:
         if command.owner is None:
             raise PermissionError("Owner context is required")
+        await self.ensure_can_manage(command.owner)
         async with self._database.transaction():
             farmer = await self._farmer_repository.get_by_id(command.id, command.owner)
             if farmer is None:
@@ -325,6 +340,7 @@ class FarmerHandler:
         self,
         command: DeleteFarmerCommand,
     ) -> None:
+        await self.ensure_can_manage(command.owner)
         async with self._database.transaction():
             farmer = await self._farmer_repository.get_by_id(command.id, command.owner)
             if farmer is None:

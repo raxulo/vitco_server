@@ -1,16 +1,33 @@
-<form hx-post="/mcc-collections/create" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection">
+{# data-cattle-type: 0 = Cow / Buffalo (milk type from FAT), 1 = Mixed. See static/js/collection_form.js #}
+<form hx-post="/mcc-collections/create" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection"
+    data-cattle-type="{{ setting.cattle_type|int if setting and setting.cattle_type is not none else 0 }}"
+    data-buffalo-min-fat="{{ buffalo_min_fat if buffalo_min_fat is not none else '' }}">
+
+    <style>
+        /* Values the system fills in (locked unit, milk type, device readings, rate, amount) */
+        #form-collection .form-control.cf-locked,
+        #form-collection .form-control[readonly] {
+            background-color: #f1f5f9;
+            color: #334155;
+            cursor: not-allowed;
+        }
+        #form-collection select.cf-locked { pointer-events: none; }
+        #form-collection .cf-auto-hint { font-size: 10px; font-weight: 600; color: #94a3b8; margin-left: 4px; }
+    </style>
 
     <div class="grid-forms" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 24px;">
 
         <div class="form-group">
 
-            <label>MCC *</label>
+            <label>MCC *{% if lock_mcc %}<span class="cf-auto-hint"><i class="fa-solid fa-lock"></i> your MCC</span>{% endif %}</label>
 
-            <select name="mcc_id" id="cf-mccid" class="form-control" required hx-get="/mcc-collections/load-form"
+            {# A logged-in MCC is pre-selected and cannot change it (the hidden field carries the value) #}
+            {% if lock_mcc %}<input type="hidden" name="mcc_id" value="{{ mcc_id }}">{% endif %}
+            <select {% if lock_mcc %}id="cf-mccid" class="form-control cf-locked" tabindex="-1" aria-disabled="true"{% else %}name="mcc_id" id="cf-mccid" class="form-control" required hx-get="/mcc-collections/load-form"
 
-                hx-trigger="change" hx-target="#form-collection" hx-swap="outerHTML">
+                hx-trigger="change" hx-target="#form-collection" hx-swap="outerHTML"{% endif %}>
 
-                <option value=""> -- Select MCC -- </option>
+                {% if not lock_mcc %}<option value=""> -- Select MCC -- </option>{% endif %}
 
                 {% for m in mccs %}
 
@@ -96,11 +113,12 @@
 
                 {% for chart in rate_charts %}
 
-                <option value="{{ chart.id }}" {% if collection and collection.rate_chart_id|string==chart.id|string %}
+                {# Rank order: R1, R2, ... (the supplying VLCC's assigned rank selects one) #}
+                <option value="{{ chart.id }}" data-rank="{{ loop.index }}" {% if collection and collection.rate_chart_id|string==chart.id|string %}
 
                     selected {% endif %}>
 
-                    {{ chart.chart_name }}
+                    R{{ loop.index }} · {{ chart.chart_name }}
 
                 </option>
 
@@ -146,15 +164,10 @@
 
         <div class="form-group" id="group-milk-type">
 
-            <label>Milk Type *</label>
+            <label>Milk Type *<span class="cf-auto-hint"><i class="fa-solid fa-wand-magic-sparkles"></i> auto</span></label>
 
-            <select name="milk_type" id="cf-type" class="form-control"
-
-                style="pointer-events: none; background-color: #f1f5f9; cursor: not-allowed;"
-
-                hx-get="/mcc-collections/api/calculate-rate" hx-trigger="change"
-
-                hx-include="#cf-ratechart, #cf-fat, #cf-snf, #cf-type" hx-target="#cf-rate" hx-swap="outerHTML">
+            {# Set automatically: Mixed MCC -> Mixed; Cow/Buffalo -> from FAT (rate is recalculated from the chart) #}
+            <select name="milk_type" id="cf-type" class="form-control cf-locked" tabindex="-1" aria-readonly="true">
 
                 <option value="0">Cow</option>
 
@@ -223,6 +236,21 @@
                     required hx-get="/ratecharts/get-rate" hx-trigger="rate:calculate"
 
                     hx-include="#cf-ratechart, #cf-fat, #cf-snf, #cf-type" hx-target="#group-rate" hx-swap="outerHTML">
+
+            </div>
+
+        </div>
+
+        <!-- Amount = quantity x rate (calculated, not editable) -->
+        <div class="form-group" id="group-amount">
+
+            <label>Amount (₹)</label>
+
+            <div class="input-icon-wrapper">
+
+                <i class="fa-solid fa-sack-dollar"></i>
+
+                <input readonly type="number" step="0.01" id="cf-amount" class="form-control" tabindex="-1" placeholder="0.00">
 
             </div>
 
@@ -298,10 +326,11 @@
         style="padding:18px 24px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:flex-end; gap:12px; align-items:center;">
         <a href="/mcc-collections" class="btn btn-ghost"
             style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">Cancel</a>
-        <button type="button" class="btn btn-primary" id="ff-preview-save-collection"
-            style="background: #2563eb; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; cursor: pointer;"
+        {# Disabled until a VLCC is selected and a weight entered (static/js/collection_form.js) #}
+        <button type="button" class="btn btn-primary" id="ff-preview-save-collection" data-require-unit-weight disabled
+            style="background: #2563eb; color: white; border: none; padding: 8px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; cursor: not-allowed; opacity: 0.55;"
             onclick="openReceiptPreview()"
-            title="Preview receipt and save collection">
+            title="Select the VLCC and enter the weight first">
             <i class="fa-solid fa-eye"></i> Preview & Save
         </button>
     </div>

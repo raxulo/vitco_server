@@ -57,8 +57,10 @@ class ReportsController:
         vlcc_handler = GetHandler.vlcc_handler(request)
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=owner))
         
+        # A single MCC (MCC login) comes pre-selected; otherwise the user picks one and the
+        # report list is loaded for it via mcc_type_reports
         initial_reports = []
-        if mccs:
+        if len(mccs) == 1:
             mcc_type = mccs[0].mcc_type
             initial_reports = ReportsController._get_reports_for_mcc_type(mcc_type)
 

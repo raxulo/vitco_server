@@ -659,7 +659,8 @@ class RateChartController:
             raise ValueError("Snf is required")
 
         rate_handler = GetHandler.ratechart_handler(request)
-        rate = await rate_handler.get_rate_by_chart_id(chart_id=UUID(chart_id), fat_percent=fat_percent, snf_percent=snf_percent, milk_type=MilkType(milk_type) if milk_type else None)
+        # milk_type 0 is COW, so test for None (not truthiness)
+        rate = await rate_handler.get_rate_by_chart_id(chart_id=UUID(chart_id), fat_percent=fat_percent, snf_percent=snf_percent, milk_type=MilkType(milk_type) if milk_type is not None else None)
         value = f"{rate:.2f}" if rate is not None else "0.00"
         return HTMLResponse(
             content=f'''<div class="form-group" id="group-rate">
