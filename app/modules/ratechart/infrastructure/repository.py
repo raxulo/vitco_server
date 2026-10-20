@@ -6,7 +6,7 @@ from app.modules.ratechart.domain.exceptions import RateChartAssignmentNotFoundE
 from sqlalchemy import update
 from uuid import UUID
 
-from sqlalchemy import select, delete, or_, true, false, exists
+from sqlalchemy import select, delete, func, or_, true, false, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.manager import DatabaseManager
@@ -171,6 +171,12 @@ class RateChartRepository(IRateChartRepository):
     ) -> None:
         model = RateChartMapper.to_model(entity)
         self._session.add(model)
+
+    async def count_created_by(self, user_id: UUID) -> int:
+        """Rate charts a user created (for the MCC / VLCC chart limit)."""
+        return await self._session.scalar(
+            select(func.count(RateChartModel.id)).where(RateChartModel.created_by == user_id)
+        ) or 0
 
 
     async def update(

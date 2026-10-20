@@ -210,17 +210,23 @@ class MccRepository(IMccRepository):
         self,
         code: str,
         owner: CurrentUser,
+        exclude_id: UUID | None = None,
     ) -> bool:
-
+        """
+        Is this MCC code already used in the owner's line (itself, above, below)?
+        Another Admin's tree may hold the same code (see `Hierarchy.code_conflict`).
+        """
         stmt = (
             select(MccModel.id)
             .where(
-                MccModel.code == code,
+                MccModel.code == code.strip(),
                 MccModel.is_deleted.is_(False),
-                MccAccessScope.condition(owner),
+                Hierarchy.code_conflict(owner, MccModel.created_by),
             )
             .limit(1)
         )
+        if exclude_id is not None:
+            stmt = stmt.where(MccModel.id != exclude_id)
 
         return (
             await self._database.session.scalar(stmt)

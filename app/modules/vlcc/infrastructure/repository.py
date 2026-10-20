@@ -277,16 +277,23 @@ class VlccRepository(IVlccRepository):
         self,
         code: str,
         owner: CurrentUser,
+        exclude_id: UUID | None = None,
     ) -> bool:
+        """
+        Is this VLCC code already used in the owner's line (itself, above, below)?
+        Another Admin's tree may hold the same code (see `Hierarchy.code_conflict`).
+        """
         stmt = (
             select(VlccModel.id)
             .where(
-                VlccModel.vlcc_code == code,
+                VlccModel.vlcc_code == code.strip(),
                 VlccModel.is_deleted.is_(False),
-                VlccAccessScope.condition(owner),
+                Hierarchy.code_conflict(owner, VlccModel.created_by),
             )
             .limit(1)
         )
+        if exclude_id is not None:
+            stmt = stmt.where(VlccModel.id != exclude_id)
         result = await self._session.scalar(stmt)
         return result is not None
 

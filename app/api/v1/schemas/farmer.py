@@ -8,6 +8,8 @@ from typing import Any
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.validators import mobile_number
+
 
 class CheckCodeRequest(BaseModel):
     code: str | None = None
@@ -28,11 +30,16 @@ class CreateFarmerApiRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
     vlcc_id: UUID | None = None
     email: str | None = None
-    mobile: str | None = None
+    mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
     password: str | None = None
 
     assigned_chart_rank: int = 1
     milk_type: Any = 2  # 0=COW, 1=BUFFALO, 2=MIXED
+
+    @field_validator("mobile", mode="before")
+    @classmethod
+    def _mobile_digits(cls, value: str | None) -> str:
+        return mobile_number(value)
     profile_image: UploadFile | None = None
     sms_enabled: bool = False
     is_active: bool = True

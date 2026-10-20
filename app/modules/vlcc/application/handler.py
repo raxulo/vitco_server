@@ -39,8 +39,9 @@ from app.modules.auth.infrastructure.password import PasswordService
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.domain.entities import User
 from app.modules.administration.domain.exceptions import (
+    EmailAlreadyExistsException,
+    MobileAlreadyExistsException,
     UserNotFoundException,
-    UserAlreadyExistsException,
 )
 from app.modules.administration.infrastructure.repository import UserRepository
 from app.modules.vlcc.domain.entities import Vlcc
@@ -363,17 +364,32 @@ class VlccHandler:
 
         # Email format validation
 
-    async def _ensure_code_available(self, code: str, owner: CurrentUser | None = None) -> None:
-        if owner is not None and await self._vlcc_repository.exists_code(code, owner):
-            raise VlccCodeAlreadyExistsException()
+    @staticmethod
+    def ensure_can_create(owner: CurrentUser | None) -> None:
+        """Super Admin, Admin, Sub Admin and MCC create VLCCs (a VLCC never creates another VLCC)."""
+        if owner is None or owner.role_type in (Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN, Role.MCC):
+            return
+        if owner.role_type == Role.VLCC:
+            raise PermissionError("A VLCC cannot create another VLCC.")
+        raise PermissionError("You are not allowed to create a VLCC.")
+
+    async def _ensure_code_available(
+        self,
+        code: str,
+        owner: CurrentUser | None = None,
+        exclude_id: UUID | None = None,
+    ) -> None:
+        """The code must be free in the owner's line (itself, above, below)."""
+        if owner is not None and await self._vlcc_repository.exists_code(code, owner, exclude_id=exclude_id):
+            raise VlccCodeAlreadyExistsException(f"VLCC code {code.strip()} already exists.")
 
     async def _ensure_email_available(self, email: str) -> None:
         if await self._user_repository.exists_email(email):
-            raise UserAlreadyExistsException()
+            raise EmailAlreadyExistsException(f"Email {email.strip()} already exists.")
 
     async def _ensure_mobile_available(self, mobile: str, exclude_user_id: UUID | None = None) -> None:
         if await self._user_repository.exists_mobile(mobile, exclude_user_id=exclude_user_id):
-            raise ValidationException("Mobile number is already registered. Mobile number must be unique.")
+            raise MobileAlreadyExistsException(f"Mobile number {mobile.strip()} is already registered.")
 
     def _update_user(
         self,
@@ -420,6 +436,7 @@ class VlccHandler:
         command: CreateFullDetailVlcc,
         owner: CurrentUser,
     ) -> bool:
+        self.ensure_can_create(owner)
         self._validate(command.vlcc)
         await self._ensure_code_available(command.vlcc.vlcc_code, owner)
 
@@ -469,6 +486,7 @@ class VlccHandler:
     ) -> bool:
 
         self._validate(command.vlcc)
+        await self._ensure_code_available(command.vlcc.vlcc_code, owner, exclude_id=command.vlcc.id)
 
         async with self._database.transaction():
 
@@ -679,8 +697,8 @@ class VlccHandler:
         return self._to_detail_dto(vlcc, profile.user, profile.address, profile.bank_account, setting, milk_quality_config)
     
     async def validate_code(self, code: str, owner: CurrentUser) -> bool:
-        vlcc = await self._vlcc_repository.get_by_code(code, owner=owner)
-        return True if not vlcc else False
+        """Live form check: same rule as create (code free in the owner's line)."""
+        return not await self._vlcc_repository.exists_code(code, owner)
 
     async def validate_uic_code(self, code: str, owner: CurrentUser) -> bool:
         vlcc = await self._vlcc_repository.get_by_uic_code(code, owner=owner)

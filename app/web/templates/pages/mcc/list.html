@@ -19,9 +19,12 @@
             </div>
         </div>
         <div class="mcc-header-actions">
+            {# Only Super Admin / Admin / Sub Admin (Role 1-3) create MCCs #}
+            {% if current_user and current_user.role|int in (1, 2, 3) %}
             <a href="/mcc/create" class="btn-action-primary">
                 <i class="fa-solid fa-plus"></i> New MCC
             </a>
+            {% endif %}
         </div>
     </div>
 

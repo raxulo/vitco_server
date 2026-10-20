@@ -42,7 +42,17 @@
         <a href="/profile" class="pe-btn ghost"><i class="fa-solid fa-arrow-left"></i> Back to Profile</a>
     </div>
 
-    {% if error %}<div class="pe-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ error }}</div>{% endif %}
+    {% if error %}
+    <div class="pe-error"><i class="fa-solid fa-triangle-exclamation"></i> {{ error }}</div>
+    {# Same popup as the other forms; the inline box stays for reference #}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (window.Swal) {
+                Swal.fire({ icon: "error", title: "Error", text: {{ error | tojson }}, confirmButtonColor: "#2563eb" });
+            }
+        });
+    </script>
+    {% endif %}
 
     <form method="POST" action="/profile/edit">
 
@@ -63,8 +73,11 @@
                     <input type="email" id="email" name="email" required value="{{ val('email', user.email) }}">
                 </div>
                 <div>
-                    <label for="mobile">Mobile No</label>
-                    <input type="tel" id="mobile" name="mobile" maxlength="20" value="{{ val('mobile', user.mobile) }}">
+                    <label for="mobile">Mobile No <span style="color: #dc2626;">*</span></label>
+                    <input type="tel" id="mobile" name="mobile" required inputmode="numeric" maxlength="10" pattern="[0-9]{10}"
+                        title="Mobile number must be exactly 10 digits"
+                        oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"
+                        value="{{ val('mobile', user.mobile) }}">
                 </div>
             </div>
         </div>

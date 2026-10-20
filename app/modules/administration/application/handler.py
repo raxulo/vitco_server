@@ -17,7 +17,12 @@ from app.modules.administration.domain.exceptions import EmailNotFoundException
 from uuid import uuid4
 from datetime import UTC, datetime
 from app.modules.administration.domain.entities import User
-from app.modules.administration.domain.exceptions import UserAlreadyExistsException
+from app.core.validators import mobile_number
+from app.modules.administration.domain.exceptions import (
+    EmailAlreadyExistsException,
+    InvalidMobileException,
+    MobileAlreadyExistsException,
+)
 from fastapi.exceptions import ValidationException
 from app.modules.administration.domain.entities import UserDto
 from app.modules.administration.application.command import CreateUserCommand
@@ -73,8 +78,13 @@ class UserHandler:
 
         self._validate_create(command)
         await self._ensure_email_available(command.email)
-        if command.mobile and command.mobile.strip():
-            await self._ensure_mobile_available(command.mobile.strip())
+        # Mobile is mandatory for every user; only the bootstrap Super Admin (from settings) may lack one
+        if command.role != Role.SUPER_ADMIN or (command.mobile and command.mobile.strip()):
+            try:
+                command.mobile = mobile_number(command.mobile, required=True)
+            except ValueError as exc:
+                raise InvalidMobileException(f"{exc}.") from exc
+            await self._ensure_mobile_available(command.mobile)
         
         password_hash = self._password.hash(command.password_hash)
         user = self._build_user(command, password_hash)
@@ -240,12 +250,12 @@ class UserHandler:
     async def _ensure_email_available(self, email: str):
         exists = await self._repository.exists_email(email)
         if exists:
-            raise UserAlreadyExistsException()
+            raise EmailAlreadyExistsException(f"Email {email.strip()} already exists.")
 
     async def _ensure_mobile_available(self, mobile: str, exclude_user_id: str | None = None):
         exists = await self._repository.exists_mobile(mobile, exclude_user_id=exclude_user_id)
         if exists:
-            raise ValidationException("Mobile number is already registered. Mobile number must be unique.")
+            raise MobileAlreadyExistsException(f"Mobile number {mobile.strip()} is already registered.")
 
     async def _email_not_found(self, email: str):
         exists = await self._repository.exists_email(email)

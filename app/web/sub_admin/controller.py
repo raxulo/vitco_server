@@ -4,6 +4,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from app.modules.dependencies import GetHandler
 from app.web.framework.renderer import Renderer
+from app.web.framework.helpers import WebHelper
 from app.core.exceptions.base import ValidateError
 from fastapi.responses import Response, RedirectResponse
 from app.modules.administration.domain.enums import Role
@@ -152,7 +153,7 @@ class SubAdminController:
             )
 
         if result and result.user:
-            return Renderer.redirect("/sub-admins")
+            return SubAdminController._done(request, "/sub-admins")
 
         return Renderer.empty().error("Unable to create user").build()
 
@@ -319,4 +320,11 @@ class SubAdminController:
                     bank_data=CreateBankAccountCommand(user_id=user_id, **bank_fields),
                 )
 
-        return Renderer.redirect("/sub-admins")
+        return SubAdminController._done(request, "/sub-admins")
+
+    @staticmethod
+    def _done(request: Request, url: str) -> Response:
+        """After a successful save: HTMX forms navigate client-side, plain posts get a redirect."""
+        if WebHelper.is_htmx(request):
+            return Renderer.htmx_redirect(url=url)
+        return Renderer.redirect(url)

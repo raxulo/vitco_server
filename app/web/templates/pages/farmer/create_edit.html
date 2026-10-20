@@ -237,6 +237,7 @@
                 <div class="form-field">
                     <label>
                         Registered Mobile
+                        <span class="required">*</span>
                     </label>
 
                     <div class="input-wrapper">
@@ -246,7 +247,13 @@
                             name="mobile"
                             type="tel"
                             class="form-control"
-                            placeholder="+91 99999 88888"
+                            placeholder="9999988888"
+                            inputmode="numeric"
+                            maxlength="10"
+                            pattern="[0-9]{10}"
+                            title="Mobile number must be exactly 10 digits"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)"
+                            required
                             value="{{ user.mobile if farmer else '' }}"
                         />
                     </div>

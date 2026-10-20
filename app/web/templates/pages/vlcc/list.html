@@ -19,9 +19,12 @@
             </div>
         </div>
         <div class="mcc-header-actions">
+            {# A VLCC never creates another VLCC (Role: VLCC=5, FARMER=6) #}
+            {% if current_user and current_user.role|int not in (5, 6) %}
             <a href="/vlcc/create" class="btn-action-primary">
                 <i class="fa-solid fa-plus"></i> New VLCC
             </a>
+            {% endif %}
         </div>
     </div>
 

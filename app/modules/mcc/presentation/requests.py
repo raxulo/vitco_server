@@ -2,7 +2,13 @@ from fastapi import UploadFile
 from pydantic import field_validator
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, model_validator
-from app.core.validators import apply_milk_quality_rules, digits_only, min_not_above_max, mobile_number
+from app.core.validators import (
+    apply_milk_quality_rules,
+    apply_shift_time_rules,
+    digits_only,
+    min_not_above_max,
+    mobile_number,
+)
 from app.modules.mcc.domain.enums import MccType
 from typing import Any
 
@@ -19,7 +25,7 @@ from app.modules.common.settings.domain.enums import (
 class CreateMccRequest(BaseModel):
     code: str = Field(..., min_length=1, max_length=30)
     name: str = Field(..., min_length=1, max_length=150)
-    mobile: str
+    mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
     email: EmailStr
 
     @field_validator("code")
@@ -95,6 +101,7 @@ class CreateMccRequest(BaseModel):
         apply_milk_quality_rules(self)
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
+        apply_shift_time_rules(self)
         return self
 
     @field_validator("password")
@@ -142,7 +149,7 @@ class UpdateMccRequest(BaseModel):
     # Code is read-only after creation (older codes may contain letters), so it is not re-validated
     code: str = Field(..., min_length=1, max_length=30)
     name: str = Field(..., min_length=1, max_length=150)
-    mobile: str
+    mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
     email: EmailStr
 
     @field_validator("mobile", mode="before")
@@ -213,6 +220,7 @@ class UpdateMccRequest(BaseModel):
         apply_milk_quality_rules(self)
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
+        apply_shift_time_rules(self)
         return self
 
     @model_validator(mode="before")

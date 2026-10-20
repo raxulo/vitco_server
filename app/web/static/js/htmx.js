@@ -64,15 +64,50 @@ document.body.addEventListener("htmx:afterRequest", () => {
 
 });
 
+// Errors / warnings need the user's attention: a popup dialog they must close.
+// Success / info stay a small toast.
+function showErrorPopup(message, title = "Error", icon = "error") {
+    if (window.Swal) {
+        Swal.fire({
+            icon: icon,
+            title: title,
+            text: message,
+            confirmButtonText: "OK",
+            confirmButtonColor: "#2563eb",
+        });
+    } else {
+        alert(message);
+    }
+}
+
+// For forms that submit with fetch(): read the server's error message whether it came
+// as JSON ({error: {message}} / {detail}) or as an HX-Trigger "notification" header.
+async function responseErrorMessage(res, fallback = "Something went wrong. Please try again.") {
+    const trigger = res.headers.get("HX-Trigger");
+    if (trigger) {
+        try {
+            const message = JSON.parse(trigger)?.notification?.message;
+            if (message) return message;
+        } catch { /* not JSON */ }
+    }
+    try {
+        const json = await res.json();
+        const detail = Array.isArray(json?.detail) ? json.detail[0]?.msg : json?.detail;
+        return json?.error?.message || detail || fallback;
+    } catch {
+        return errors[res.status] ?? fallback;
+    }
+}
+window.responseErrorMessage = responseErrorMessage;
+window.showErrorPopup = showErrorPopup;
+
 document.body.addEventListener("notification", (e) => {
-    showToast(e.detail.message, e.detail.type === "error");
-    // Swal.fire({
-    //     icon: e.detail.type,
-    //     title: e.detail.title,
-    //     text: e.detail.message,
-    //     timer: 2000,
-    //     showConfirmButton: false,
-    // });
+    const type = e.detail.type;
+    if (type === "error" || type === "warning") {
+        showErrorPopup(e.detail.message, e.detail.title || (type === "error" ? "Error" : "Warning"), type);
+        return;
+    }
+    showToast(e.detail.message, false);
 });
 
 document.body.addEventListener("redirect", (e) => {
@@ -120,30 +155,24 @@ document.body.addEventListener("form-reset", (e) => {
 document.body.addEventListener("htmx:responseError", (e) => {
 
     const xhr = e.detail.xhr;
-    console.log(xhr);
+
+    // The server already sent an HX-Trigger notification -> the listener above shows it
+    const trigger = xhr.getResponseHeader("HX-Trigger") || "";
+    if (trigger.includes("notification")) return;
 
     let message = errors[xhr.status] ?? "Unexpected Error";
-
     try {
-
         const json = JSON.parse(xhr.responseText);
-
-        message = json.error.message??message;
-
-        Swal.fire({
-
-        icon: "error",
-
-        title: "Error",
-
-        text: message,
-
-    });
-
+        message = json?.error?.message ?? json?.detail ?? message;
+    } catch {
+        // Not JSON (e.g. an HTML error page): keep the status text
     }
 
-    catch {}
+    showErrorPopup(message, xhr.status === 422 ? "Please check the form" : "Error");
 
-    
+});
 
+// Network failure (server down / no internet)
+document.body.addEventListener("htmx:sendError", () => {
+    showErrorPopup("Could not reach the server. Please check your connection and try again.");
 });

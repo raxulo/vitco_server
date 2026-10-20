@@ -41,6 +41,11 @@
     <div class="alert alert-danger" style="margin-bottom: 25px; padding: 15px 20px; border-radius: 8px; background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; display: flex; align-items: center; gap: 10px; font-size: 14px;">
         <i class="fa-solid fa-circle-exclamation"></i> <span>{{ error }}</span>
     </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (window.Swal) Swal.fire({ icon: "error", title: "Error", text: {{ error | tojson }}, confirmButtonColor: "#2563eb" });
+        });
+    </script>
     {% endif %}
 
     <!-- Data Table -->

@@ -44,17 +44,22 @@ class UserRepository(IUserRepository):
     async def exists_email(
         self,
         email: str,
+        exclude_user_id: str | UUID | None = None,
     ) -> bool:
+        """Email taken by any user (case-insensitive), optionally ignoring one user (on update)."""
+        if not email or not str(email).strip():
+            return False
 
         stmt = (
             select(UserModel.id)
             .where(
-                UserModel.email == email
+                func.lower(UserModel.email) == str(email).strip().lower()
             )
-            .limit(1)
         )
+        if exclude_user_id is not None:
+            stmt = stmt.where(UserModel.id != UUID(str(exclude_user_id)))
 
-        result = await self._database.session.scalar(stmt)
+        result = await self._database.session.scalar(stmt.limit(1))
 
         return result is not None
 
@@ -271,6 +276,9 @@ class UserRepository(IUserRepository):
 
         if not data.get("password_hash"):
             data.pop("password_hash")
+        # Mobile is mandatory: an update without one keeps the current number
+        if not data.get("mobile"):
+            data.pop("mobile", None)
         result = await self._session.execute(
             update(UserModel)
             .where(UserModel.id == entity.id)

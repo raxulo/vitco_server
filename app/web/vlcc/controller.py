@@ -2,6 +2,8 @@
 VLCC Web Controller
 """
 
+from app.core.exceptions.base import ForbiddenException
+from app.modules.vlcc.application.handler import VlccHandler
 from app.modules.vlcc.presentation.requests import UpdateVlccRequest
 from app.modules.vlcc.presentation.requests import CreateVlccRequest
 from app.modules.ratechart.application.command import GetAssignmentsByOwnerQuery
@@ -71,6 +73,10 @@ class VlccController:
     @staticmethod
     async def create_page(request: Request):
         user: CurrentUser = request.state.user
+        try:
+            VlccHandler.ensure_can_create(user)
+        except PermissionError as exc:
+            raise ForbiddenException(str(exc))
         routes = await GetHandler.route_master_handler(request).selectable(user)
         return Renderer.page(
             request=request,

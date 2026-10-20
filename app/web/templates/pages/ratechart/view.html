@@ -16,6 +16,7 @@
             </div>
         </div>
         <div class="page-actions" style="display:flex; gap:10px;">
+            {% if can_modify|default(true) %}
             <button id="btn-set-default" onclick="toggleDefault()" class="btn {{ 'btn-warning' if chart.is_default else 'btn-secondary' }}" style="min-width:140px; padding: 8px 16px; border-radius: 6px; cursor: pointer; border: 1px solid #cbd5e1; font-weight: 600;">
                 <i class="fa-solid {{ 'fa-star' if chart.is_default else 'fa-star-half-stroke' }}"></i>
                 {{ 'Master Default' if chart.is_default else 'Set as Default' }}
@@ -23,6 +24,12 @@
             <a href="/ratecharts/edit/{{ chart.id }}" class="btn btn-primary" style="background:#2563eb; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
                 <i class="fa-solid fa-pen-to-square"></i> EDIT
             </a>
+            {% else %}
+            <span title="View only: no permission to modify this rate chart"
+                style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; padding:8px 16px; border-radius:6px; font-size:14px; font-weight:600; cursor:not-allowed; display:inline-flex; align-items:center; gap:6px;">
+                <i class="fa-solid fa-eye"></i> View only
+            </span>
+            {% endif %}
         </div>
     </div>
 

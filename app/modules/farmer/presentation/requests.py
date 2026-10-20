@@ -3,6 +3,7 @@ from typing import Any
 from pydantic import field_validator, model_validator
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
+from app.core.validators import mobile_number
 from app.modules.farmer.domain.enums import MilkType
 
 
@@ -10,8 +11,13 @@ class CreateFarmerRequest(BaseModel):
     # User / Identity
     name: str = Field(..., min_length=1, max_length=150)
     email: EmailStr
-    mobile: str | None = None
+    mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
     password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("mobile", mode="before")
+    @classmethod
+    def _mobile_digits(cls, value: str | None) -> str:
+        return mobile_number(value)
     
     # Farmer Specific
     farmer_code: str = Field(..., min_length=1, max_length=30)
@@ -63,8 +69,13 @@ class UpdateFarmerRequest(BaseModel):
     # User / Identity
     name: str = Field(..., min_length=1, max_length=150)
     email: EmailStr
-    mobile: str | None = None
+    mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
     password: str | None = Field(None, min_length=8, max_length=128)
+
+    @field_validator("mobile", mode="before")
+    @classmethod
+    def _mobile_digits(cls, value: str | None) -> str:
+        return mobile_number(value)
     
     # Farmer Specific
     farmer_code: str = Field(..., min_length=1, max_length=30)

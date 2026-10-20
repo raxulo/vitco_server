@@ -6,7 +6,12 @@ from dataclasses import replace
 from app.modules.administration.domain.exceptions import UserNotFoundException
 from app.modules.common.bank.domain.exceptions import BankAccountNotFoundException
 from app.modules.common.address.domain.exceptions import AddressNotFoundException
-from app.modules.administration.domain.exceptions import UserAlreadyExistsException
+from app.core.validators import mobile_number
+from app.modules.administration.domain.exceptions import (
+    EmailAlreadyExistsException,
+    InvalidMobileException,
+    MobileAlreadyExistsException,
+)
 from uuid import UUID
 from app.modules.common.bank.application.command import UpdateBankAccountCommand
 from app.modules.common.address.application.command import UpdateAddressCommand
@@ -59,6 +64,10 @@ class ProfileService:
         bank_data: CreateBankAccountCommand | None = None,
         role: Role,
     ) -> CreatedProfile:
+
+        # Every user needs a valid 10-digit mobile; email and mobile are unique across users
+        user_data.mobile = self._required_mobile(user_data.mobile)
+        await self.ensure_contact_available(email=user_data.email, mobile=user_data.mobile)
 
         user_id = uuid4()
         now = now_naive_ist()
@@ -160,6 +169,21 @@ class ProfileService:
         bank_data: UpdateBankAccountCommand | None = None,
     ) -> None:
 
+        # A new mobile must be valid; leaving it out keeps the current one, which must exist
+        if user_data.mobile is not None and str(user_data.mobile).strip():
+            user_data.mobile = self._required_mobile(user_data.mobile)
+        else:
+            user_data.mobile = None
+            current = await self._user_repository.get_by_id(user_data.id)
+            if current is not None and not (current.mobile or "").strip():
+                raise InvalidMobileException()
+
+        await self.ensure_contact_available(
+            email=user_data.email,
+            mobile=user_data.mobile,
+            exclude_user_id=user_data.id,
+        )
+
         if user_data.password_hash:
             user_data.password_hash = self._password.hash(user_data.password_hash)
 
@@ -189,6 +213,14 @@ class ProfileService:
         await self._media_service.delete_profile_image(user_id)
 
     @staticmethod
+    def _required_mobile(mobile: str | None) -> str:
+        """A mobile number is mandatory for every user: exactly 10 digits."""
+        try:
+            return mobile_number(mobile, required=True)
+        except ValueError as exc:
+            raise InvalidMobileException(str(exc) + ".") from exc
+
+    @staticmethod
     def _has_upload(file) -> bool:
         return bool(file is not None and getattr(file, "filename", None))
 
@@ -202,9 +234,23 @@ class ProfileService:
             bank_account=bank,
         )
 
-    async def _ensure_email_available(self, email: str) -> None:
-        if await self._user_repository.exists_email(email):
-            raise UserAlreadyExistsException()
+    async def ensure_contact_available(
+        self,
+        *,
+        email: str | None,
+        mobile: str | None,
+        exclude_user_id: UUID | None = None,
+    ) -> None:
+        """
+        Email and mobile number must never be shared by two users.
+        On update pass the user's own id so its current values are not a clash.
+        """
+        if email and await self._user_repository.exists_email(email, exclude_user_id=exclude_user_id):
+            raise EmailAlreadyExistsException(f"Email {email.strip()} already exists.")
+        if mobile and str(mobile).strip() and await self._user_repository.exists_mobile(
+            str(mobile).strip(), exclude_user_id=exclude_user_id
+        ):
+            raise MobileAlreadyExistsException(f"Mobile number {str(mobile).strip()} is already registered.")
 
     async def address_update(self, data: UpdateAddressCommand) -> Address:
         result = await self._address_repository.update_address_by_command(data)

@@ -45,7 +45,48 @@ def indian_date(value: date | str | None, label: str) -> date | None:
 def min_not_above_max(low: float | None, high: float | None, label: str) -> None:
     """A 0 / empty maximum means "not configured" and is not compared."""
     if low and high and low > high:
-        raise ValueError(f"{label}: minimum cannot be more than maximum")
+        raise ValueError(f"{label}: minimum ({low:g}) cannot be more than maximum ({high:g})")
+
+
+_TIME = re.compile(r"([01]\d|2[0-3]):([0-5]\d)")
+
+
+def _minutes(value: str | None, label: str) -> int | None:
+    """'HH:MM' -> minutes since midnight; empty means "not set"."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    match = _TIME.fullmatch(value[:5])
+    if not match:
+        raise ValueError(f"{label} must be a valid time (HH:MM)")
+    return int(match.group(1)) * 60 + int(match.group(2))
+
+
+def apply_shift_time_rules(model) -> None:
+    """
+    Collection shifts on a request model: each shift starts before it ends,
+    and the morning shift ends before (or when) the evening shift starts.
+    """
+    morning_start = _minutes(model.morning_collection_start, "Morning shift start time")
+    morning_end = _minutes(model.morning_collection_end, "Morning shift end time")
+    evening_start = _minutes(model.evening_collection_start, "Evening shift start time")
+    evening_end = _minutes(model.evening_collection_end, "Evening shift end time")
+
+    if morning_start is not None and morning_end is not None and morning_start >= morning_end:
+        raise ValueError(
+            f"Morning shift: start time ({model.morning_collection_start}) must be before "
+            f"end time ({model.morning_collection_end})"
+        )
+    if evening_start is not None and evening_end is not None and evening_start >= evening_end:
+        raise ValueError(
+            f"Evening shift: start time ({model.evening_collection_start}) must be before "
+            f"end time ({model.evening_collection_end})"
+        )
+    if morning_end is not None and evening_start is not None and morning_end > evening_start:
+        raise ValueError(
+            f"Morning shift must end ({model.morning_collection_end}) before the evening shift "
+            f"starts ({model.evening_collection_start})"
+        )
 
 
 def apply_milk_quality_rules(model) -> None:

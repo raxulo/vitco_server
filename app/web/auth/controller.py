@@ -5,6 +5,8 @@ Auth Web Controller
 from app.modules.administration.application import permission
 from app.modules.administration.application import permission
 from app.modules.administration.application import permission
+from app.core.exceptions.base import ApplicationException
+from app.core.validators import apply_shift_time_rules, mobile_number
 from app.modules.administration.domain.enums import Role
 from app.web.framework.helpers import WebHelper
 from app.web.framework.htmx import HTMXBuilder
@@ -188,15 +190,26 @@ class AuthController:
         email = (form.get("email") or "").strip().lower()
         if not name or not email:
             return await AuthController._render_profile_edit(request, "Name and email are required.", form)
-        if email != (existing.user.email or "").lower() and await profile_service._user_repository.exists_email(email):
-            return await AuthController._render_profile_edit(request, "This email is already used by another account.", form)
+        # Mobile is mandatory (10 digits); email and mobile stay unique (own values excluded)
+        try:
+            mobile = mobile_number(form.get("mobile"), required=True)
+        except ValueError as exc:
+            return await AuthController._render_profile_edit(request, f"{exc}.", form)
+        try:
+            await profile_service.ensure_contact_available(
+                email=email,
+                mobile=mobile,
+                exclude_user_id=user.id,
+            )
+        except ApplicationException as exc:
+            return await AuthController._render_profile_edit(request, exc.message, form)
 
         # Role / status / owner stay exactly as they are
         user_command = UpdateUserCommand(
             id=user.id,
             name=name,
             email=email,
-            mobile=(form.get("mobile") or "").strip() or None,
+            mobile=mobile,
             role=existing.user.role,
             is_active=True,
             password_hash=None,
@@ -256,6 +269,10 @@ class AuthController:
                 )
             except (KeyError, ValueError):
                 return await AuthController._render_profile_edit(request, "Please fill all settings fields correctly.", form)
+            try:
+                apply_shift_time_rules(settings_command)
+            except ValueError as exc:
+                return await AuthController._render_profile_edit(request, str(exc), form)
 
         async with profile_service._database.transaction():
             await profile_service.update(

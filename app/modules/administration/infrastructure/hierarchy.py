@@ -131,6 +131,36 @@ class Hierarchy:
         below = cls.controlled_users(owner)
         return true() if below is None else created_by.in_(below)
 
+    # =========================================================
+    # MCC / VLCC code uniqueness
+    # =========================================================
+
+    @classmethod
+    def code_conflict(cls, owner: CurrentUser, created_by):
+        """
+        Condition on a record's `created_by`: true when the owner may NOT reuse
+        that record's MCC / VLCC code, i.e. it was made in the owner's line:
+
+        - by itself,
+        - by anyone above it (its creator chain, and every Super Admin),
+        - by anyone below it.
+
+        So a code made by a Super Admin is taken for everyone, a code made by an
+        Admin is taken for its Sub Admins / MCCs, while another Admin's tree may
+        still use it.
+        """
+        if owner.role_type == Role.SUPER_ADMIN:
+            return true()
+        conditions = [
+            created_by == owner.id,
+            created_by.in_(cls.ancestor_users(owner)),
+            created_by.in_(select(UserModel.id).where(UserModel.role == Role.SUPER_ADMIN)),
+        ]
+        below = cls.controlled_users(owner)
+        if below is not None:
+            conditions.append(created_by.in_(below))
+        return or_(*conditions)
+
     @classmethod
     def farmer_users(cls, owner: CurrentUser) -> Select | None:
         """Login users of the farmers in the VLCCs the owner controls."""

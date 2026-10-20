@@ -12,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from app.core.exceptions.base import ValidateError
 
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from app.web.framework.renderer import Renderer
 from app.web.framework.helpers import WebHelper
 
@@ -94,6 +95,10 @@ async def http_exception_handler(request, exc: HTTPException):
 
 async def forbidden_exception_handler(request, exc: ForbiddenException):
 
+    # API / HTMX form submits: JSON so the popup can show the reason
+    if WebHelper.is_api(request) or WebHelper.is_htmx(request):
+        return _error_json(403, "FORBIDDEN", exc.message)
+
     return Renderer.page(
         request=request,
         template="pages/errors/403.html",
@@ -104,6 +109,24 @@ async def forbidden_exception_handler(request, exc: ForbiddenException):
     )
 
 
+def _readable_validation_message(error: dict) -> str:
+    """
+    One clear sentence for the popup:
+    - our own rules (ValueError in a validator) are shown as written,
+    - pydantic's built-in checks are prefixed with the field label.
+    """
+    message = str(error.get("msg") or "Invalid value")
+    for prefix in ("Value error, ", "Assertion failed, "):
+        if message.startswith(prefix):
+            return message[len(prefix):]
+
+    loc = [part for part in error.get("loc", ()) if isinstance(part, str) and part not in ("body", "query")]
+    if not loc:
+        return message
+    label = loc[-1].replace("_", " ").capitalize()
+    return f"{label}: {message}"
+
+
 async def validation_exception_handler(request, exc: ValidationError):
     errors = []
     for error in exc.errors():
@@ -112,13 +135,10 @@ async def validation_exception_handler(request, exc: ValidationError):
 
         errors.append({
             "field": field,
-            "message": error.get("msg", "Invalid value"),
+            "message": _readable_validation_message(error),
             "type": error.get("type"),
         })
-    message = "Validation Error"
-    if len(errors) > 0:
-        _m = errors[0].get('message')
-        message =  f"{errors[0].get("field").replace("_", " ").capitalize()} : {_m}" if _m else "Please enter correct input field."
+    message = errors[0]["message"] if errors else "Please enter correct input field."
 
 
     return JSONResponse(
@@ -132,6 +152,55 @@ async def validation_exception_handler(request, exc: ValidationError):
             },
         }),
     )
+
+
+def _error_json(status_code: int, code: str, message: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "error": {
+                "code": code,
+                "message": message,
+                "details": {},
+            },
+        },
+    )
+
+
+async def permission_error_handler(request, exc: PermissionError):
+    """Role / permission refusals (e.g. "VLCC creation is not allowed") reach the user's popup."""
+    message = str(exc) or "You do not have permission to do this."
+    if WebHelper.is_api(request) or WebHelper.is_htmx(request):
+        return _error_json(403, "FORBIDDEN", message)
+    return Renderer.page(
+        request=request,
+        template="pages/errors/403.html",
+        model={"message": message},
+        status_code=403,
+    )
+
+
+async def value_error_handler(request, exc: ValueError):
+    """Business rules raised as ValueError (e.g. "Please enter the VLCC code") reach the user as-is."""
+    return _error_json(400, "INVALID_INPUT", str(exc) or "Invalid input.")
+
+
+_UNIQUE_FIELD_MESSAGES = {
+    "users.email": "Email already exists.",
+    "users.mobile": "Mobile number is already registered.",
+}
+
+
+async def integrity_error_handler(request, exc: IntegrityError):
+    """Database safety net: a duplicate that slipped past the checks still gets a clear message."""
+    detail = str(getattr(exc, "orig", exc))
+    for column, message in _UNIQUE_FIELD_MESSAGES.items():
+        if column in detail:
+            return _error_json(409, "ALREADY_EXISTS", message)
+    if "UNIQUE" in detail.upper():
+        return _error_json(409, "ALREADY_EXISTS", "This record already exists.")
+    return _error_json(400, "INTEGRITY_ERROR", "The data could not be saved. Please check the values and try again.")
 
 
 async def unhandled_exception_handler(request, exc: Exception):

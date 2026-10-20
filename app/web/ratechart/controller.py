@@ -18,7 +18,8 @@ from app.modules.ratechart.application.command import (
     CreateRateChartAssignmentCommand,
     UpdateRateChartCommand,
 )
-from app.modules.ratechart.domain.exceptions import RateChartNotFoundException
+from app.core.exceptions.base import ForbiddenException
+from app.modules.ratechart.domain.exceptions import RateChartNotFoundException, RateChartPermissionException
 from app.modules.vlcc.application.command import ListVlccQuery, GetVlccQuery
 from app.modules.mcc.application.command import ListMccQuery, GetMccQuery
 from app.modules.administration.domain.enums import Role
@@ -69,6 +70,9 @@ class RateChartController:
             )
         )
 
+        # MCC / VLCC without the rate chart permission only view charts
+        can_edit = await handler.can_edit(user)
+
         detailed_items = []
         for item in result:
             detailed_items.append({
@@ -81,13 +85,19 @@ class RateChartController:
                 "admin_name": item.owner_name or "System",
                 "admin_id": "y",
                 "creator_id": str(item.id),
-                "can_modify": item.can_modify,
+                "can_modify": item.can_modify and can_edit,
             })
+
+        # MCC / VLCC: charts created vs the maximum their settings allow (None = no limit)
+        charts_used, charts_limit = await handler.chart_quota(user)
 
         return Renderer.page(
             request=request,
             template="pages/ratechart/list.html",
             model={
+                "can_edit": can_edit,
+                "charts_used": charts_used,
+                "charts_limit": charts_limit,
                 "items": detailed_items,
                 "page": page,
                 "limit": limit,
@@ -105,6 +115,8 @@ class RateChartController:
 
     @staticmethod
     async def get_create_page(request: Request):
+        if not await GetHandler.ratechart_handler(request).can_edit(request.state.user):
+            raise ForbiddenException(RateChartPermissionException.message)
         return Renderer.page(
             request=request,
             template="pages/ratechart/create_edit.html",
@@ -147,6 +159,7 @@ class RateChartController:
 
         data = CreateRateChartRequest.model_validate(body)
         command = RateChartAssembler.create(data=data, created_by=request.state.user.id)
+        command.owner = request.state.user
         handler = GetHandler.ratechart_handler(request)
 
         result = await handler.create(command)
@@ -226,10 +239,10 @@ class RateChartController:
     async def get_edit_page(request: Request, chart_id: UUID):
         user = request.state.user
         handler = GetHandler.ratechart_handler(request)
-        # Charts created above the user are read-only: open them in view mode
+        # Charts created above the user, or no rate chart permission: open them in view mode
         try:
             await handler.ensure_modifiable(chart_id, user)
-        except RateChartNotFoundException:
+        except (RateChartNotFoundException, RateChartPermissionException):
             return RedirectResponse(f"/ratecharts/view/{chart_id}", status_code=303)
 
         dto = await handler.get(GetRateChartQuery(id=chart_id, owner=user))
@@ -293,6 +306,8 @@ class RateChartController:
         handler = GetHandler.ratechart_handler(request)
         try:
             await handler.ensure_modifiable(chart_id, user)
+        except RateChartPermissionException as exc:
+            return JSONResponse({"detail": exc.message}, status_code=403)
         except RateChartNotFoundException:
             return JSONResponse({"detail": "You can only edit rate charts created by you or below you"}, status_code=403)
 
@@ -366,10 +381,18 @@ class RateChartController:
             except Exception:
                 pass
 
+        # Edit / default buttons only with the rate chart permission and when the chart is not above the user
+        try:
+            await handler.ensure_modifiable(chart_id, request.state.user)
+            can_modify = True
+        except (RateChartNotFoundException, RateChartPermissionException):
+            can_modify = False
+
         return Renderer.page(
             request=request,
             template="pages/ratechart/view.html",
             model={
+                "can_modify": can_modify,
                 "chart": chart,
                 "formula_config": formula_config,
                 "grids_data": grids_data,

@@ -14,7 +14,10 @@ from app.modules.ratechart.domain.entities import (
     ProdataRateRow,
     RateChartAssignment,
 )
+from app.modules.common.settings.infrastructure.permissions import can_edit_rate_charts, rate_chart_limit
 from app.modules.ratechart.domain.exceptions import (
+    RateChartLimitReachedException,
+    RateChartPermissionException,
     RateChartNotFoundException,
     RateChartAssignmentNotFoundException,
 )
@@ -70,6 +73,8 @@ class RateChartHandler:
     ) -> RateChartDto:
         if not command.chart_name.strip():
             raise ValidationException("Invalid Chart Name")
+        await self.ensure_can_edit(command.owner)
+        await self._ensure_within_chart_limit(command.owner)
 
         chart = RateChart(
             id=uuid4(),
@@ -97,6 +102,7 @@ class RateChartHandler:
     ) -> RateChartDto:
         if not command.chart_name.strip():
             raise ValidationException("Invalid Chart Name")
+        await self.ensure_can_edit(command.owner)
 
         async with self._database.transaction():
             chart = await self._repository.get_by_id(command.id, command.owner)
@@ -121,14 +127,43 @@ class RateChartHandler:
         self,
         command: DeleteRateChartCommand,
     ) -> None:
+        await self.ensure_can_edit(command.owner)
         async with self._database.transaction():
             chart = await self._repository.get_by_id(command.id, command.owner)
             if chart is None:
                 raise RateChartNotFoundException()
             await self._repository.delete(chart.id, command.owner)
 
+    async def chart_quota(self, owner: CurrentUser | None) -> tuple[int, int | None]:
+        """(charts already created, allowed maximum or None for no limit) for the owner."""
+        if owner is None:
+            return 0, None
+        limit = await rate_chart_limit(self._database.session, owner)
+        if limit is None:
+            return 0, None
+        return await self._repository.count_created_by(owner.id), limit
+
+    async def _ensure_within_chart_limit(self, owner: CurrentUser | None) -> None:
+        """An MCC / VLCC may not create more rate charts than its settings allow."""
+        used, limit = await self.chart_quota(owner)
+        if limit is not None and used >= limit:
+            raise RateChartLimitReachedException(
+                f"You can create at most {limit} rate chart{'s' if limit != 1 else ''}. "
+                f"You already have {used}."
+            )
+
+    async def can_edit(self, owner: CurrentUser | None) -> bool:
+        """May this user create / modify rate charts at all (rate chart permission)?"""
+        return await can_edit_rate_charts(self._database.session, owner)
+
+    async def ensure_can_edit(self, owner: CurrentUser | None) -> None:
+        """MCC / VLCC without the rate chart permission can only view charts."""
+        if owner is not None and not await self.can_edit(owner):
+            raise RateChartPermissionException()
+
     async def ensure_modifiable(self, chart_id: UUID, owner: CurrentUser) -> None:
-        """Charts made above the user are read-only for it."""
+        """Needs the rate chart permission, and charts made above the user stay read-only for it."""
+        await self.ensure_can_edit(owner)
         if not await self._repository.is_modifiable(chart_id, owner):
             raise RateChartNotFoundException()
 

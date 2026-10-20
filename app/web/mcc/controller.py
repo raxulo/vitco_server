@@ -3,6 +3,7 @@ Auth Web Controller
 """
 
 from app.core.exceptions.base import ForbiddenException
+from app.modules.mcc.application.handler import MccHandler
 from app.modules.mcc.presentation.requests import UpdateMccRequest
 from app.modules.ratechart.application.command import ListRateChartsQuery
 from app.core.exceptions.base import ValidateError
@@ -53,6 +54,10 @@ class MccController:
     @staticmethod
     async def get_create_page(request: Request):
         user: CurrentUser = request.state.user
+        try:
+            MccHandler.ensure_can_create(user)
+        except PermissionError as exc:
+            raise ForbiddenException(str(exc))
         routes = await GetHandler.route_master_handler(request).selectable(user)
         return Renderer.page(
             request=request, 

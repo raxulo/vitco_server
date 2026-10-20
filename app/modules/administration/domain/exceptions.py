@@ -22,6 +22,18 @@ class EmailAlreadyExistsException(ApplicationException):
     status_code = status.HTTP_409_CONFLICT
 
 
+class MobileAlreadyExistsException(ApplicationException):
+    code = "MOBILE_ALREADY_EXISTS"
+    message = "Mobile number is already registered."
+    status_code = status.HTTP_409_CONFLICT
+
+
+class InvalidMobileException(ApplicationException):
+    code = "INVALID_MOBILE"
+    message = "Mobile number is required."
+    status_code = 422
+
+
 class EmailOrMobileAlreadyExistsException(ApplicationException):
     code = "EMAIL_OR_MOBILE_ALREADY_EXISTS"
     message = "Email or mobile already exists."

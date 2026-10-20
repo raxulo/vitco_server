@@ -203,6 +203,7 @@ async def create_rate_chart(
         status=status_val,
         description=body.description,
         created_by=user.id,
+        owner=user,
     )
 
     result = await handler.create(command)

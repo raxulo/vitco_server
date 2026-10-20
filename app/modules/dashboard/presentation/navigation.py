@@ -194,14 +194,16 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "Unit Master",
                 "/units/",
                 "fa-solid fa-scale-balanced",
-                MANAGEMENT_ROLES,
+                # MCC / VLCC see shared units; "create" follows their master_enabled permission
+                ALL_ROLES,
                 "/units/",
             ),
             item(
                 "Item Master",
                 "/items/",
                 "fa-solid fa-boxes-stacked",
-                MANAGEMENT_ROLES,
+                # MCC / VLCC see shared items; "create" follows their master_enabled permission
+                ALL_ROLES,
                 "/items/",
             ),
             item(
@@ -215,7 +217,8 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "Rate Charts",
                 "/ratecharts/",
                 "fa-solid fa-tags",
-                MANAGEMENT_ROLES,
+                # MCC / VLCC always view; create / modify follows their rate chart permission
+                ALL_ROLES,
                 "/ratecharts",
             ),
         ),

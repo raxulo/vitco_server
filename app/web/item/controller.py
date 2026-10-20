@@ -114,6 +114,9 @@ class ItemController:
                     "total_pages": 1,
                     "total": total_items,
                     "error": str(e),
+                    "can_create": await can_create_masters(
+                        request.app.state.application.container.database.session, owner
+                    ),
                 },
             )
 
@@ -168,6 +171,9 @@ class ItemController:
                     "total_pages": 1,
                     "total": total_items,
                     "error": str(e),
+                    "can_create": await can_create_masters(
+                        request.app.state.application.container.database.session, owner
+                    ),
                 },
             )
 

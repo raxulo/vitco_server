@@ -735,13 +735,13 @@
             if (res.ok) {
                 window.location.href = '/ratecharts';
             } else {
-                const err = await res.json();
-                alert(err.detail || "Validation Error");
+                // e.g. "You can create at most 5 rate charts." -> popup dialog
                 hideProcessingOverlay();
+                showErrorPopup(await responseErrorMessage(res, "Validation Error"));
             }
         } catch (e) {
-            alert("System connectivity error");
             hideProcessingOverlay();
+            showErrorPopup("Could not reach the server. Please check your connection and try again.");
         }
     }
 

@@ -2,7 +2,7 @@ from fastapi import UploadFile
 from typing import Any
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
-from app.core.validators import apply_milk_quality_rules, digits_only, mobile_number
+from app.core.validators import apply_milk_quality_rules, apply_shift_time_rules, digits_only, mobile_number
 from app.modules.vlcc.domain.enums import CollectionMode
 from app.modules.common.settings.domain.enums import (
     AnalyzerType,
@@ -20,7 +20,7 @@ class CreateVlccRequest(BaseModel):
     vlcc_code: str = Field(..., min_length=1, max_length=30)
     name: str = Field(..., min_length=1, max_length=150)
     email: EmailStr
-    mobile: str
+    mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
     password: str | None = None
     contact_person: str | None = Field(None, max_length=150)
 
@@ -94,6 +94,7 @@ class CreateVlccRequest(BaseModel):
     @model_validator(mode="after")
     def _milk_quality_rules(self):
         apply_milk_quality_rules(self)
+        apply_shift_time_rules(self)
         return self
 
     @model_validator(mode="before")

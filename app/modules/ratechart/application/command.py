@@ -30,6 +30,8 @@ class CreateRateChartCommand:
     status: RateChartStatus = RateChartStatus.ACTIVE
     description: str | None = None
     created_by: UUID | None = None
+    # Logged-in user: an MCC / VLCC is limited to its max_rate_chart_count
+    owner: CurrentUser | None = None
 
 
 @dataclass(slots=True)

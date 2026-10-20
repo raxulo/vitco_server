@@ -2,7 +2,6 @@ from app.core.clock import now_naive_ist
 from app.middleware.authentication import CurrentUser
 from app.core.exceptions.base import ValidateError
 from app.modules.mcc.application.command import UpdateFullDetailMcc
-from app.modules.administration.domain.exceptions import EmailOrMobileAlreadyExistsException
 from app.modules.common.bank.infrastructure.mapper import BankAccountMapper
 from app.modules.common.address.infrastructure.mapper import AddressMapper
 from app.modules.mcc.application.command import CreateFullDetailMcc
@@ -43,8 +42,9 @@ from app.modules.auth.infrastructure.password import PasswordService
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.domain.entities import User
 from app.modules.administration.domain.exceptions import (
+    EmailAlreadyExistsException,
+    MobileAlreadyExistsException,
     UserNotFoundException,
-    UserAlreadyExistsException,
 )
 from app.modules.administration.infrastructure.repository import UserRepository
 from app.modules.mcc.domain.entities import Mcc
@@ -118,7 +118,7 @@ class MccHandler:
     ) -> MccDto:
         self._validate(command)
 
-        await self._ensure_code_available(command.code)
+        await self._ensure_code_available(command.code, owner)
         await self._ensure_email_available(command.email)
         if command.mobile and command.mobile.strip():
             await self._ensure_mobile_available(command.mobile.strip())
@@ -174,11 +174,11 @@ class MccHandler:
         owner: CurrentUser
     ) -> MccDetailDto:
         now = now_naive_ist()
+        self.ensure_can_create(owner)
         self._password_validate(password=command.mcc.password)
 
-        user_exists = await self._user_repository.exists_user(command.mcc.email, command.mcc.mobile)
-        if user_exists:
-            raise EmailOrMobileAlreadyExistsException()
+        # Email / mobile uniqueness is enforced by ProfileService.create with a specific message
+        await self._ensure_code_available(command.mcc.code, owner)
 
 
         async with self._database.transaction():
@@ -300,6 +300,7 @@ class MccHandler:
         owner: CurrentUser,
     ) -> bool:
         self._validate(command.mcc)
+        await self._ensure_code_available(command.mcc.code, owner, exclude_id=command.mcc.id)
 
         async with self._database.transaction():
 
@@ -725,10 +726,8 @@ class MccHandler:
         return await self._mcc_repository.count(owner)
 
     async def validate_code(self, code: str, owner: CurrentUser) -> bool:
-        mcc = await self._mcc_repository.get_by_code(code, owner=owner)
-        if mcc is None:
-            return True
-        return False
+        """Live form check: same rule as create (code free in the owner's line)."""
+        return not await self._mcc_repository.exists_code(code, owner)
 
     # =========================================================
     # HELPERS & MAPPING
@@ -835,17 +834,32 @@ class MccHandler:
         if not re.search(r"[!@#$%^&*()]", password):
             raise ValidateError("Password must contain at least one special character")
 
-    async def _ensure_code_available(self, code: str) -> None:
-        if await self._mcc_repository.exists_code(code):
-            raise MccCodeAlreadyExistsException()
+    @staticmethod
+    def ensure_can_create(owner: CurrentUser | None) -> None:
+        """Only Super Admin, Admin and Sub Admin create MCCs (an MCC never creates another MCC)."""
+        if owner is None or owner.role_type in (Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN):
+            return
+        if owner.role_type == Role.MCC:
+            raise PermissionError("An MCC cannot create another MCC.")
+        raise PermissionError("You are not allowed to create an MCC.")
+
+    async def _ensure_code_available(
+        self,
+        code: str,
+        owner: CurrentUser | None,
+        exclude_id: UUID | None = None,
+    ) -> None:
+        """The code must be free in the owner's line (itself, above, below)."""
+        if owner is not None and await self._mcc_repository.exists_code(code, owner, exclude_id=exclude_id):
+            raise MccCodeAlreadyExistsException(f"MCC code {code.strip()} already exists.")
 
     async def _ensure_email_available(self, email: str) -> None:
         if await self._user_repository.exists_email(email):
-            raise UserAlreadyExistsException()
+            raise EmailAlreadyExistsException(f"Email {email.strip()} already exists.")
 
     async def _ensure_mobile_available(self, mobile: str, exclude_user_id: str | None = None) -> None:
         if await self._user_repository.exists_mobile(mobile, exclude_user_id=exclude_user_id):
-            raise ValidationException("Mobile number is already registered. Mobile number must be unique.")
+            raise MobileAlreadyExistsException(f"Mobile number {mobile.strip()} is already registered.")
 
     def _update_user(
         self,

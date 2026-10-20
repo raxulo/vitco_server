@@ -35,7 +35,10 @@
 
     <!-- Form Card -->
     <div class="card form-card-body" style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 28px; width: 100%; box-sizing: border-box;">
-        <form method="POST" action="{% if is_edit %}/sub-admins/edit/{{ user.id }}{% else %}/sub-admins/create{% endif %}" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+        {# Submitted via HTMX so server errors (duplicate email / mobile, validation) show as a popup #}
+        <form method="POST" action="{% if is_edit %}/sub-admins/edit/{{ user.id }}{% else %}/sub-admins/create{% endif %}" enctype="multipart/form-data"
+            hx-post="{% if is_edit %}/sub-admins/edit/{{ user.id }}{% else %}/sub-admins/create{% endif %}" hx-encoding="multipart/form-data" hx-swap="none"
+            style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
             
             <!-- 1. PERSONAL DETAILS PANEL -->
             <div id="personal-pane" class="tab-pane active-pane" style="display: flex; flex-direction: column; gap: 20px; width: 100%;">
@@ -88,10 +91,10 @@
 
                     <!-- Mobile -->
                     <div class="form-group" style="display:flex; flex-direction:column; gap:8px;">
-                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Mobile Number</label>
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569;">Mobile Number <span style="color: #dc2626;">*</span></label>
                         <div class="input-icon-wrapper" style="position: relative;">
                             <i class="fa-solid fa-phone" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
-                            <input name="mobile" type="text" class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="Enter mobile number" value="{{ user.mobile if user and user.mobile else '' }}" autocomplete="off">
+                            <input name="mobile" type="tel" required inputmode="numeric" maxlength="10" pattern="[0-9]{10}" title="Mobile number must be exactly 10 digits" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" class="form-control" style="padding-left: 45px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px;" placeholder="Enter mobile number" value="{{ user.mobile if user and user.mobile else '' }}" autocomplete="off">
                         </div>
                     </div>
                 </div>

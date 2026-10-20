@@ -18,7 +18,8 @@
         <i class="fa-solid fa-circle-info" id="toast-icon"></i>
         <span id="toast-message"></span>
     </div>
-    <script src="{{ url_for('static', path='js/htmx.js') }}"></script>
+    {# ?v= busts the browser cache when the error-popup handling changes #}
+    <script src="{{ url_for('static', path='js/htmx.js') }}?v=3"></script>
     <script src="{{ url_for('static', path='js/app.main.js') }}"></script>
     {% block scripts %}  {% endblock %}
 
