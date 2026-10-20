@@ -345,6 +345,10 @@ class FarmerHandler:
             if user.mobile:
                 user.mobile = f"del_{uuid4().hex[:6]}_{user.mobile}"
 
+            # A deleted user's profile image is removed (file + media row)
+            await self._profile_service.delete_profile_image(user.id)
+            user.profile_image = None
+
             # Soft delete farmer and free up farmer_code
             freed_code = f"{farmer.farmer_code}__del_{farmer.id.hex[:6]}"
             farmer = Farmer(

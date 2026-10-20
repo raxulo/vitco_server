@@ -66,12 +66,29 @@ class LocalStorage(StorageInterface):
         storage_key: str,
     ) -> None:
 
+        self.remove(storage_key)
+
+    def remove(
+        self,
+        storage_key: str,
+    ) -> None:
+        """Synchronous delete (usable from transaction commit / rollback hooks)."""
+
         path = self._resolve(
             storage_key
         )
 
         if path.exists():
             path.unlink()
+
+        # Drop folders left empty (e.g. profile/<user_id>/), never the category or root
+        parent = path.parent
+        while parent != self.root and parent.parent != self.root:
+            try:
+                parent.rmdir()  # only succeeds when empty
+            except OSError:
+                break
+            parent = parent.parent
 
     def exists(
         self,

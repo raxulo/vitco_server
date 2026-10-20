@@ -83,7 +83,7 @@
                             <div class="center-meta-box">
                                 <div class="center-avatar" style="background-color: var(--primary-soft); color: var(--primary);">
                                     {% if farmer.profile_image %}
-                                        <img src="{{ farmer.profile_image }}" alt="Farmer Photo">
+                                        <img src="{{ farmer.profile_image }}" alt="Farmer Photo" loading="lazy" decoding="async">
                                     {% else %}
                                         <i class="fa-solid fa-user"></i>
                                     {% endif %}

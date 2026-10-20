@@ -24,23 +24,26 @@ from app.modules.administration.application.command import CreateUserCommand
 from app.modules.auth.application.command import LoginCommand
 from app.modules.auth.infrastructure.password import PasswordService
 from app.modules.administration.infrastructure.repository import UserRepository
+from app.modules.media.application.services import MediaService
 from app.core.database.manager import DatabaseManager
 from app.core.clock import now_naive_ist
 
 class UserHandler:
 
-    __slots__ = ("_database","_repository","_password")
+    __slots__ = ("_database","_repository","_password","_media_service")
 
     def __init__(
         self,
         database: DatabaseManager,
         repository: UserRepository,
         password: PasswordService,
+        media_service: MediaService,
     ):
 
         self._database = database
         self._repository = repository
         self._password = password
+        self._media_service = media_service
 
     # =====================================================
     # CRUD
@@ -120,6 +123,8 @@ class UserHandler:
             if user is None:
                 raise UserNotFoundException()
 
+            # A deleted user's profile image is removed (file + media row)
+            await self._media_service.delete_profile_image(user.id)
 
             await self._repository.delete(user.id)
 

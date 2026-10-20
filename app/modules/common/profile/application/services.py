@@ -86,8 +86,9 @@ class ProfileService:
         self._user_repository._session.add(db_model)
         await self._user_repository._session.flush()
 
-        if user_data.profile_image and user_data.profile_image.filename:
-            media_model = await self._media_service.upload_image(file=user_data.profile_image, category=MediaCategory.PROFILE, uploaded_by=user_id)
+        if self._has_upload(user_data.profile_image):
+            # Stored in this user's own folder (profile/<user_id>/), compressed to <= 100 KB
+            media_model = await self._media_service.upload_profile_image(file=user_data.profile_image, user_id=user_id)
             image_url = MediaUrlService().build(storage_key=media_model.storage_key)
             db_model.profile_url = image_url
             user = replace(user, profile_image=image_url)
@@ -162,17 +163,15 @@ class ProfileService:
         if user_data.password_hash:
             user_data.password_hash = self._password.hash(user_data.password_hash)
 
-        if user_data.profile_image and user_data.profile_image.filename:
-            try:
-                await self._media_service.delete_profile_image(user_data.id)
-            except:
-                pass
-
-            media_model = await self._media_service.upload_image(file=user_data.profile_image, category=MediaCategory.PROFILE, uploaded_by=user_data.id)
-            image_url = MediaUrlService().build(storage_key=media_model.storage_key)
-            user_data.profile_image = image_url
+        if self._has_upload(user_data.profile_image):
+            # Upload the new image first, then remove the old one(s), so a failed
+            # upload never leaves the user without a picture
+            media_model = await self._media_service.upload_profile_image(file=user_data.profile_image, user_id=user_data.id)
+            await self._media_service.delete_profile_image(user_data.id, keep_media_id=media_model.id)
+            user_data.profile_image = MediaUrlService().build(storage_key=media_model.storage_key)
 
         else:
+            # No new file: keep the current picture (None is not written by user_update)
             user_data.profile_image = None
 
         user = await self._user_repository.user_update(user_data)
@@ -184,6 +183,14 @@ class ProfileService:
 
         if bank_data and bank_data.id:
                 await self.bank_update(bank_data)
+
+    async def delete_profile_image(self, user_id: UUID) -> None:
+        """Remove a user's profile image files and rows (used when the user is deleted)."""
+        await self._media_service.delete_profile_image(user_id)
+
+    @staticmethod
+    def _has_upload(file) -> bool:
+        return bool(file is not None and getattr(file, "filename", None))
 
     async def get_profile(self, user_id: UUID) -> CreatedProfile:
         user = await self._user_repository.get_by_id(user_id)

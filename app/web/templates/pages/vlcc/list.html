@@ -83,7 +83,7 @@
                             <div class="center-meta-box">
                                 <div class="center-avatar" style="background-color: var(--primary-soft); color: var(--primary);">
                                     {% if vlcc.profile_image %}
-                                        <img src="{{ vlcc.profile_image }}" alt="Center Logo">
+                                        <img src="{{ vlcc.profile_image }}" alt="Center Logo" loading="lazy" decoding="async">
                                     {% else %}
                                         <i class="fa-solid fa-industry"></i>
                                     {% endif %}

@@ -83,7 +83,7 @@
                             <div class="center-meta-box">
                                 <div class="center-avatar" style="background-color: {{ mcc.mcc_type.color }}10; color: {{ mcc.mcc_type.color }};">
                                     {% if mcc.profile_image %}
-                                        <img src="{{ mcc.profile_image }}" alt="Center Logo">
+                                        <img src="{{ mcc.profile_image }}" alt="Center Logo" loading="lazy" decoding="async">
                                     {% else %}
                                         <i class="fa-solid fa-building-circle-check"></i>
                                     {% endif %}

@@ -25,6 +25,9 @@ python-jose
 python-multipart
 argon2-cffi
 
+# Image compression (profile images are kept within 100 KB)
+Pillow
+
 zeroconf
 httpx
 

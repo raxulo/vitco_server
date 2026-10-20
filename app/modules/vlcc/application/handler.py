@@ -196,6 +196,10 @@ class VlccHandler:
             vlcc.deleted_at = now
             vlcc.deleted_by = command.deleted_by
 
+            # A deleted user's profile image is removed (file + media row)
+            await self._profile.delete_profile_image(user.id)
+            user.profile_image = None
+
             await self._user_repository.update(user)
             await self._vlcc_repository.update(vlcc, command.owner)
 

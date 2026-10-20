@@ -259,6 +259,7 @@ class ModuleConfigurator:
             database=container.database,
             repository=container.resolve(UserRepository),
             password=password_service,
+            media_service=container.resolve(MediaService),
         )
         container.register(UserHandler, user_handler)
 

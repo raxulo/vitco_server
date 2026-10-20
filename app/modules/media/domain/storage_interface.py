@@ -23,6 +23,14 @@ class StorageInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def remove(
+        self,
+        storage_key: str,
+    ) -> None:
+        """Synchronous delete, used by transaction commit / rollback hooks."""
+        raise NotImplementedError
+
+    @abstractmethod
     def exists(
         self,
         storage_key: str,

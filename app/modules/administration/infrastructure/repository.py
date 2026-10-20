@@ -250,6 +250,7 @@ class UserRepository(IUserRepository):
         model.is_deleted = user.is_deleted
         model.is_locked = user.is_locked
         model.created_by = user.created_by
+        model.profile_url = user.profile_image
 
         await self._database.session.flush()
         return model

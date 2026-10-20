@@ -9,7 +9,21 @@
     <label>Password</label>
     <div class="input-wrapper">
         <i class="fa-solid fa-lock"></i>
-        <input name="password" type="password" id="password" placeholder="Enter Password" required>
+        <input name="password" type="password" id="password" placeholder="Enter Password" autocomplete="current-password" required>
+        {# Inline handler: this form is re-rendered by HTMX on a failed login #}
+        <button type="button" class="password-toggle" aria-label="Show password" title="Show password" aria-pressed="false"
+            onclick="(function (btn) {
+                var input = document.getElementById('password');
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                btn.querySelector('i').className = show ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+                btn.setAttribute('aria-pressed', show);
+                btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                btn.title = show ? 'Hide password' : 'Show password';
+                input.focus();
+            })(this)">
+            <i class="fa-solid fa-eye"></i>
+        </button>
     </div>
 </div>
 <button

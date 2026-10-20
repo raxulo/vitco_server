@@ -98,6 +98,45 @@
         box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
     }
 
+    /* Show / hide password button inside the password box */
+    .input-wrapper input#password {
+        padding-right: 52px !important;
+    }
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 10px;
+        transform: translateY(-50%);
+        width: 36px;
+        height: 36px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s, color 0.2s;
+    }
+    .password-toggle:hover {
+        background: #f1f5f9;
+        color: #2563eb;
+    }
+    .password-toggle:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+    }
+    .input-wrapper .password-toggle i {
+        display: inline-block !important; /* overrides the "hide input icons" rule above */
+        font-size: 16px;
+    }
+    /* Edge / IE show their own reveal button; keep only ours */
+    input#password::-ms-reveal,
+    input#password::-ms-clear {
+        display: none;
+    }
+
     .login-form-side .btn-primary {
         background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; /* Brand blue button */
         color: white !important;

@@ -632,6 +632,10 @@ class MccHandler:
             self._soft_delete_user(user, command.deleted_by)
             self._soft_delete_mcc(mcc, command.deleted_by)
 
+            # A deleted user's profile image is removed (file + media row)
+            await self._profile.delete_profile_image(user.id)
+            user.profile_image = None
+
             await self._user_repository.update(user)
             await self._mcc_repository.update(mcc, owner=command.owner)
 
