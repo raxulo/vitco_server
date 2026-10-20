@@ -163,8 +163,9 @@ class RouteMasterHandler:
             for entity in entities
         ]
 
-    async def get_by_owner(self, owner_id: UUID) -> list[RouteMasterDto]:
-        return await self._repository.get_routes_by_owner(owner_id)
+    async def selectable(self, owner: CurrentUser) -> list[RouteMasterDto]:
+        """Routes the logged-in user can assign to an MCC / VLCC (route master hierarchy)."""
+        return await self._repository.get_selectable_routes(owner)
 
     # =========================================================
     # HELPERS & MAPPING

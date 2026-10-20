@@ -53,7 +53,7 @@ class MccController:
     @staticmethod
     async def get_create_page(request: Request):
         user: CurrentUser = request.state.user
-        routes = await GetHandler.route_master_handler(request).get_by_owner(user.id)
+        routes = await GetHandler.route_master_handler(request).selectable(user)
         return Renderer.page(
             request=request, 
             template="pages/mcc/create_edit.html", 
@@ -75,7 +75,7 @@ class MccController:
         except Exception as e:
             print("Error fetching device item versions", e)
 
-        routes = await GetHandler.route_master_handler(request).get_by_owner(result.user.created_by)
+        routes = await GetHandler.route_master_handler(request).selectable(request.state.user)
 
         model_dict = {
             "mcc": result.mcc,

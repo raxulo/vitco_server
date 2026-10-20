@@ -251,10 +251,16 @@ class RouteMasterRepository(IRouteMasterRepository):
         return await self._session.scalar(stmt) or 0
 
 
-    async def get_routes_by_owner(self, owner_id: UUID) -> list[RouteMasterDto]:
+    async def get_selectable_routes(self, owner: CurrentUser) -> list[RouteMasterDto]:
+        """
+        Routes the owner may pick for an MCC / VLCC: the same hierarchy as the
+        Route Master list (Super Admin routes, its own, those above it -- e.g. a
+        Sub Admin's Admin -- and those below it), in route code order.
+        """
         stmt = (
             select(RouteMasterModel)
-            .where(RouteMasterModel.created_by == owner_id)
+            .where(RouteMasterAccessScope.condition(owner))
+            .order_by(RouteMasterModel.route_code)
         )
         result = await self._session.execute(stmt)
         return [RouteMasterMapper.to_short_dto(row.RouteMasterModel) for row in result]

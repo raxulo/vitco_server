@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Final
 
+from app.modules.administration.domain.enums import Role
+
 
 class MenuPermission(IntEnum):
     ALL = -1
@@ -25,13 +27,18 @@ class MenuGroup:
     items: tuple[MenuItem, ...]
 
 
-SUPER_ADMIN_ONLY: Final = frozenset({1})
-FARMER_ONLY: Final = frozenset({6})
-# Super Admin, Admin, Sub Admin (Role values) — the roles allowed to create route codes
-ROUTE_CREATOR_ROLES: Final = frozenset({1, 2, 3})
-ADMIN_ROLES: Final = frozenset({0, 1})
-MANAGEMENT_ROLES: Final = frozenset({0, 1, 2})
-ALL_ROLES: Final = frozenset({0, 1, 2, 3, 4, 5})
+# Role sets use the real `Role` values (the login token carries them:
+# SUPER_ADMIN=1, ADMIN=2, SUB_ADMIN=3, MCC=4, VLCC=5, FARMER=6).
+SUPER_ADMIN_ONLY: Final = frozenset({Role.SUPER_ADMIN})
+FARMER_ONLY: Final = frozenset({Role.FARMER})
+# Users page: unchanged behaviour (Super Admin only)
+ADMIN_ROLES: Final = frozenset({Role.SUPER_ADMIN})
+# Super Admin, Admin, Sub Admin: MCC management and the System Setup masters
+MANAGEMENT_ROLES: Final = frozenset({Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN})
+# Route codes can only be created by the management roles
+ROUTE_CREATOR_ROLES: Final = MANAGEMENT_ROLES
+# Every staff role (farmers get their own FARMER_ONLY items)
+ALL_ROLES: Final = frozenset({Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN, Role.MCC, Role.VLCC})
 
 
 def item(

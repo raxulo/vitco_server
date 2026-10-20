@@ -71,7 +71,7 @@ class VlccController:
     @staticmethod
     async def create_page(request: Request):
         user: CurrentUser = request.state.user
-        routes = await GetHandler.route_master_handler(request).get_by_owner(user.id)
+        routes = await GetHandler.route_master_handler(request).selectable(user)
         return Renderer.page(
             request=request,
             template="pages/vlcc/create_edit.html",
@@ -102,7 +102,7 @@ class VlccController:
         except Exception as e:
             print("Error fetching device item versions", e)
 
-        routes = await GetHandler.route_master_handler(request).get_by_owner(detail.user.created_by)
+        routes = await GetHandler.route_master_handler(request).selectable(request.state.user)
 
         return Renderer.page(
             request=request,
