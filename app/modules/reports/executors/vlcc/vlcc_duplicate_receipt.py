@@ -58,6 +58,8 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
                 m.snf_percent.label("snf"),
                 m.rate_per_unit.label("rate"),
                 m.total_amount.label("amount"),
+                m.quantity_collection_mode,
+                m.measurement_mode,
             )
             .select_from(m)
             .join(f, f.id == m.farmer_id)
@@ -73,8 +75,8 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
             rows.append({
                 "time": row["date_time"].strftime("%H:%M") if row["date_time"] else "—",
                 "code": row["code"],
-                "quantity": row["quantity"],
-                "fat": row["fat"],
+                "quantity": self.marked(row["quantity"], self.is_manual(row["quantity_collection_mode"])),
+                "fat": self.marked(row["fat"], self.is_manual(row["measurement_mode"])),
                 "snf": row["snf"],
                 "rate": row["rate"],
                 "amount": row["amount"],

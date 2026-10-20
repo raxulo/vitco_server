@@ -14,7 +14,7 @@ from app.modules.collections.mcc_collection.domain.enums import MilkType
 from datetime import timedelta
 from datetime import time
 from app.modules.admin.infrastructure import models
-from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.modules.collections.mcc_collection.domain.enums import CollectionShift, QuantityCollectionMode
 from datetime import datetime
 from sqlalchemy import and_, or_
 from app.modules.administration.domain.enums import Role
@@ -189,6 +189,21 @@ class ReportExecutor(ABC):
 
     def short_date(self, datetime_obj: datetime) -> str:
         return datetime_obj.strftime("%d/%m")
+
+    # -----------------------------------------
+    # Manual-entry markers ('*')
+    # Quantity carries '*' when quantity_collection_mode is MANUAL,
+    # FAT carries '*' when measurement_mode is MANUAL.
+    # Only per-entry values are marked; totals and averages never are.
+    # -----------------------------------------
+    @staticmethod
+    def is_manual(mode) -> bool:
+        return mode is not None and int(mode) == QuantityCollectionMode.MANUAL
+
+    @staticmethod
+    def marked(value, manual) -> str:
+        """Value to 2 decimals, with '*' when it was entered manually."""
+        return f"{float(value or 0):.2f}{'*' if manual else ''}"
 
     def _date_filters(
         self,

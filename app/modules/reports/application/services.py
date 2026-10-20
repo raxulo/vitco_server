@@ -1,5 +1,6 @@
 # application/service.py
 
+from app.modules.reports.application.formatting import format_report
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.application.registry import ReportRegistry
 
@@ -20,4 +21,5 @@ class ReportService:
             query.report_type
         )
 
-        return await executor.execute(query)
+        # Same display precision for every report: qty/rate/amount 2 decimals, FAT/SNF 1
+        return format_report(await executor.execute(query))

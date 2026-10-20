@@ -253,8 +253,10 @@
                     <span style="font-weight: 800; color: #0f172a; font-size: 16px;">
                         {% if 'amount' in k|lower or 'rate' in k|lower or 'price' in k|lower or 'cost' in k|lower or 'payout' in k|lower or 'balance' in k|lower or 'debit' in k|lower or 'credit' in k|lower %}
                             ₹{{ "%.2f"|format(v|float) if v is not none else '0.00' }}
-                        {% elif 'fat' in k|lower or 'snf' in k|lower or 'clr' in k|lower %}
-                            {{ "%.2f"|format(v|float) if v is not none else '0.0' }}%
+                        {% elif 'fat' in k|lower or 'snf' in k|lower %}
+                            {{ "%.1f"|format(v|float) if v is not none else '0.0' }}%
+                        {% elif 'clr' in k|lower %}
+                            {{ "%.2f"|format(v|float) if v is not none else '0.00' }}
                         {% elif 'qty' in k|lower or 'quantity' in k|lower or 'weight' in k|lower %}
                             {{ "%.2f"|format(v|float) if v is not none else '0.00' }} Ltr
                         {% else %}

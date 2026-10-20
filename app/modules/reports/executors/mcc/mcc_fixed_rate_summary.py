@@ -53,6 +53,8 @@ class MccFixedRateSummaryExecutor(ReportExecutor):
                 m.detection_value,
                 m.rate_per_unit,
                 m.total_amount,
+                m.quantity_collection_mode,
+                m.measurement_mode,
             )
             .select_from(m)
             .join(v, v.id == m.vlcc_id)
@@ -102,8 +104,8 @@ class MccFixedRateSummaryExecutor(ReportExecutor):
             "date": row["collected_at"].strftime("%d/%m/%y"),
             "vlcc_code": row["vlcc_code"],
             "shift": self._shift_code(row["shift"]),
-            "quantity": round(quantity, 2),
-            "fat": round(fat, 2),
+            "quantity": self.marked(quantity, self.is_manual(row["quantity_collection_mode"])),
+            "fat": self.marked(fat, self.is_manual(row["measurement_mode"])),
             "snf": round(float(row["snf_percent"] or 0), 2),
             "clr": round(clr, 2),
             "detection": round(float(row["detection_value"] or 0), 3),

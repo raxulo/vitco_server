@@ -6,8 +6,7 @@ from app.modules.reports.executors.base import ReportExecutor
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.collections.mcc_collection.infrastructure.models import MccCollectionModel
 from app.modules.reports.application.queries import ReportQuery
-from sqlalchemy import select, func, cast, case, Date
-from app.modules.collections.mcc_collection.domain.enums import QuantityCollectionMode
+from sqlalchemy import select, func, cast, Date
 from app.modules.reports.application.dto import ReportResult
 from app.modules.reports.application.dto import ReportMetadata
 from app.modules.administration.domain.enums import Role
@@ -47,12 +46,6 @@ class MccWeightDateWiseExecutor(ReportExecutor):
                 v.name.label("vlcc_name"),
                 func.sum(m.can_count).label("can"),
                 func.sum(m.quantity).label("quantity"),
-                func.max(
-                    case(
-                        (m.quantity_collection_mode == QuantityCollectionMode.MANUAL, 1),
-                        else_=0,
-                    )
-                ).label("has_manual"),
             )
             .select_from(m)
             .join(v, v.id == m.vlcc_id)
@@ -81,9 +74,8 @@ class MccWeightDateWiseExecutor(ReportExecutor):
         rows = []
         for row in rows_result.mappings():
             r = dict(row)
-            # '*' if any collection in this VLCC's total was manually collected
-            manual = "*" if r.pop("has_manual") else ""
-            r["quantity"] = f"{float(r['quantity'] or 0):.2f}{manual}"
+            # A VLCC's total quantity: totals never carry the manual '*'
+            r["quantity"] = f"{float(r['quantity'] or 0):.2f}"
             rows.append(r)
 
         totals = totals_result.mappings().one()

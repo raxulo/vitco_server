@@ -54,6 +54,8 @@ class MccVlccBillExecutor(ReportExecutor):
                 m.snf_percent.label("snf"),
                 m.rate_per_unit.label("rate"),
                 m.total_amount.label("amount"),
+                m.quantity_collection_mode,
+                m.measurement_mode,
             )
             .select_from(m)
             .join(v, v.id == m.vlcc_id)
@@ -137,8 +139,8 @@ class MccVlccBillExecutor(ReportExecutor):
                     "date": row["date_time"].strftime("%d/%m"),
                     "shift": sh_str,
                     "milk_type": mt_str,
-                    "quantity": row["quantity"],
-                    "fat": row["fat"],
+                    "quantity": self.marked(qty, self.is_manual(row["quantity_collection_mode"])),
+                    "fat": self.marked(fat, self.is_manual(row["measurement_mode"])),
                     "snf": row["snf"],
                     "fat_kg": fat_kg,
                     "snf_kg": snf_kg,

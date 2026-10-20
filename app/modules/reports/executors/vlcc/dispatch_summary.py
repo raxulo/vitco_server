@@ -42,6 +42,8 @@ class DispatchSummaryExecutor(ReportExecutor):
                 m.snf_percent.label("snf"),
                 m.quantity,
                 m.can_count,
+                m.quantity_collection_mode,
+                m.measurement_mode,
             )
             .select_from(m)
             .where(*conditions)
@@ -69,9 +71,9 @@ class DispatchSummaryExecutor(ReportExecutor):
             data = {
                 "date": dt.strftime("%d/%m") if dt else "—",
                 "time": dt.strftime("%H:%M") if dt else "—",
-                "fat": f"{r['fat']}%",
+                "fat": f"{r['fat']}%{'*' if self.is_manual(r['measurement_mode']) else ''}",
                 "snf": f"{r['snf']}%",
-                "quantity": r["quantity"],
+                "quantity": self.marked(r["quantity"], self.is_manual(r["quantity_collection_mode"])),
                 "can_count": r["can_count"],
                 "shift": "M" if dt.hour < 12 else "E",
             }

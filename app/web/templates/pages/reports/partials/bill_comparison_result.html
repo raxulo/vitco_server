@@ -93,12 +93,12 @@
         <div class="bc-kpi dispatch">
             <div class="bc-kpi-label"><i class="fa-solid fa-truck" style="color:#2563eb;"></i> VLCC Dispatched</div>
             <div class="bc-kpi-val">{{ num(totals.dispatched.quantity) }} <span style="font-size:13px;color:#64748b;">Ltr</span></div>
-            <div class="bc-kpi-note">FAT {{ num(totals.dispatched.fat) }} · SNF {{ num(totals.dispatched.snf) }} · ₹{{ num(totals.dispatched.amount) }}</div>
+            <div class="bc-kpi-note">FAT {{ num(totals.dispatched.fat, 1) }} · SNF {{ num(totals.dispatched.snf, 1) }} · ₹{{ num(totals.dispatched.amount) }}</div>
         </div>
         <div class="bc-kpi receive">
             <div class="bc-kpi-label"><i class="fa-solid fa-warehouse" style="color:#059669;"></i> MCC Received</div>
             <div class="bc-kpi-val">{{ num(totals.received.quantity) }} <span style="font-size:13px;color:#64748b;">Ltr</span></div>
-            <div class="bc-kpi-note">FAT {{ num(totals.received.fat) }} · SNF {{ num(totals.received.snf) }} · ₹{{ num(totals.received.amount) }}</div>
+            <div class="bc-kpi-note">FAT {{ num(totals.received.fat, 1) }} · SNF {{ num(totals.received.snf, 1) }} · ₹{{ num(totals.received.amount) }}</div>
         </div>
         <div class="bc-kpi diff">
             <div class="bc-kpi-label"><i class="fa-solid fa-arrow-right-arrow-left" style="color:#f59e0b;"></i> Quantity Difference</div>
@@ -141,16 +141,16 @@
                         {% if not r.is_dispatched %}<span class="bc-flag">No dispatch</span>{% endif %}
                         {% if not r.is_received %}<span class="bc-flag">No receipt</span>{% endif %}
                     </td>
-                    <td class="bc-d bc-sep">{{ num(r.dispatched.quantity) }}</td>
-                    <td class="bc-d">{{ num(r.dispatched.fat) }}</td>
-                    <td class="bc-d">{{ num(r.dispatched.snf) }}</td>
+                    <td class="bc-d bc-sep">{{ num(r.dispatched.quantity) }}{% if r.dispatched.manual_quantity %}*{% endif %}</td>
+                    <td class="bc-d">{{ num(r.dispatched.fat, 1) }}{% if r.dispatched.manual_fat %}*{% endif %}</td>
+                    <td class="bc-d">{{ num(r.dispatched.snf, 1) }}</td>
                     <td class="bc-d">{{ num(r.dispatched.fat_kg, 3) }}</td>
                     <td class="bc-d">{{ num(r.dispatched.snf_kg, 3) }}</td>
                     <td class="bc-d">{{ num(r.dispatched.rate) }}</td>
                     <td class="bc-d">{{ num(r.dispatched.amount) }}</td>
-                    <td class="bc-r bc-sep">{{ num(r.received.quantity) }}</td>
-                    <td class="bc-r">{{ num(r.received.fat) }}</td>
-                    <td class="bc-r">{{ num(r.received.snf) }}</td>
+                    <td class="bc-r bc-sep">{{ num(r.received.quantity) }}{% if r.received.manual_quantity %}*{% endif %}</td>
+                    <td class="bc-r">{{ num(r.received.fat, 1) }}{% if r.received.manual_fat %}*{% endif %}</td>
+                    <td class="bc-r">{{ num(r.received.snf, 1) }}</td>
                     <td class="bc-r">{{ num(r.received.fat_kg, 3) }}</td>
                     <td class="bc-r">{{ num(r.received.snf_kg, 3) }}</td>
                     <td class="bc-r">{{ num(r.received.rate) }}</td>
@@ -165,15 +165,15 @@
                 <tr>
                     <td colspan="2">Total</td>
                     <td class="bc-sep">{{ num(totals.dispatched.quantity) }}</td>
-                    <td>{{ num(totals.dispatched.fat) }}</td>
-                    <td>{{ num(totals.dispatched.snf) }}</td>
+                    <td>{{ num(totals.dispatched.fat, 1) }}</td>
+                    <td>{{ num(totals.dispatched.snf, 1) }}</td>
                     <td>{{ num(totals.dispatched.fat_kg, 3) }}</td>
                     <td>{{ num(totals.dispatched.snf_kg, 3) }}</td>
                     <td>{{ num(totals.dispatched.rate) }}</td>
                     <td>{{ num(totals.dispatched.amount) }}</td>
                     <td class="bc-sep">{{ num(totals.received.quantity) }}</td>
-                    <td>{{ num(totals.received.fat) }}</td>
-                    <td>{{ num(totals.received.snf) }}</td>
+                    <td>{{ num(totals.received.fat, 1) }}</td>
+                    <td>{{ num(totals.received.snf, 1) }}</td>
                     <td>{{ num(totals.received.fat_kg, 3) }}</td>
                     <td>{{ num(totals.received.snf_kg, 3) }}</td>
                     <td>{{ num(totals.received.rate) }}</td>

@@ -50,6 +50,8 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
                     m.snf_percent,
                     m.rate_per_unit,
                     m.total_amount,
+                    m.quantity_collection_mode,
+                    m.measurement_mode,
                 )
                 .where(*self.filters(m, query), m.vlcc_id == vlcc["id"])
                 .order_by(m.collected_at, m.id)
@@ -59,8 +61,8 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
                 rows.append({
                     "date": self.short_date(row["collected_at"]),
                     "shift": "M" if row["shift"] == CollectionShift.MORNING else "E",
-                    "quantity": round(qty, 2),
-                    "fat": float(row["fat_percent"] or 0),
+                    "quantity": self.marked(qty, self.is_manual(row["quantity_collection_mode"])),
+                    "fat": self.marked(row["fat_percent"], self.is_manual(row["measurement_mode"])),
                     "snf": float(row["snf_percent"] or 0),
                     "rate": float(row["rate_per_unit"] or 0),
                     "amount": float(row["total_amount"] or 0),

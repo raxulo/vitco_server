@@ -8,19 +8,14 @@ details, society commission and the net amount payable.
     Net Amount = Amount + Soc.Value
 
 R/D (round difference), Ded.ADV and Ded.FG are fixed at 0.00 for now.
-Quantity / Fat carry a '*' when any of the VLCC's collections in the period
-had a manually entered quantity / manually measured fat.
+Quantity / Fat are the VLCC's totals / averages, so they carry no manual '*'.
 """
 
 from typing import Any
 
-from sqlalchemy import Integer, case, cast, func, select
+from sqlalchemy import Integer, cast, func, select
 
 from app.modules.administration.domain.enums import Role
-from app.modules.collections.mcc_collection.domain.enums import (
-    MeasurementMode,
-    QuantityCollectionMode,
-)
 from app.modules.collections.mcc_collection.infrastructure.models import (
     MccCollectionModel,
 )
@@ -61,12 +56,6 @@ class MccPaymentSummaryExecutor(ReportExecutor):
                 func.coalesce(func.sum(m.quantity * m.fat_percent), 0).label("fat_qty"),
                 func.coalesce(func.sum(m.quantity * m.snf_percent), 0).label("snf_qty"),
                 func.coalesce(func.sum(m.total_amount), 0).label("amount"),
-                func.max(
-                    case((m.quantity_collection_mode == QuantityCollectionMode.MANUAL, 1), else_=0)
-                ).label("manual_quantity"),
-                func.max(
-                    case((m.measurement_mode == MeasurementMode.MANUAL, 1), else_=0)
-                ).label("manual_fat"),
             )
             .select_from(m)
             .join(v, v.id == m.vlcc_id)
@@ -103,8 +92,8 @@ class MccPaymentSummaryExecutor(ReportExecutor):
                     "vlcc_name": row["name"],
                     "account_number": row["account_number"] or "—",
                     "ifsc_code": row["ifsc_code"] or "—",
-                    "quantity": f"{quantity:.2f}{'*' if row['manual_quantity'] else ''}",
-                    "fat": f"{self.avg_fat(fat_qty, quantity):.2f}{'*' if row['manual_fat'] else ''}",
+                    "quantity": round(quantity, 2),
+                    "fat": self.avg_fat(fat_qty, quantity),
                     "snf": self.avg_snf(snf_qty, quantity),
                     "rate": self.avg_rate(amount, quantity),
                     "amount": round(amount, 2),

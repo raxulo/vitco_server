@@ -47,31 +47,40 @@ from app.modules.vlcc.infrastructure.models import VlccModel
 class _Bucket:
     """Running quantity-weighted totals for one side of one shift."""
 
-    __slots__ = ("quantity", "fat_qty", "snf_qty", "amount")
+    __slots__ = ("quantity", "fat_qty", "snf_qty", "amount", "manual_quantity", "manual_fat")
 
     def __init__(self) -> None:
         self.quantity = Decimal("0")
         self.fat_qty = Decimal("0")
         self.snf_qty = Decimal("0")
         self.amount = Decimal("0")
+        # Any entry in the bucket with a manual quantity / manually measured FAT ('*')
+        self.manual_quantity = False
+        self.manual_fat = False
 
-    def add(self, quantity, fat, snf, amount) -> None:
+    def add(self, quantity, fat, snf, amount, *, manual_quantity=False, manual_fat=False) -> None:
         q = Decimal(quantity or 0)
         self.quantity += q
         self.fat_qty += q * Decimal(fat or 0)
         self.snf_qty += q * Decimal(snf or 0)
         self.amount += Decimal(amount or 0)
+        self.manual_quantity |= manual_quantity
+        self.manual_fat |= manual_fat
 
     def merge(self, other: "_Bucket") -> None:
         self.quantity += other.quantity
         self.fat_qty += other.fat_qty
         self.snf_qty += other.snf_qty
         self.amount += other.amount
+        self.manual_quantity |= other.manual_quantity
+        self.manual_fat |= other.manual_fat
 
     def summary(self) -> dict[str, float]:
         q = self.quantity
         amt = self.amount
         return {
+            "manual_quantity": self.manual_quantity,
+            "manual_fat": self.manual_fat,
             "quantity": round(float(q), 2),
             "fat": round(float(self.fat_qty / q), 2) if q else 0.0,
             "snf": round(float(self.snf_qty / q), 2) if q else 0.0,
@@ -124,6 +133,8 @@ class MccBillComparisonExecutor(ReportExecutor):
                 m.total_amount,
                 m.rank,
                 m.milk_type,
+                m.quantity_collection_mode,
+                m.measurement_mode,
             )
             .where(
                 *self.filters(m, query),
@@ -142,6 +153,8 @@ class MccBillComparisonExecutor(ReportExecutor):
                 d.quantity,
                 d.fat_percent,
                 d.snf_percent,
+                d.quantity_collection_mode,
+                d.measurement_mode,
             )
             .where(
                 d.vlcc_id == query.vlcc_id,
@@ -156,7 +169,9 @@ class MccBillComparisonExecutor(ReportExecutor):
         for row in (await session.execute(received_stmt)).mappings():
             key = self._shift_key(row["collected_at"], row["shift"])
             received[key].add(
-                row["quantity"], row["fat_percent"], row["snf_percent"], row["total_amount"]
+                row["quantity"], row["fat_percent"], row["snf_percent"], row["total_amount"],
+                manual_quantity=self.is_manual(row["quantity_collection_mode"]),
+                manual_fat=self.is_manual(row["measurement_mode"]),
             )
             shift_rank.setdefault(key, row["rank"] or 1)
             shift_milk_type.setdefault(key, row["milk_type"])
@@ -184,6 +199,8 @@ class MccBillComparisonExecutor(ReportExecutor):
                 row["fat_percent"],
                 row["snf_percent"],
                 quantity * Decimal(str(rate)),
+                manual_quantity=self.is_manual(row["quantity_collection_mode"]),
+                manual_fat=self.is_manual(row["measurement_mode"]),
             )
 
         # =========================================================

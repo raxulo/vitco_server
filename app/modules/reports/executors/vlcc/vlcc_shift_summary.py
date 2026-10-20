@@ -128,6 +128,7 @@ class VlccShiftSummaryExecutor(ReportExecutor):
                 m.rate_per_unit.label("rate"),
                 m.total_amount.label("amount"),
                 m.measurement_mode.label("measurement_mode"),
+                m.quantity_collection_mode.label("quantity_collection_mode"),
             )
             .select_from(m)
             .join(f, f.id == m.farmer_id)
@@ -168,10 +169,10 @@ class VlccShiftSummaryExecutor(ReportExecutor):
             milk_types[milk_type_val] = milk_type_val
             grouped[milk_type_val].append(
                 {
-                    "time": f"{row["date_time"].strftime("%H:%M")}{'*' if row["measurement_mode"]==0 else'' }",
+                    "time": row["date_time"].strftime("%H:%M"),
                     "code": row["farmer_code"],
-                    "quantity": row["quantity"],
-                    "fat": row["fat"],
+                    "quantity": self.marked(row["quantity"], self.is_manual(row["quantity_collection_mode"])),
+                    "fat": self.marked(row["fat"], self.is_manual(row["measurement_mode"])),
                     "snf": row["snf"],
                     "rate": row["rate"],
                     "amount": row["amount"],

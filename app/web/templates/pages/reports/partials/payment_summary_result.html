@@ -76,7 +76,7 @@
         <div class="ps-kpi">
             <div class="ps-kpi-label"><i class="fa-solid fa-droplet" style="color:#2563eb;"></i> Quantity</div>
             <div class="ps-kpi-val">{{ num(f.total_quantity) }} <span style="font-size:13px;color:#64748b;">Ltr</span></div>
-            <div class="ps-kpi-note">FAT {{ num(f.average_fat) }} · SNF {{ num(f.average_snf) }}</div>
+            <div class="ps-kpi-note">FAT {{ num(f.average_fat, 1) }} · SNF {{ num(f.average_snf, 1) }}</div>
         </div>
         <div class="ps-kpi">
             <div class="ps-kpi-label"><i class="fa-solid fa-indian-rupee-sign" style="color:#2563eb;"></i> Milk Amount</div>
@@ -86,7 +86,7 @@
         <div class="ps-kpi">
             <div class="ps-kpi-label"><i class="fa-solid fa-hand-holding-dollar" style="color:#7c3aed;"></i> Society Commission</div>
             <div class="ps-kpi-val">₹{{ num(f.total_soc_value) }}</div>
-            <div class="ps-kpi-note">Deductions ₹{{ num((f.total_ded_advance or 0) + (f.total_ded_fg or 0)) }}</div>
+            <div class="ps-kpi-note">Deductions ₹{{ num((f.total_ded_advance or 0)|float + (f.total_ded_fg or 0)|float) }}</div>
         </div>
         <div class="ps-kpi net">
             <div class="ps-kpi-label"><i class="fa-solid fa-circle-check" style="color:#15803d;"></i> Net Payable</div>
@@ -130,7 +130,7 @@
                     <td class="l ps-mono {{ 'ps-muted' if r.ifsc_code == '—' else '' }}">{{ r.ifsc_code }}</td>
                     <td class="ps-sep">{{ r.quantity }}</td>
                     <td>{{ r.fat }}</td>
-                    <td>{{ num(r.snf) }}</td>
+                    <td>{{ num(r.snf, 1) }}</td>
                     <td>{{ num(r.rate) }}</td>
                     <td class="ps-sep">{{ num(r.amount) }}</td>
                     <td class="ps-muted">{{ num(r.round_diff) }}</td>
@@ -145,8 +145,8 @@
                 <tr>
                     <td class="l" colspan="5">Total ({{ f.total_vlcc }} VLCC)</td>
                     <td class="ps-sep">{{ num(f.total_quantity) }}</td>
-                    <td>{{ num(f.average_fat) }}</td>
-                    <td>{{ num(f.average_snf) }}</td>
+                    <td>{{ num(f.average_fat, 1) }}</td>
+                    <td>{{ num(f.average_snf, 1) }}</td>
                     <td>{{ num(f.average_rate) }}</td>
                     <td class="ps-sep">{{ num(f.total_amount) }}</td>
                     <td>{{ num(f.total_round_diff) }}</td>
