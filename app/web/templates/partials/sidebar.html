@@ -1,11 +1,41 @@
 <!-- Sidebar -->
 
+{# Apply the remembered collapsed state before the sidebar paints (no width "jump" on load) #}
+<script>
+    try {
+        if (localStorage.getItem("sidebarCollapsed") === "1") {
+            document.documentElement.classList.add("sidebar-collapsed");
+        }
+    } catch (e) { /* storage blocked: start expanded */ }
+</script>
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
 
     <div class="sidebar-header">
-        <img src="{{ url_for('static', path='images/logo.png')}}" alt="VITCO" height="32" loading="eager">
-        <span>VITCO</span>
+        {# Logo / brand opens the dashboard #}
+        <a href="/dashboard" class="sidebar-brand" title="Go to Dashboard">
+            <img src="{{ url_for('static', path='images/logo.png')}}" alt="VITCO" height="32" loading="eager">
+            <span class="sidebar-label">VITCO</span>
+        </a>
+
+        {# Collapse / expand (desktop). Ctrl + B does the same. #}
+        <button type="button" class="sidebar-toggle" id="sidebar-collapse-btn"
+            onclick="toggleSidebarCollapse()" aria-controls="sidebar" aria-expanded="true"
+            title="Collapse sidebar (Ctrl + B)">
+            {# "Panel" icon: chevron points the way the sidebar will move #}
+            <svg class="icon-collapse" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                <path d="M9 3v18"></path>
+                <path d="m16 15-3-3 3-3"></path>
+            </svg>
+            <svg class="icon-expand" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                <path d="M9 3v18"></path>
+                <path d="m14 9 3 3-3 3"></path>
+            </svg>
+        </button>
     </div>
 
     <nav class="sidebar-menu">
@@ -23,7 +53,7 @@
 
                 {% for item in group.items %}
 
-                <a href="{{ item.href }}" class="menu-item" data-match="{{ item.match }}">
+                <a href="{{ item.href }}" class="menu-item" data-match="{{ item.match }}" data-tooltip="{{ item.label }}">
                     <i class="{{ item.icon }}"></i>
                     <span>{{ item.label }}</span>
                 </a>
@@ -38,9 +68,286 @@
 
     </nav>
 
-    <a href="/logout" class="menu-item sidebar-logout">
-        <i class="fa-solid fa-power-off"></i>
-        <span>Logout</span>
-    </a>
+    <div class="sidebar-footer">
+        <a href="/logout" class="menu-item sidebar-logout" data-tooltip="Logout">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>Logout</span>
+        </a>
+    </div>
 
 </aside>
+
+<style>
+    /* ═══ Sidebar ═══════════════════════════════════════════════════════════
+       Scoped overrides on top of app.min.css. Expanded: 260px. Collapsed: 72px
+       icon rail with hover tooltips (see app.main.js). Phones: off-canvas. */
+
+    .sidebar {
+        position: relative;
+        background: #fff;
+        border-right: 1px solid var(--border-color);
+        transition: width .22s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    /* ── Header: brand + toggle ─────────────────────────────── */
+    .sidebar .sidebar-header {
+        height: var(--topbar-height);
+        padding: 0 12px 0 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border-bottom: 1px solid var(--border-color);
+        flex-shrink: 0;
+    }
+    .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        color: var(--text-dark);
+        text-decoration: none;
+        border-radius: 8px;
+    }
+    .sidebar-brand img { height: 30px; width: auto; flex-shrink: 0; }
+    .sidebar-brand .sidebar-label {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--primary);
+    }
+    .sidebar-brand:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+
+    .sidebar-toggle {
+        width: 34px;
+        height: 34px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--text-faint);
+        cursor: pointer;
+        transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .sidebar-toggle:hover { background: #f1f5f9; color: var(--text-dark); border-color: var(--border-color); }
+    .sidebar-toggle:active { transform: scale(.96); }
+    .sidebar-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .sidebar-toggle .icon-expand { display: none; }
+
+    /* ── Menu ───────────────────────────────────────────────── */
+    .sidebar .sidebar-menu { padding: 12px 12px 8px; }
+
+    .sidebar .menu-group { margin-bottom: 4px; overflow: visible; }
+
+    /* Section headings: each group has its own accent colour */
+    .sidebar .menu-group-header                       { --group-accent: #475569; }  /* General */
+    .sidebar .menu-group-header.mcc-group-header      { --group-accent: var(--orange); }
+    .sidebar .menu-group-header.dairy-group-header    { --group-accent: #059669; }
+    .sidebar .menu-group-header.config-group-header   { --group-accent: var(--primary); }
+    .sidebar .menu-group-header.payment-group-header  { --group-accent: var(--purple); }
+    .sidebar .menu-group-header.market-group-header   { --group-accent: #0d9488; }
+
+    .sidebar .menu-group-header {
+        padding: 9px 10px;
+        margin-top: 10px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .07em;
+        text-transform: uppercase;
+        color: var(--group-accent);
+        background: color-mix(in srgb, var(--group-accent) 7%, transparent);
+        border-radius: 8px;
+        transition: background .15s ease;
+    }
+    .sidebar .menu-group:first-child .menu-group-header { margin-top: 0; }
+    .sidebar .menu-group-header span {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+    /* Accent marker before the heading text */
+    .sidebar .menu-group-header span::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        flex-shrink: 0;
+        border-radius: 3px;
+        background: var(--group-accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--group-accent) 18%, transparent);
+    }
+    .sidebar .menu-group-header:hover {
+        color: var(--group-accent);
+        background: color-mix(in srgb, var(--group-accent) 13%, transparent);
+    }
+    .sidebar .menu-group.expanded .menu-group-header { font-weight: 800; }
+    .sidebar .menu-group-header .toggle-icon { font-size: 9px; color: var(--group-accent); opacity: .7; }
+
+    /* Items: no tree lines, consistent rhythm */
+    .sidebar .menu-group-items {
+        border-left: 0;
+        margin: 2px 0 0;
+        padding: 0;
+    }
+    .sidebar .menu-item {
+        height: 38px;
+        padding: 0 10px;
+        margin-bottom: 2px;
+        gap: 11px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--text-body);
+        text-decoration: none;
+        transition: background .12s ease, color .12s ease;
+    }
+    .sidebar .menu-item i {
+        width: 20px;
+        font-size: 15px;
+        color: var(--text-faint);
+        transition: color .12s ease;
+    }
+    .sidebar .menu-item:hover { background: #f1f5f9; color: var(--text-dark); }
+    .sidebar .menu-item:hover i { color: var(--text-muted); }
+    .sidebar .menu-item:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+    /* Active: tinted background + accent bar instead of a solid block */
+    .sidebar .menu-item.active {
+        background: var(--primary-light);
+        color: var(--primary);
+        font-weight: 600;
+        box-shadow: none;
+    }
+    .sidebar .menu-item.active i { color: var(--primary); }
+    .sidebar .menu-item.active::before {
+        left: 0;
+        top: 9px;
+        height: 20px;
+        width: 3px;
+        background: var(--primary);
+        border-radius: 0 3px 3px 0;
+    }
+
+    /* ── Footer (logout) ────────────────────────────────────── */
+    .sidebar-footer {
+        padding: 10px 12px 14px;
+        border-top: 1px solid var(--border-color);
+        flex-shrink: 0;
+    }
+    .sidebar .sidebar-logout { margin: 0; color: var(--text-muted); }
+    .sidebar .sidebar-logout:hover { background: var(--danger-light); color: var(--danger); }
+    .sidebar .sidebar-logout:hover i { color: var(--danger); }
+
+    .sidebar-label, .sidebar .menu-item span, .sidebar .menu-group-header span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* ═══ Collapsed: 72px icon rail ═════════════════════════ */
+    html.sidebar-collapsed .sidebar { width: 72px; }
+
+    html.sidebar-collapsed .sidebar .sidebar-header {
+        height: auto;
+        min-height: var(--topbar-height);
+        padding: 12px 0;
+        flex-direction: column;
+        justify-content: center;
+        gap: 8px;
+    }
+    html.sidebar-collapsed .sidebar-brand img { height: 26px; max-width: 46px; object-fit: contain; }
+    html.sidebar-collapsed .sidebar-toggle .icon-collapse { display: none; }
+    html.sidebar-collapsed .sidebar-toggle .icon-expand { display: block; }
+
+    html.sidebar-collapsed .sidebar-label,
+    html.sidebar-collapsed .sidebar .menu-item span,
+    html.sidebar-collapsed .sidebar .menu-group-header span,
+    html.sidebar-collapsed .sidebar .menu-group-header .toggle-icon { display: none; }
+
+    html.sidebar-collapsed .sidebar .sidebar-menu { padding: 10px 14px; }
+    /* Group titles become separators; every item stays reachable */
+    html.sidebar-collapsed .sidebar .menu-group { margin: 0; }
+    /* Separator keeps the section's accent colour */
+    html.sidebar-collapsed .sidebar .menu-group-header {
+        height: 2px;
+        padding: 0;
+        margin: 10px 8px;
+        border-radius: 2px;
+        background: color-mix(in srgb, var(--group-accent) 45%, transparent);
+        pointer-events: none;
+    }
+    html.sidebar-collapsed .sidebar .menu-group:first-child .menu-group-header { display: none; }
+    html.sidebar-collapsed .sidebar .menu-group-items { max-height: none; }
+    html.sidebar-collapsed .sidebar .menu-item {
+        width: 44px;
+        height: 40px;
+        padding: 0;
+        margin: 0 auto 4px;
+        justify-content: center;
+        gap: 0;
+    }
+    html.sidebar-collapsed .sidebar .menu-item i { font-size: 16px; }
+    html.sidebar-collapsed .sidebar .menu-item.active::before { top: 10px; }
+    html.sidebar-collapsed .sidebar-footer { padding: 10px 14px 14px; }
+
+    /* Floating tooltip for the icon rail (positioned by app.main.js) */
+    .sidebar-tooltip {
+        position: fixed;
+        z-index: 1000;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: #0f172a;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, .18);
+        opacity: 0;
+        transform: translate(-4px, -50%);
+        transition: opacity .12s ease, transform .12s ease;
+    }
+    .sidebar-tooltip.show { opacity: 1; transform: translate(0, -50%); }
+    .sidebar-tooltip::before {
+        content: "";
+        position: absolute;
+        left: -4px;
+        top: 50%;
+        width: 8px;
+        height: 8px;
+        background: #0f172a;
+        transform: translateY(-50%) rotate(45deg);
+        border-radius: 1px;
+    }
+
+    /* ═══ Phones: off-canvas sidebar, never collapsed ═══════ */
+    @media (max-width: 768px) {
+        .sidebar-toggle { display: none; }
+        .sidebar-tooltip { display: none; }
+        html.sidebar-collapsed .sidebar { width: var(--sidebar-width); }
+        html.sidebar-collapsed .sidebar .sidebar-header {
+            height: var(--topbar-height); padding: 0 12px 0 18px; flex-direction: row; justify-content: space-between;
+        }
+        html.sidebar-collapsed .sidebar-label,
+        html.sidebar-collapsed .sidebar .menu-item span,
+        html.sidebar-collapsed .sidebar .menu-group-header span,
+        html.sidebar-collapsed .sidebar .menu-group-header .toggle-icon { display: revert; }
+        html.sidebar-collapsed .sidebar .sidebar-menu { padding: 12px 12px 8px; }
+        html.sidebar-collapsed .sidebar .menu-group-header,
+        html.sidebar-collapsed .sidebar .menu-group:first-child .menu-group-header {
+            display: flex; height: auto; padding: 9px 10px; margin: 10px 0 0;
+            background: color-mix(in srgb, var(--group-accent) 7%, transparent); pointer-events: auto;
+        }
+        html.sidebar-collapsed .sidebar .menu-group-items { max-height: 0; }
+        html.sidebar-collapsed .sidebar .menu-group.expanded .menu-group-items { max-height: 500px; }
+        html.sidebar-collapsed .sidebar .menu-item {
+            width: auto; height: 38px; padding: 0 10px; margin: 0 0 2px; justify-content: flex-start; gap: 11px;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .sidebar, .sidebar-toggle, .sidebar-tooltip, .sidebar .menu-item { transition: none; }
+    }
+</style>

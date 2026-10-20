@@ -268,7 +268,7 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
 
     MenuGroup(
         label="Marketplace",
-        css_class="general-group-header",
+        css_class="market-group-header",
         items=(
             item(
                 "Marketplace Setup",

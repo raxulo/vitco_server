@@ -20,7 +20,7 @@
     </div>
     {# ?v= busts the browser cache when the error-popup handling changes #}
     <script src="{{ url_for('static', path='js/htmx.js') }}?v=3"></script>
-    <script src="{{ url_for('static', path='js/app.main.js') }}"></script>
+    <script src="{{ url_for('static', path='js/app.main.js') }}?v=3"></script>
     {% block scripts %}  {% endblock %}
 
 </body>
