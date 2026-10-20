@@ -68,7 +68,7 @@ class ReportsController:
                 "mccs": mccs,
                 "vlccs": vlccs,
                 "reports": initial_reports,
-                "today": today_ist().isoformat(),
+                "today": today_ist().strftime("%d/%m/%Y"),
             },
         )
 
@@ -92,7 +92,7 @@ class ReportsController:
             model={
                 "vlccs": vlccs,
                 "reports": reports,
-                "today": today_ist().isoformat(),
+                "today": today_ist().strftime("%d/%m/%Y"),
             },
         )
 

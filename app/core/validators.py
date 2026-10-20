@@ -6,6 +6,7 @@ values with the same readable message.
 """
 
 import re
+from datetime import date, datetime
 
 _DIGITS = re.compile(r"[0-9]+")
 _MOBILE = re.compile(r"[0-9]{10}")
@@ -17,6 +18,28 @@ def digits_only(value: str, label: str) -> str:
     if not _DIGITS.fullmatch(value):
         raise ValueError(f"{label} must contain digits only")
     return value
+
+
+def optional_digits(value: str | None, label: str) -> str | None:
+    """Like `digits_only`, but an empty value is allowed and becomes None."""
+    if value is None or not str(value).strip():
+        return None
+    return digits_only(str(value), label)
+
+
+def indian_date(value: date | str | None, label: str) -> date | None:
+    """A date written as dd/mm/yyyy (forms); ISO yyyy-mm-dd is still accepted for API clients."""
+    if value is None or isinstance(value, date):
+        return value
+    value = value.strip()
+    if not value:
+        return None
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"{label} must be a valid date in dd/mm/yyyy format")
 
 
 def min_not_above_max(low: float | None, high: float | None, label: str) -> None:

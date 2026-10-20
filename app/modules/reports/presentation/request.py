@@ -3,8 +3,9 @@ from app.modules.collections.mcc_collection.domain.enums import CollectionShift
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core.validators import indian_date, optional_digits
 from app.modules.reports.domain.enums import ReportType
 from app.modules.reports.application.queries import ReportQuery
 
@@ -37,6 +38,16 @@ class ReportPreviewRequest(BaseModel):
 
     page: int = Field(default=1, ge=1)
     size: int = Field(default=100, ge=1, le=500)
+
+    @field_validator("start_date", "end_date", mode="before")
+    @classmethod
+    def _dates(cls, value, info):
+        return indian_date(value, info.field_name.replace("_", " ").capitalize())
+
+    @field_validator("code_from", "code_to", "member_code", "route_from", "route_to", mode="before")
+    @classmethod
+    def _codes(cls, value, info):
+        return optional_digits(value, info.field_name.replace("_", " ").capitalize())
 
     def to_query(
         self,
@@ -95,6 +106,16 @@ class ReportRequest(BaseModel):
 
     page: int = Field(default=1, ge=1)
     size: int = Field(default=100, ge=1, le=1000)
+
+    @field_validator("start_date", "end_date", mode="before")
+    @classmethod
+    def _dates(cls, value, info):
+        return indian_date(value, info.field_name.replace("_", " ").capitalize())
+
+    @field_validator("code_from", "code_to", "member_code", mode="before")
+    @classmethod
+    def _codes(cls, value, info):
+        return optional_digits(value, info.field_name.replace("_", " ").capitalize())
 
     def to_query(
         self,

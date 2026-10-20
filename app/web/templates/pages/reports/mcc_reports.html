@@ -44,13 +44,21 @@
             <!-- Start Date -->
             <div id="start-date-container">
                 <label for="start_date" id="start-date-label" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Start Date</label>
-                <input type="date" name="start_date" id="start_date" value="{{ today }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+                <div class="date-field">
+                    <input type="text" name="start_date" id="start_date" value="{{ today }}" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" data-date-input>
+                    <button type="button" class="date-picker-btn" title="Pick date"><i class="fa-regular fa-calendar"></i></button>
+                    <input type="date" class="date-picker-native" tabindex="-1" aria-hidden="true">
+                </div>
             </div>
 
             <!-- End Date -->
             <div id="end-date-container">
                 <label for="end_date" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">End Date</label>
-                <input type="date" name="end_date" id="end_date" value="{{ today }}" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+                <div class="date-field">
+                    <input type="text" name="end_date" id="end_date" value="{{ today }}" placeholder="dd/mm/yyyy" inputmode="numeric" maxlength="10" autocomplete="off" data-date-input>
+                    <button type="button" class="date-picker-btn" title="Pick date"><i class="fa-regular fa-calendar"></i></button>
+                    <input type="date" class="date-picker-native" tabindex="-1" aria-hidden="true">
+                </div>
             </div>
 
             <!-- Start Shift -->
@@ -85,31 +93,31 @@
             <!-- Member Code (VLCC code) -->
             <div id="member-code-container" style="display: none;">
                 <label for="member_code" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">VLCC Code</label>
-                <input type="text" name="member_code" id="member_code" inputmode="numeric" placeholder="e.g. 001" disabled style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+                <input type="text" name="member_code" id="member_code" inputmode="numeric" pattern="[0-9]*" data-digits-only placeholder="e.g. 001" disabled style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
             </div>
 
             <!-- Code From -->
             <div id="code-from-container" style="display: none;">
                 <label for="code_from" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code From</label>
-                <input type="text" name="code_from" id="code_from" placeholder="e.g. 001" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+                <input type="text" name="code_from" id="code_from" inputmode="numeric" pattern="[0-9]*" data-digits-only placeholder="e.g. 001" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
             </div>
 
             <!-- Code To -->
             <div id="code-to-container" style="display: none;">
                 <label for="code_to" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Code To</label>
-                <input type="text" name="code_to" id="code_to" placeholder="e.g. 100" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+                <input type="text" name="code_to" id="code_to" inputmode="numeric" pattern="[0-9]*" data-digits-only placeholder="e.g. 100" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
             </div>
 
             <!-- Route From -->
             <div id="route-from-container" style="display: none;">
                 <label for="route_from" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Route From</label>
-                <input type="text" name="route_from" id="route_from" placeholder="e.g. 1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+                <input type="text" name="route_from" id="route_from" inputmode="numeric" pattern="[0-9]*" data-digits-only placeholder="e.g. 1" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
             </div>
 
             <!-- Route To -->
             <div id="route-to-container" style="display: none;">
                 <label for="route_to" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Route To</label>
-                <input type="text" name="route_to" id="route_to" placeholder="e.g. 10" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
+                <input type="text" name="route_to" id="route_to" inputmode="numeric" pattern="[0-9]*" data-digits-only placeholder="e.g. 10" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b;">
             </div>
 
             <!-- Actions -->
@@ -467,4 +475,5 @@
         document.getElementById('mccReportPreviewModal').style.display = 'none';
     }
 </script>
+{% include "pages/reports/partials/filter_inputs.html" %}
 {% endblock %}

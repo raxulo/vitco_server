@@ -1,0 +1,131 @@
+{#
+    Shared behaviour for the report filter forms (MCC + VLCC reports):
+    - [data-date-input]  text box in dd/mm/yyyy; typing is masked, the calendar button
+                         opens the browser picker and writes the chosen date back as dd/mm/yyyy.
+    - [data-digits-only] code boxes accept digits only (typed or pasted).
+#}
+<style>
+    .date-field {
+        position: relative;
+        width: 100%;
+    }
+    .date-field input[data-date-input] {
+        width: 100%;
+        padding: 8px 38px 8px 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #1e293b;
+        box-sizing: border-box;
+    }
+    .date-field input[data-date-input].is-invalid {
+        border-color: #dc2626;
+    }
+    .date-picker-btn {
+        position: absolute;
+        top: 50%;
+        right: 6px;
+        transform: translateY(-50%);
+        border: none;
+        background: none;
+        color: #64748b;
+        cursor: pointer;
+        padding: 4px 6px;
+        font-size: 15px;
+    }
+    .date-picker-btn:hover {
+        color: #2563eb;
+    }
+    .date-picker-native {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+        border: 0;
+        padding: 0;
+    }
+</style>
+
+<script>
+    (function () {
+        const pad = (n) => String(n).padStart(2, '0');
+
+        // "dd/mm/yyyy" -> "yyyy-mm-dd" (for the native picker), '' when not a real date
+        function toIso(text) {
+            const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((text || '').trim());
+            if (!m) return '';
+            const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+            const valid = d.getFullYear() === Number(m[3]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[1]);
+            return valid ? `${m[3]}-${m[2]}-${m[1]}` : '';
+        }
+
+        // "yyyy-mm-dd" -> "dd/mm/yyyy"
+        function fromIso(iso) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+            return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+        }
+
+        // Keep only digits and insert the slashes: 01102026 -> 01/10/2026
+        function maskDate(value) {
+            const digits = (value || '').replace(/\D/g, '').slice(0, 8);
+            if (digits.length <= 2) return digits;
+            if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+            return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+        }
+
+        function markValidity(input) {
+            const value = input.value.trim();
+            input.classList.toggle('is-invalid', value !== '' && !toIso(value));
+        }
+
+        document.addEventListener('input', function (e) {
+            const el = e.target;
+            if (!el || !el.matches) return;
+            if (el.matches('[data-date-input]')) {
+                el.value = maskDate(el.value);
+                markValidity(el);
+            } else if (el.matches('[data-digits-only]')) {
+                const cleaned = el.value.replace(/\D/g, '');
+                if (cleaned !== el.value) el.value = cleaned;
+            }
+        }, true);
+
+        document.addEventListener('click', function (e) {
+            const btn = e.target.closest && e.target.closest('.date-picker-btn');
+            if (!btn) return;
+            const field = btn.closest('.date-field');
+            const text = field.querySelector('[data-date-input]');
+            const native = field.querySelector('.date-picker-native');
+            if (!text || !native || text.disabled) return;
+            native.value = toIso(text.value);
+            if (typeof native.showPicker === 'function') {
+                try { native.showPicker(); return; } catch (err) { /* falls back to focus */ }
+            }
+            native.focus();
+            native.click();
+        });
+
+        document.addEventListener('change', function (e) {
+            const native = e.target;
+            if (!native || !native.classList || !native.classList.contains('date-picker-native')) return;
+            const text = native.closest('.date-field').querySelector('[data-date-input]');
+            if (!text || !native.value) return;
+            text.value = fromIso(native.value);
+            markValidity(text);
+            text.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+
+        // Default to today (dd/mm/yyyy) if a date box is left empty on load
+        document.addEventListener('DOMContentLoaded', function () {
+            const now = new Date();
+            const today = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+            document.querySelectorAll('[data-date-input]').forEach(function (el) {
+                if (!el.value.trim()) el.value = today;
+                markValidity(el);
+            });
+        });
+    })();
+</script>
