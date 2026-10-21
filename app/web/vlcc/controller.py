@@ -101,6 +101,9 @@ class VlccController:
         detail: VlccDetailDto = await handler.get_full_detail(
             GetVlccQuery(id=vlcc_id, owner=request.state.user)
         )
+        # An MCC sees its creator's VLCCs (suppliers) but edits only the VLCCs it created
+        if request.state.user.role_type == Role.MCC and not detail.vlcc.can_modify:
+            raise ForbiddenException("This VLCC can be viewed and used, but not modified.")
 
         versions = []
         try:

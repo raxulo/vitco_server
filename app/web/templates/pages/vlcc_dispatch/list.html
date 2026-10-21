@@ -26,10 +26,15 @@
             <!-- Select VLCC -->
             <div style="flex: 1; min-width: 200px;">
                 <label for="vlcc_id" style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">VLCC Shop</label>
-                <select name="vlcc_id" id="vlcc_id" class="form-control" style="padding: 8px 12px; height: 38px;">
+                {# VLCC login: its own VLCC comes pre-selected and cannot be changed #}
+                {% set lock_vlcc = current_user and current_user.role|int == 5 %}
+                <select name="vlcc_id" id="vlcc_id" class="form-control" {% if lock_vlcc %}tabindex="-1" aria-disabled="true"{% endif %}
+                    style="padding: 8px 12px; height: 38px;{% if lock_vlcc %} pointer-events: none; background-color: #f1f5f9; cursor: not-allowed;{% endif %}">
+                    {% if not lock_vlcc %}
                     <option value="">All VLCCs</option>
+                    {% endif %}
                     {% for v in vlccs %}
-                    <option value="{{ v.id }}" {{ 'selected' if selected_vlcc_id|string == v.id|string else '' }}>{{ v.name }}</option>
+                    <option value="{{ v.id }}" {{ 'selected' if selected_vlcc_id|string == v.id|string or (lock_vlcc and v.user_id|string == current_user.id|string) else '' }}>{{ v.name }}</option>
                     {% endfor %}
                 </select>
             </div>

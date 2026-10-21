@@ -109,8 +109,14 @@ def apply_milk_quality_rules(model) -> None:
 
 
 def mobile_number(value: str | None, *, required: bool = True) -> str | None:
-    """A 10-digit mobile number, digits only."""
-    value = (value or "").strip()
+    """A 10-digit mobile number, digits only (a +91 / 91 / 0 prefix is dropped)."""
+    value = (value or "").strip().replace(" ", "").replace("-", "")
+    if value.startswith("+91") and len(value) == 13:
+        value = value[3:]
+    elif value.startswith("91") and len(value) == 12:
+        value = value[2:]
+    elif value.startswith("0") and len(value) == 11:
+        value = value[1:]
     if not value:
         if required:
             raise ValueError("Mobile number is required")

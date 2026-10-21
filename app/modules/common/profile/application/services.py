@@ -130,6 +130,20 @@ class ProfileService:
         user_id: UUID,
         bank_data: CreateBankAccountCommand,
     ) -> BankAccount:
+        # A user has one bank account: when one already exists (e.g. its link on the
+        # MCC / VLCC / farmer row was lost) update that row instead of inserting a second
+        existing = await self._bank_repository.get_by_user_id(user_id)
+        if existing is not None:
+            return await self.bank_update(
+                UpdateBankAccountCommand(
+                    id=existing.id,
+                    account_holder=bank_data.account_holder,
+                    bank_name=bank_data.bank_name,
+                    account_number=bank_data.account_number,
+                    ifsc_code=bank_data.ifsc_code,
+                    upi_id=bank_data.upi_id,
+                )
+            )
         now = now_naive_ist()
         bank = BankAccount(
             id=uuid4(),
@@ -149,6 +163,18 @@ class ProfileService:
         user_id: UUID,
         address_data: CreateAddressCommand,
     ) -> Address:
+        # addresses.user_id is unique: reuse the user's existing address row
+        existing = await self._address_repository.get_by_user_id(user_id)
+        if existing is not None:
+            return await self.address_update(
+                UpdateAddressCommand(
+                    id=existing.id,
+                    line=address_data.line,
+                    state=address_data.state,
+                    city=address_data.city,
+                    pincode=address_data.pincode,
+                )
+            )
         now = now_naive_ist()
         address = Address(
             id=uuid4(),
@@ -169,18 +195,27 @@ class ProfileService:
         bank_data: UpdateBankAccountCommand | None = None,
     ) -> None:
 
+        current = await self._user_repository.get_by_id(user_data.id)
+
         # A new mobile must be valid; leaving it out keeps the current one, which must exist
         if user_data.mobile is not None and str(user_data.mobile).strip():
             user_data.mobile = self._required_mobile(user_data.mobile)
         else:
             user_data.mobile = None
-            current = await self._user_repository.get_by_id(user_data.id)
             if current is not None and not (current.mobile or "").strip():
                 raise InvalidMobileException()
 
+        # Only a changed email / mobile is checked: re-saving a record with its own
+        # (even legacy-duplicated) values never reports "already exists"
+        email_changed = bool(user_data.email) and (
+            current is None or str(user_data.email).strip().lower() != (current.email or "").strip().lower()
+        )
+        mobile_changed = bool(user_data.mobile) and (
+            current is None or str(user_data.mobile).strip() != (current.mobile or "").strip()
+        )
         await self.ensure_contact_available(
-            email=user_data.email,
-            mobile=user_data.mobile,
+            email=user_data.email if email_changed else None,
+            mobile=user_data.mobile if mobile_changed else None,
             exclude_user_id=user_data.id,
         )
 

@@ -16,13 +16,15 @@
             <!-- Select MCC -->
             <div>
                 <label for="mcc_id" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Select MCC</label>
-                <select name="mcc_id" id="mcc_id" hx-get="/mcc-reports/mcc-type-reports" hx-target="#report_type" hx-swap="outerHTML" 
-                 hx-trigger="change" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
-                    {% if mccs|length != 1 %}
+                {# MCC login: its own MCC comes pre-selected and cannot be changed #}
+                {% set lock_mcc = current_user and current_user.role|int == 4 %}
+                <select name="mcc_id" id="mcc_id" hx-get="/mcc-reports/mcc-type-reports" hx-target="#report_type" hx-swap="outerHTML"
+                 hx-trigger="change" {% if lock_mcc %}tabindex="-1" aria-disabled="true"{% endif %} style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; {% if lock_mcc %}background: #f1f5f9; pointer-events: none; cursor: not-allowed;{% else %}background: white; cursor: pointer;{% endif %}">
+                    {% if not lock_mcc and mccs|length != 1 %}
                     <option value="">— Select MCC —</option>
                     {% endif %}
                     {% for mcc in mccs %}
-                    <option value="{{ mcc.id }}">{{ mcc.name }} ({{ mcc.code }})</option>
+                    <option value="{{ mcc.id }}" {% if lock_mcc and mcc.user_id|string == current_user.id|string %}selected{% endif %}>{{ mcc.name }} ({{ mcc.code }})</option>
                     {% endfor %}
                 </select>
             </div>

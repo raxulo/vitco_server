@@ -326,8 +326,6 @@ class FarmerController:
     async def post_delete(request: Request, id: UUID):
         from fastapi.responses import RedirectResponse, Response
         from app.modules.farmer.application.command import DeleteFarmerCommand
-        # pyrefly: ignore [missing-import]
-        from app.web.renderer import Renderer
         user: CurrentUser = request.state.user
         handler = GetHandler.farmer_handler(request)
         try:

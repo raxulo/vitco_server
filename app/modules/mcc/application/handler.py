@@ -300,7 +300,10 @@ class MccHandler:
         owner: CurrentUser,
     ) -> bool:
         self._validate(command.mcc)
-        await self._ensure_code_available(command.mcc.code, owner, exclude_id=command.mcc.id)
+        # Only a changed code is checked: an unchanged code never clashes with itself
+        current = await self._mcc_repository.get_by_id(command.mcc.id, owner)
+        if current is None or (current.code or "").strip() != (command.mcc.code or "").strip():
+            await self._ensure_code_available(command.mcc.code, owner, exclude_id=command.mcc.id)
 
         async with self._database.transaction():
 

@@ -16,13 +16,14 @@
             <!-- Select VLCC -->
             <div>
                 <label for="vlcc_id" style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px;">Select VLCC</label>
-                <select name="vlcc_id" id="vlcc_id" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; background: white; cursor: pointer;">
-                    {# A single VLCC (VLCC login) comes pre-selected #}
-                    {% if vlccs|length != 1 %}
+                {# VLCC login: its own VLCC comes pre-selected and cannot be changed #}
+                {% set lock_vlcc = current_user and current_user.role|int == 5 %}
+                <select name="vlcc_id" id="vlcc_id" {% if lock_vlcc %}tabindex="-1" aria-disabled="true"{% endif %} style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; color: #1e293b; {% if lock_vlcc %}background: #f1f5f9; pointer-events: none; cursor: not-allowed;{% else %}background: white; cursor: pointer;{% endif %}">
+                    {% if not lock_vlcc and vlccs|length != 1 %}
                     <option value="">— Select VLCC —</option>
                     {% endif %}
                     {% for vlcc in vlccs %}
-                    <option value="{{ vlcc.id }}">{{ vlcc.name }} ({{ vlcc.vlcc_code }})</option>
+                    <option value="{{ vlcc.id }}" {% if lock_vlcc and vlcc.user_id|string == current_user.id|string %}selected{% endif %}>{{ vlcc.name }} ({{ vlcc.vlcc_code }})</option>
                     {% endfor %}
                 </select>
             </div>

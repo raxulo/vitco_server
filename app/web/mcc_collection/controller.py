@@ -466,12 +466,23 @@ class MccCollectionController:
     @staticmethod
     async def get_sample_result(
         request: Request,
-        mcc_id: UUID,
-        sample_number: int,
         shift: CollectionShift,
+        mcc_id: str | None = None,
+        sample_number: str | None = None,
         collection_date: str | None = None,
     ):
         from app.modules.collections.mcc_collection.application.command import GetCollectionBySampleNumberQuery
+
+        # A cleared / partly typed sample box (or no MCC yet) is not a lookup: just hide the error
+        sample_text = (sample_number or "").strip()
+        try:
+            mcc_id = UUID((mcc_id or "").strip())
+        except ValueError:
+            mcc_id = None
+        if mcc_id is None or not sample_text.isdigit():
+            return HTMLResponse('<div id="cf-sample-error" style="display: none;" hx-swap-oob="true"></div>')
+        sample_number = int(sample_text)
+
         handler = GetHandler.mcc_collection_handler(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
 

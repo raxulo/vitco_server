@@ -39,6 +39,13 @@ class VlccAccessScope:
 
     @staticmethod
     def condition(owner: CurrentUser):
+        """VLCCs the owner may see / use (an MCC also sees its creator's VLCCs)."""
+        vlcc_ids = Hierarchy.visible_vlcc_ids(owner)
+        return true() if vlcc_ids is None else VlccModel.id.in_(vlcc_ids)
+
+    @staticmethod
+    def modify_condition(owner: CurrentUser):
+        """VLCCs the owner may update / delete."""
         vlcc_ids = Hierarchy.vlcc_ids(owner)
         return true() if vlcc_ids is None else VlccModel.id.in_(vlcc_ids)
 
@@ -104,7 +111,7 @@ class VlccRepository(IVlccRepository):
         entity: Vlcc,
         owner: CurrentUser | None = None,
     ) -> None:
-        access = VlccAccessScope.condition(owner) if owner else true()
+        access = VlccAccessScope.modify_condition(owner) if owner else true()
 
         stmt = (
             update(VlccModel)
@@ -139,7 +146,7 @@ class VlccRepository(IVlccRepository):
         data: UpdateVlccCommand,
         owner: CurrentUser | None = None,
     ) -> None:
-        access = VlccAccessScope.condition(owner) if owner else true()
+        access = VlccAccessScope.modify_condition(owner) if owner else true()
 
         stmt = (
             update(VlccModel)
@@ -182,7 +189,7 @@ class VlccRepository(IVlccRepository):
             delete(VlccModel)
             .where(
                 VlccModel.id == id,
-                VlccAccessScope.condition(owner),
+                VlccAccessScope.modify_condition(owner),
             )
         )
         result = await self._session.execute(stmt)

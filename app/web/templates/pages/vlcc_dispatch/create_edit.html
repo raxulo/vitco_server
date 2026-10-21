@@ -51,13 +51,18 @@
                     <!-- VLCC Shop -->
                     <div class="form-group" style="grid-column: span 2;">
                         <label for="vlcc_id" style="font-weight: 600; color: #475569;">VLCC Shop *</label>
-                        <select name="vlcc_id" id="vlcc_id" class="form-control" required>
+                        {# VLCC login: its own VLCC comes pre-selected and cannot be changed #}
+                        {% set lock_vlcc = current_user and current_user.role|int == 5 %}
+                        <select name="vlcc_id" id="vlcc_id" class="form-control" required
+                            {% if lock_vlcc %}tabindex="-1" aria-disabled="true" style="pointer-events: none; background-color: #f1f5f9; cursor: not-allowed;"{% endif %}>
+                            {% if not lock_vlcc %}
                             <option value="" disabled {% if not dispatch %}selected{% endif %}>-- Select VLCC --</option>
+                            {% endif %}
                             {% for vlcc in vlccs %}
-                                <option 
+                                <option
                                  data-analyzer-mode="{{ vlcc.analyzer_collection_mode }}"
                                  data-weight-mode="{{ vlcc.weight_collection_mode }}"
-                                 value="{{ vlcc.id }}" {% if dispatch and dispatch.vlcc_id == vlcc.id %}selected{% endif %}>{{ vlcc.name }} ({{ vlcc.vlcc_code }})</option>
+                                 value="{{ vlcc.id }}" {% if (dispatch and dispatch.vlcc_id == vlcc.id) or (not dispatch and lock_vlcc and vlcc.user_id|string == current_user.id|string) %}selected{% endif %}>{{ vlcc.name }} ({{ vlcc.vlcc_code }})</option>
                             {% endfor %}
                         </select>
                     </div>

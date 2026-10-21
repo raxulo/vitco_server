@@ -178,6 +178,7 @@ class VlccHandler:
             vlcc = await self._vlcc_repository.get_by_id(command.id, command.owner)
             if vlcc is None:
                 raise VlccNotFoundException()
+            self._ensure_mcc_can_modify(vlcc, command.owner)
 
             user = await self._user_repository.get_by_id(vlcc.user_id)
             if user is None:
@@ -373,6 +374,12 @@ class VlccHandler:
             raise PermissionError("A VLCC cannot create another VLCC.")
         raise PermissionError("You are not allowed to create a VLCC.")
 
+    @staticmethod
+    def _ensure_mcc_can_modify(vlcc, owner: CurrentUser | None) -> None:
+        """An MCC sees its creator's VLCCs (its suppliers) but modifies only the VLCCs it created."""
+        if vlcc is not None and owner is not None and owner.role_type == Role.MCC and not vlcc.can_modify:
+            raise PermissionError("This VLCC can be viewed and used, but not modified.")
+
     async def _ensure_code_available(
         self,
         code: str,
@@ -486,7 +493,11 @@ class VlccHandler:
     ) -> bool:
 
         self._validate(command.vlcc)
-        await self._ensure_code_available(command.vlcc.vlcc_code, owner, exclude_id=command.vlcc.id)
+        # Only a changed code is checked: an unchanged code never clashes with itself
+        current = await self._vlcc_repository.get_by_id(command.vlcc.id, owner)
+        self._ensure_mcc_can_modify(current, owner)
+        if current is None or (current.vlcc_code or "").strip() != (command.vlcc.vlcc_code or "").strip():
+            await self._ensure_code_available(command.vlcc.vlcc_code, owner, exclude_id=command.vlcc.id)
 
         async with self._database.transaction():
 

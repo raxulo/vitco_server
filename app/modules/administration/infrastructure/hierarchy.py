@@ -7,10 +7,12 @@ Ownership hierarchy shared by every MCC / VLCC / farmer / collection scope.
                    VLCCs created by a manager or by the user of one of those MCCs
     Sub Admin   -> the same, with itself as the only manager
     MCC         -> VLCCs its user created
+                   (+ sees, read-only, the VLCCs made by whoever created its MCC:
+                   they supply milk to it — `visible_vlcc_ids`)
     VLCC        -> its own VLCC
 
 Farmers and collections follow the VLCCs / MCCs above. Seeing a record and
-modifying it use the same rules.
+modifying it use the same rules, except the MCC's read-only VLCCs above.
 
 User-owned records (rate charts) use the user lines instead:
 `controlled_users` (the user and everyone below) may modify, and
@@ -83,6 +85,19 @@ class Hierarchy:
         if role in (*_MANAGER_ROLES, Role.MCC):
             return select(VlccModel.id).where(VlccModel.created_by.in_(cls.vlcc_creators(owner)))
         return select(VlccModel.id).where(literal(False))
+
+    @classmethod
+    def visible_vlcc_ids(cls, owner: CurrentUser) -> Select | None:
+        """
+        VLCCs the owner may see. Same as `vlcc_ids`, except an MCC also sees the
+        VLCCs created by whoever created its MCC (its suppliers) — view / use only.
+        """
+        if owner.role_type != Role.MCC:
+            return cls.vlcc_ids(owner)
+        mcc_creators = select(MccModel.created_by).where(MccModel.user_id == owner.id)
+        return select(VlccModel.id).where(
+            or_(VlccModel.created_by == owner.id, VlccModel.created_by.in_(mcc_creators))
+        )
 
     # =========================================================
     # User lines (for records owned by users, e.g. rate charts)

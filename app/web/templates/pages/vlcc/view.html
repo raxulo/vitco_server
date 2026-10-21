@@ -66,9 +66,12 @@
                 <i class="fa-solid fa-trash-can"></i> Delete Center
             </button>
             {% endif %}
+            {# An MCC's supplier VLCCs (made by its creator) are view-only for it #}
+            {% if vlcc.can_modify or not (current_user and current_user.role|int == 4) %}
             <a href="/vlcc/edit/{{ vlcc.id }}" class="btn-action edit">
                 <i class="fa-solid fa-pen-to-square"></i> Edit Profile
             </a>
+            {% endif %}
         </div>
     </div>
     <!-- =========================================================

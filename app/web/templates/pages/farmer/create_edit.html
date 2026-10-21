@@ -127,7 +127,11 @@
                     <label>Assigned VLCC Center <span class="required">*</span></label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-building-ngo"></i>
-                        <select id="vlcc-select" name="vlcc_id" class="form-control" required 
+                        {# VLCC login: its own VLCC comes pre-selected and cannot be changed #}
+                        {% set lock_vlcc = current_user and current_user.role|int == 5 %}
+                        <select id="vlcc-select" name="vlcc_id" class="form-control" required
+                            {% if lock_vlcc %}tabindex="-1" aria-disabled="true" {% if not farmer %}data-autoload="1"{% endif %}
+                            style="pointer-events: none; background-color: #f1f5f9; cursor: not-allowed;"{% endif %}
                             onchange="toggleFormFields(this.value)"
                             hx-get="/farmer/api/ratecharts"
                             hx-trigger="change"
@@ -135,11 +139,13 @@
                             hx-swap="innerHTML"
                             hx-select="#rate-chart-select option"
                         >
+                            {% if not lock_vlcc %}
                             <option value="" disable>Select VLCC Center</option>
+                            {% endif %}
                             {% for center in vlccs %}
                             <option
                                 value="{{ center.id }}"
-                                {{ 'selected' if farmer and farmer.vlcc_id|string == center.id|string else '' }}
+                                {{ 'selected' if (farmer and farmer.vlcc_id|string == center.id|string) or (not farmer and lock_vlcc and center.user_id|string == current_user.id|string) else '' }}
                             >
                                 {{ center.name }} ({{ center.vlcc_code }})
                             </option>
@@ -653,6 +659,10 @@
         const selectEl = document.getElementById("vlcc-select");
         if (selectEl) {
             toggleFormFields(selectEl.value);
+            // A locked (pre-selected) VLCC on a new farmer never fires change: load its rate charts now
+            if (selectEl.dataset.autoload && selectEl.value && window.htmx) {
+                htmx.trigger(selectEl, "change");
+            }
         }
 
         const form = document.getElementById("farmerForm");
