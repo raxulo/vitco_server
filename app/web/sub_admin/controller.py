@@ -165,9 +165,8 @@ class SubAdminController:
 
         handler = GetHandler.user_handler(request)
         target_user = await handler.get(GetUserQuery(id=user_id))
-        if user.role_type == Role.ADMIN:
-            if int(target_user.role) != Role.SUB_ADMIN.value:
-                return HTMLResponse("Unauthorized", status_code=403)
+        if not SubAdminController._manages(user, target_user):
+            return HTMLResponse("Unauthorized", status_code=403)
 
         from app.modules.administration.application.command import DeleteUserCommand
         await handler.delete(DeleteUserCommand(id=user_id))
@@ -197,8 +196,8 @@ class SubAdminController:
         profile_service = GetHandler.profile_service(request)
         profile = await profile_service.get_profile(user_id)
 
-        if user.role_type == Role.ADMIN and int(profile.user.role) != Role.SUB_ADMIN.value:
-            raise ValidateError("You are not authorized to view this profile")
+        if not SubAdminController._manages(user, profile.user):
+            raise ForbiddenException("You are not authorized to view this profile")
 
         return Renderer.page(
             request=request,
@@ -218,6 +217,8 @@ class SubAdminController:
 
         profile_service = GetHandler.profile_service(request)
         profile = await profile_service.get_profile(user_id)
+        if not SubAdminController._manages(user, profile.user):
+            raise ForbiddenException("You are not authorized to edit this profile")
 
         allowed_roles = []
         if user.role_type == Role.SUPER_ADMIN:
@@ -258,9 +259,15 @@ class SubAdminController:
         if user.role_type == Role.ADMIN and role_val != Role.SUB_ADMIN.value:
             raise ValidateError("You are only allowed to update Sub Admin")
 
+        profile_service = GetHandler.profile_service(request)
+        # Address / bank are updated by their own ids, so look up the user's existing records
+        existing = await profile_service.get_profile(user_id)
+        if not SubAdminController._manages(user, existing.user):
+            raise ForbiddenException("You are not authorized to edit this profile")
+
         # Handle image upload if a new file is uploaded
         profile_image = form_data.get("profile_image")
-        
+
 
         command = UpdateUserCommand(
             id=user_id,
@@ -288,10 +295,6 @@ class SubAdminController:
         )
         has_address = any(address_fields.values())
         has_bank = any(bank_fields.values())
-
-        profile_service = GetHandler.profile_service(request)
-        # Address / bank are updated by their own ids, so look up the user's existing records
-        existing = await profile_service.get_profile(user_id)
 
         address_command = None
         if has_address and existing.address:
@@ -321,6 +324,19 @@ class SubAdminController:
                 )
 
         return SubAdminController._done(request, "/sub-admins")
+
+    @staticmethod
+    def _manages(user, target) -> bool:
+        """Super Admin manages every Admin / Sub Admin; an Admin only the Sub Admins it created."""
+        if target is None:
+            return False
+        if user.role_type == Role.SUPER_ADMIN:
+            return True
+        return (
+            user.role_type == Role.ADMIN
+            and int(target.role) == Role.SUB_ADMIN.value
+            and str(target.created_by) == str(user.id)
+        )
 
     @staticmethod
     def _done(request: Request, url: str) -> Response:

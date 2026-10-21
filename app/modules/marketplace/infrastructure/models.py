@@ -341,9 +341,10 @@ class MarketplaceOrderModel(Base, UUIDMixin, TimestampMixin):
 
     __tablename__ = "marketplace_orders"
 
-    buyer_id: Mapped[UUID] = mapped_column(
+    # The logged-in buyer; NULL for guest orders placed from the public marketplace
+    buyer_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
 

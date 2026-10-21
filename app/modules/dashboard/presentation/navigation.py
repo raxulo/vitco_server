@@ -31,8 +31,8 @@ class MenuGroup:
 # SUPER_ADMIN=1, ADMIN=2, SUB_ADMIN=3, MCC=4, VLCC=5, FARMER=6).
 SUPER_ADMIN_ONLY: Final = frozenset({Role.SUPER_ADMIN})
 FARMER_ONLY: Final = frozenset({Role.FARMER})
-# Users page: unchanged behaviour (Super Admin only)
-ADMIN_ROLES: Final = frozenset({Role.SUPER_ADMIN})
+# Managed Admins page: Super Admin manages Admins / Sub Admins, an Admin its own Sub Admins
+ADMIN_ROLES: Final = frozenset({Role.SUPER_ADMIN, Role.ADMIN})
 # Super Admin, Admin, Sub Admin: MCC management and the System Setup masters
 MANAGEMENT_ROLES: Final = frozenset({Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN})
 # MCC Management pages an MCC user also sees (its own MCC is view-only for it)

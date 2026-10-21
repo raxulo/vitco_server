@@ -71,6 +71,14 @@ class SQLiteDriver(BaseDatabaseDriver):
                             cur.execute("ALTER TABLE animals ADD COLUMN image_url VARCHAR(500);")
                         if "images" not in cols:
                             cur.execute("ALTER TABLE animals ADD COLUMN images JSON;")
+                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='marketplace_orders';")
+                    if cur.fetchone():
+                        cur.execute("PRAGMA table_info(marketplace_orders);")
+                        cols = [c[1] for c in cur.fetchall()]
+                        if "buyer_id" not in cols:
+                            # Nullable: older / guest orders have no buyer
+                            cur.execute("ALTER TABLE marketplace_orders ADD COLUMN buyer_id UUID REFERENCES users(id);")
+                            cur.execute("CREATE INDEX IF NOT EXISTS ix_marketplace_orders_buyer_id ON marketplace_orders (buyer_id);")
                     cur.close()
                 except Exception:
                     pass

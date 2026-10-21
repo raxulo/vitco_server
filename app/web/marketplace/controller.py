@@ -451,7 +451,9 @@ class MarketplaceWebController:
         from starlette.responses import JSONResponse
 
         handler: MarketplaceCommandHandler = GetHandler.marketplace_handler(request)
+        buyer = getattr(request.state, "user", None)
         order_data = {
+            "buyer_id": buyer.id if buyer else None,
             "order_ref": str(data.get("order_ref", "")).strip() or f"VIT-{uuid4().hex[:6].upper()}",
             "buyer_name": str(data.get("buyer_name", "")).strip() or "Customer",
             "buyer_phone": str(data.get("buyer_phone", "")).strip() or "-",
