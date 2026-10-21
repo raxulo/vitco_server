@@ -39,14 +39,20 @@ class VlccAccessScope:
 
     @staticmethod
     def condition(owner: CurrentUser):
-        """VLCCs the owner may see / use (an MCC also sees its creator's VLCCs)."""
-        vlcc_ids = Hierarchy.visible_vlcc_ids(owner)
+        """VLCCs the owner may see (an MCC: only the VLCCs it created)."""
+        vlcc_ids = Hierarchy.vlcc_ids(owner)
         return true() if vlcc_ids is None else VlccModel.id.in_(vlcc_ids)
 
     @staticmethod
     def modify_condition(owner: CurrentUser):
         """VLCCs the owner may update / delete."""
         vlcc_ids = Hierarchy.vlcc_ids(owner)
+        return true() if vlcc_ids is None else VlccModel.id.in_(vlcc_ids)
+
+    @staticmethod
+    def supplier_condition(owner: CurrentUser):
+        """VLCCs offered in the MCC collection form: an MCC also gets its creator's VLCCs."""
+        vlcc_ids = Hierarchy.visible_vlcc_ids(owner)
         return true() if vlcc_ids is None else VlccModel.id.in_(vlcc_ids)
 
     @staticmethod
@@ -499,8 +505,8 @@ class VlccRepository(IVlccRepository):
             .where(
                 VlccModel.created_by.in_(mcc_creators),
                 VlccModel.is_deleted.is_(False),
-                # ...and only those the logged-in user may see
-                *([VlccAccessScope.condition(owner)] if owner is not None else []),
+                # ...and only those the logged-in user may collect from
+                *([VlccAccessScope.supplier_condition(owner)] if owner is not None else []),
             )
             .order_by(VlccModel.created_at.desc())
         )

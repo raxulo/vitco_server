@@ -7,12 +7,12 @@ Ownership hierarchy shared by every MCC / VLCC / farmer / collection scope.
                    VLCCs created by a manager or by the user of one of those MCCs
     Sub Admin   -> the same, with itself as the only manager
     MCC         -> VLCCs its user created
-                   (+ sees, read-only, the VLCCs made by whoever created its MCC:
-                   they supply milk to it — `visible_vlcc_ids`)
+                   (its MCC collection form also offers the VLCCs made by whoever
+                   created its MCC: they supply milk to it — `visible_vlcc_ids`)
     VLCC        -> its own VLCC
 
 Farmers and collections follow the VLCCs / MCCs above. Seeing a record and
-modifying it use the same rules, except the MCC's read-only VLCCs above.
+modifying it use the same rules.
 
 User-owned records (rate charts) use the user lines instead:
 `controlled_users` (the user and everyone below) may modify, and
@@ -89,8 +89,9 @@ class Hierarchy:
     @classmethod
     def visible_vlcc_ids(cls, owner: CurrentUser) -> Select | None:
         """
-        VLCCs the owner may see. Same as `vlcc_ids`, except an MCC also sees the
-        VLCCs created by whoever created its MCC (its suppliers) — view / use only.
+        VLCCs the owner may collect milk from in the MCC collection form. Same as
+        `vlcc_ids`, except an MCC also gets the VLCCs created by whoever created
+        its MCC (its suppliers). Everywhere else an MCC sees only its own VLCCs.
         """
         if owner.role_type != Role.MCC:
             return cls.vlcc_ids(owner)

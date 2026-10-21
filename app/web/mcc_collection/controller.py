@@ -7,6 +7,7 @@ from app.modules.administration.domain.enums import Role
 from app.middleware.authentication import CurrentUser
 from app.modules.ratechart.application.command import ListRateChartsQuery
 from app.modules.ratechart.domain.dto import RateChartListDto
+from app.modules.ratechart.domain.enums import RateChartStatus
 from app.modules.ratechart.application.command import GetAssignmentsByOwnerQuery
 from app.modules.common.milk_quality.application.command import GetMilkQualityConfigQuery
 from app.modules.collections.mcc_collection.domain.dto import MccCollectionResult
@@ -144,9 +145,19 @@ class MccCollectionController:
             )
             model["next_sample_number"] = sample_result.next_sample_number
         else:
-            model["rate_charts"] = await GetHandler.ratechart_handler(request).get_charts_by_owner_id(
+            ratechart_handler = GetHandler.ratechart_handler(request)
+            model["rate_charts"] = await ratechart_handler.get_charts_by_owner_id(
                 query=GetAssignmentsByOwnerQuery(owner_id=mcc.user_id)
             )
+            if not model["rate_charts"]:
+                # No chart mapped to this MCC yet: offer the active charts its user can see
+                visible = await ratechart_handler.list(
+                    ListRateChartsQuery(
+                        size=100,
+                        owner=CurrentUser(id=mcc.user_id, role=str(int(Role.MCC)), name=mcc.name, permissions=frozenset()),
+                    )
+                )
+                model["rate_charts"] = [chart for chart in visible if chart.status == RateChartStatus.ACTIVE]
         try:
             model["vlccs"] = await GetHandler.vlcc_handler(request).get_vlccs_by_mcc(mcc_id=mcc.id, owner=user)
         except Exception:
@@ -236,7 +247,8 @@ class MccCollectionController:
             try:
                 vlcc = await vlcc_handler.get(GetVlccQuery(id=collection.vlcc_id, owner=user))
             except Exception:
-                pass
+                # A supplier VLCC made by the MCC's creator is outside an MCC user's own VLCCs
+                vlcc = await MccCollectionController._supplier_vlcc(request, collection.mcc_id, collection.vlcc_id)
 
         return Renderer.page(
             request=request,
@@ -288,7 +300,9 @@ class MccCollectionController:
                     vlcc = await GetHandler.vlcc_handler(request).get(GetVlccQuery(id=result.vlcc_id, owner=request.state.user))
                     vlcc_name = vlcc.name
                 except Exception:
-                    pass
+                    supplier = await MccCollectionController._supplier_vlcc(request, data.mcc_id, result.vlcc_id)
+                    if supplier:
+                        vlcc_name = supplier.name
 
             # A fresh, empty form for the next entry (the summary box resets with it)
             model = await MccCollectionController._form_model(
@@ -548,6 +562,24 @@ class MccCollectionController:
             return HTMLResponse(html, headers=headers)
         else:
             return MccCollectionController._sample_error_response("sample not exists")
+
+    @staticmethod
+    async def _supplier_vlcc(request: Request, mcc_id: UUID | None, vlcc_id: UUID | None):
+        """Name / code / mobile / route of one of the MCC's supplying VLCCs (receipt fields), or None."""
+        if not mcc_id or not vlcc_id:
+            return None
+        from types import SimpleNamespace
+        try:
+            suppliers = await GetHandler.vlcc_handler(request).get_vlccs_by_mcc(mcc_id=mcc_id, owner=request.state.user)
+        except Exception:
+            return None
+        for v in suppliers:
+            if str(v.vlcc_id) == str(vlcc_id):
+                return SimpleNamespace(
+                    id=v.vlcc_id, name=v.vlcc_name, vlcc_code=v.vlcc_code, uic_code=v.uic_code,
+                    mobile=v.mobile, contact_person=None, route_code=v.route_code, city=None,
+                )
+        return None
 
     @staticmethod
     def _sample_error_response(message: str) -> HTMLResponse:
