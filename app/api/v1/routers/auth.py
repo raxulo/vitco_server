@@ -6,8 +6,9 @@ Python 3.13+
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.modules.administration.domain.enums import Role
 from app.modules.dependencies import GetHandler
 from app.api.v1.schemas.auth import LoginRequest, LoginResponse, TokenResponse
 from app.modules.auth.application.command import LoginCommand
@@ -16,6 +17,9 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
 )
+
+# Management accounts use the web panel only; the API (devices / mobile app) is for MCC, VLCC and farmers
+API_BLOCKED_ROLES = frozenset({Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN})
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -26,6 +30,9 @@ async def login(request: Request, body: LoginRequest):
             password=body.password,
         ),
     )
+
+    if Role(int(result.role)) in API_BLOCKED_ROLES:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     return LoginResponse(
         id=str(result.id),
