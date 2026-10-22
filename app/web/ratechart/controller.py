@@ -462,7 +462,7 @@ class RateChartController:
     async def get_assigned_api(request: Request, shop_id: UUID):
         vlcc_handler = GetHandler.vlcc_handler(request)
         try:
-            vlcc = await vlcc_handler.get(GetVlccQuery(id=shop_id))
+            vlcc = await vlcc_handler.get(GetVlccQuery(id=shop_id, owner=request.state.user))
             user_id = vlcc.user_id
         except Exception:
             return JSONResponse([])
@@ -484,7 +484,7 @@ class RateChartController:
     async def get_assigned_mcc_api(request: Request, mcc_id: UUID):
         mcc_handler = GetHandler.mcc_handler(request)
         try:
-            mcc = await mcc_handler.get(GetMccQuery(id=mcc_id))
+            mcc = await mcc_handler.get(GetMccQuery(id=mcc_id, owner=request.state.user))
             user_id = mcc.user_id
         except Exception:
             return JSONResponse([])
@@ -495,7 +495,7 @@ class RateChartController:
         assigned_charts = []
         for a in assignments:
             try:
-                chart = await rate_handler.get(GetRateChartQuery(id=a.rate_chart_id))
+                chart = await rate_handler.get(GetRateChartQuery(id=a.rate_chart_id, owner=request.state.user))
                 assigned_charts.append({"id": str(chart.id), "chart_name": chart.chart_name})
             except Exception:
                 pass
@@ -622,7 +622,8 @@ class RateChartController:
         if shop_id:
             vlcc_handler = GetHandler.vlcc_handler(request)
             try:
-                vlcc = await vlcc_handler.get(GetVlccQuery(id=shop_id))
+                # Assignments are stored against the VLCC's user, so resolve it (owner-scoped)
+                vlcc = await vlcc_handler.get(GetVlccQuery(id=shop_id, owner=request.state.user))
                 user_id = vlcc.user_id
             except Exception:
                 user_id = shop_id

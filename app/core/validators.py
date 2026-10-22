@@ -108,6 +108,53 @@ def apply_milk_quality_rules(model) -> None:
     min_not_above_max(model.buffalo_min_snf, model.buffalo_max_snf, "Buffalo SNF")
 
 
+LIMIT_MAX = 99.99
+
+_LIMIT_LABELS = {"fat": "FAT", "snf": "SNF", "min": "minimum", "max": "maximum"}
+
+
+def limit_at_most(model, fields) -> None:
+    """FAT / SNF limits have 2 digits, "." and 2 digits at most (up to 99.99)."""
+    for name in fields:
+        value = getattr(model, name, None)
+        if value is not None and value > LIMIT_MAX:
+            label = " ".join(_LIMIT_LABELS.get(part, part.title()) for part in name.split("_"))
+            # min_fat / max_snf ... are the fixed-rate limits
+            label = f"Fixed rate {label}" if name.startswith(("min_", "max_")) else label
+            raise ValueError(f"{label} can be at most {LIMIT_MAX} (2 digits before and after the point)")
+
+
+SAMPLE_CODE_MAX_DIGITS = 6
+
+
+def sample_code(value, label: str) -> int | None:
+    """A weight MCC sample code: digits only, at most 6 of them; empty -> None."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if not text.isdigit():
+        raise ValueError(f"{label} must contain digits only")
+    if len(text) > SAMPLE_CODE_MAX_DIGITS:
+        raise ValueError(f"{label} can have at most {SAMPLE_CODE_MAX_DIGITS} digits")
+    return int(text)
+
+
+def apply_sample_rules(model, weight_type) -> None:
+    """A weight MCC needs both sample codes, and the start code below the end code."""
+    if model.mcc_type != weight_type:
+        return
+    if model.sample_start is None:
+        raise ValueError("Sample start code is required for a Weight MCC")
+    if model.sample_end is None:
+        raise ValueError("Sample end code is required for a Weight MCC")
+    if model.sample_start >= model.sample_end:
+        raise ValueError(
+            f"Sample start code ({model.sample_start}) must be less than sample end code ({model.sample_end})"
+        )
+
+
 def mobile_number(value: str | None, *, required: bool = True) -> str | None:
     """A 10-digit mobile number, digits only (a +91 / 91 / 0 prefix is dropped)."""
     value = (value or "").strip().replace(" ", "").replace("-", "")

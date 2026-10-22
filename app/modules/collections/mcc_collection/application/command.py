@@ -95,7 +95,11 @@ class ListMccCollectionsQuery:
 
     page: int = 1
     size: int = 20
+    # MCC name / code or VLCC name / code
     keyword: str | None = None
+    # collected_at range: from inclusive, to exclusive
+    date_from: datetime | None = None
+    date_to: datetime | None = None
 
     @property
     def offset(self) -> int:

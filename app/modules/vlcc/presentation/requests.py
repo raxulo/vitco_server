@@ -2,7 +2,7 @@ from fastapi import UploadFile
 from typing import Any
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
-from app.core.validators import apply_milk_quality_rules, apply_shift_time_rules, digits_only, mobile_number
+from app.core.validators import apply_milk_quality_rules, apply_shift_time_rules, digits_only, limit_at_most, mobile_number
 from app.modules.vlcc.domain.enums import CollectionMode
 from app.modules.common.settings.domain.enums import (
     AnalyzerType,
@@ -93,6 +93,11 @@ class CreateVlccRequest(BaseModel):
 
     @model_validator(mode="after")
     def _milk_quality_rules(self):
+        # FAT / SNF limits: 2 digits, "." and 2 digits at most (99.99)
+        limit_at_most(self, (
+            "cow_min_fat", "cow_max_fat", "cow_min_snf", "cow_max_snf",
+            "buffalo_min_fat", "buffalo_max_fat", "buffalo_min_snf", "buffalo_max_snf",
+        ))
         apply_milk_quality_rules(self)
         apply_shift_time_rules(self)
         return self

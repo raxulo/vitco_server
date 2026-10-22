@@ -119,76 +119,62 @@
         </div>
     </div>
 
-    <!-- Double-Sided Ledger Board -->
+    <!-- Ledger table: Date & Time | From User | To User | balances (before -> after) -->
+    {% set from_name = from_user.name if from_user else 'From User' %}
+    {% set to_name = selected_counterparty.name %}
     <div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); overflow: hidden;">
         <div class="table-container" style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch;">
-            <div style="min-width: 650px;">
-                <!-- Double Headers -->
-                <div style="display: grid; grid-template-columns: 1fr 160px 1fr; background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: center;">
-                    <div style="padding: 16px; font-weight: 800; color: #2563eb; border-right: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(37, 99, 235, 0.02);">
-                        <i class="fa-solid fa-circle-user"></i> From User ({% if from_user %}{{ from_user.name }}{% else %}You{% endif %})
-                    </div>
-                    <div style="padding: 16px; font-weight: 700; color: #475569; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;">
-                        Transaction
-                    </div>
-                    <div style="padding: 16px; font-weight: 800; color: #dc2626; border-left: 1px solid #e2e8f0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; background: rgba(220, 38, 38, 0.02);">
-                        <i class="fa-solid fa-user-tag"></i> To User ({{ selected_counterparty.name }})
-                    </div>
-                </div>
-
-                <!-- Statement Rows -->
+            <div style="min-width: 860px;">
                 {% if pair_history %}
-                <div style="display: flex; flex-direction: column;">
-                    {% for item in pair_history %}
-                    <div style="display: grid; grid-template-columns: 1fr 160px 1fr; border-bottom: 1px solid #f1f5f9; min-height: 80px; align-items: center; text-align: center;">
-                        
-                        <!-- Left Side: From User Account State -->
-                        <div style="padding: 16px; border-right: 1px solid #e2e8f0; text-align: right; display: flex; justify-content: flex-end; gap: 16px; align-items: center; background: rgba(37, 99, 235, 0.01);">
-                            <div style="font-size: 12px; color: #64748b;">
-                                <div>Before: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.user_before) }}</span></div>
-                                <div style="margin-top: 2px;">After: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.user_after) }}</span></div>
-                            </div>
-                            <div>
-                                {% if item.user_entry_type == 1 %} <!-- DEBIT -->
-                                <span style="font-weight: 800; color: #ef4444; font-size: 15px; display: block;">- ₹{{ "{:,.2f}".format(item.amount) }}</span>
-                                <span style="font-size: 10px; font-weight: 700; color: #b91c1c; background: #fee2e2; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Debit</span>
-                                {% else %} <!-- CREDIT -->
-                                <span style="font-weight: 800; color: #10b981; font-size: 15px; display: block;">+ ₹{{ "{:,.2f}".format(item.amount) }}</span>
-                                <span style="font-size: 10px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Credit</span>
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Center: Transaction Meta -->
-                        <div style="padding: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;">
-                            <div style="font-size: 11px; font-weight: 700; color: #475569;">
-                                {{ item.created_at.strftime('%d-%b-%Y') if item.created_at else 'N/A' }}
-                            </div>
-                            <div style="font-size: 10px; color: #94a3b8; font-weight: 500;">
-                                {{ item.created_at.strftime('%I:%M %p') if item.created_at else '' }}
-                            </div>
-                        </div>
-
-                        <!-- Right Side: Counterparty Account State -->
-                        <div style="padding: 16px; border-left: 1px solid #e2e8f0; text-align: left; display: flex; justify-content: flex-start; gap: 16px; align-items: center; background: rgba(220, 38, 38, 0.01);">
-                            <div>
-                                {% if item.user_entry_type == 1 %} <!-- Logged-in user is DEBIT => Counterparty is CREDIT -->
-                                <span style="font-weight: 800; color: #10b981; font-size: 15px; display: block;">+ ₹{{ "{:,.2f}".format(item.amount) }}</span>
-                                <span style="font-size: 10px; font-weight: 700; color: #047857; background: #d1fae5; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Credit</span>
-                                {% else %} <!-- Logged-in user is CREDIT => Counterparty is DEBIT -->
-                                <span style="font-weight: 800; color: #ef4444; font-size: 15px; display: block;">- ₹{{ "{:,.2f}".format(item.amount) }}</span>
-                                <span style="font-size: 10px; font-weight: 700; color: #b91c1c; background: #fee2e2; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-top: 3px;">Debit</span>
-                                {% endif %}
-                            </div>
-                            <div style="font-size: 12px; color: #64748b;">
-                                <div>Before: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.counterparty_before) }}</span></div>
-                                <div style="margin-top: 2px;">After: <span style="font-weight: 600; color: #475569;">₹{{ "{:,.2f}".format(item.counterparty_after) }}</span></div>
-                            </div>
-                        </div>
-
-                    </div>
-                    {% endfor %}
-                </div>
+                <table class="pair-ledger">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="width: 44px;">#</th>
+                            <th rowspan="2">Date &amp; Time</th>
+                            <th rowspan="2" class="from-col">
+                                <div class="head-label"><i class="fa-solid fa-circle-user"></i> From User</div>
+                                <div class="head-name">{{ from_name }}</div>
+                            </th>
+                            <th rowspan="2" class="to-col">
+                                <div class="head-label"><i class="fa-solid fa-user-tag"></i> To User</div>
+                                <div class="head-name">{{ to_name }}</div>
+                            </th>
+                            <th colspan="2" class="from-col group">{{ from_name }} Balance</th>
+                            <th colspan="2" class="to-col group">{{ to_name }} Balance</th>
+                        </tr>
+                        <tr>
+                            <th class="from-col num">Before</th>
+                            <th class="from-col num">After</th>
+                            <th class="to-col num">Before</th>
+                            <th class="to-col num">After</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in pair_history %}
+                        {# entry type 1 = DEBIT for the From User, so the To User is credited (and the other way round) #}
+                        {% set from_debit = item.user_entry_type == 1 %}
+                        <tr>
+                            <td class="muted">{{ loop.index }}</td>
+                            <td>
+                                <div class="strong">{{ item.created_at.strftime('%d/%m/%Y') if item.created_at else 'N/A' }}</div>
+                                <div class="muted small">{{ item.created_at.strftime('%I:%M %p') if item.created_at else '' }}</div>
+                            </td>
+                            <td>
+                                <div class="amount {{ 'debit' if from_debit else 'credit' }}">{{ '-' if from_debit else '+' }} ₹{{ "{:,.2f}".format(item.amount) }}</div>
+                                <span class="badge {{ 'debit' if from_debit else 'credit' }}">{{ 'Debit' if from_debit else 'Credit' }}</span>
+                            </td>
+                            <td>
+                                <div class="amount {{ 'credit' if from_debit else 'debit' }}">{{ '+' if from_debit else '-' }} ₹{{ "{:,.2f}".format(item.amount) }}</div>
+                                <span class="badge {{ 'credit' if from_debit else 'debit' }}">{{ 'Credit' if from_debit else 'Debit' }}</span>
+                            </td>
+                            <td class="num">₹{{ "{:,.2f}".format(item.user_before) }}</td>
+                            <td class="num strong">₹{{ "{:,.2f}".format(item.user_after) }}</td>
+                            <td class="num">₹{{ "{:,.2f}".format(item.counterparty_before) }}</td>
+                            <td class="num strong">₹{{ "{:,.2f}".format(item.counterparty_after) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 {% else %}
                 <!-- Empty Ledger State -->
                 <div style="padding: 60px 24px; text-align: center; color: #64748b;">
@@ -377,6 +363,33 @@
     .user-option:hover {
         background-color: #f1f5f9 !important;
     }
+    /* Pair ledger table */
+    .pair-ledger { width: 100%; border-collapse: collapse; font-size: 13px; color: #1e293b; }
+    .pair-ledger th {
+        background: #f8fafc; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap;
+    }
+    .pair-ledger th.group { text-align: center; border-bottom: 1px dashed #e2e8f0; }
+    .pair-ledger th.from-col { color: #2563eb; }
+    .pair-ledger th.to-col { color: #dc2626; }
+    .pair-ledger td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    .pair-ledger tbody tr:hover { background: #f8fafc; }
+    .pair-ledger .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .pair-ledger .strong { font-weight: 700; }
+    .pair-ledger .muted { color: #94a3b8; }
+    .pair-ledger .small { font-size: 11px; margin-top: 2px; }
+    .pair-ledger .head-label { font-size: 10px; opacity: 0.8; }
+    .pair-ledger .head-name { font-size: 13px; font-weight: 800; text-transform: none; letter-spacing: 0; margin-top: 2px; white-space: normal; }
+    .pair-ledger .amount { font-weight: 800; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+    .pair-ledger .badge { display: inline-block; }
+    .pair-ledger .amount.debit { color: #dc2626; }
+    .pair-ledger .amount.credit { color: #059669; }
+    .pair-ledger .badge {
+        font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+        text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .pair-ledger .badge.debit { color: #b91c1c; background: #fee2e2; }
+    .pair-ledger .badge.credit { color: #047857; background: #d1fae5; }
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }

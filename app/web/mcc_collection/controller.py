@@ -15,7 +15,7 @@ from app.modules.collections.mcc_collection.domain.dto import MccSampleResult
 from app.modules.mcc.domain.enums import MccType
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
 from app.modules.collections.mcc_collection.application.command import GetNextSampleNumberQuery
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.modules.mcc.application.command import GetMccQuery
 from app.core.database.manager import DatabaseManager
 from app.modules.vlcc.application.command import GetVlccQuery
@@ -54,22 +54,30 @@ class MccCollectionController:
         page: int = 1,
         limit: int = 10,
         search: str = "",
+        date_from: str = "",
+        date_to: str = "",
     ):
         handler = GetHandler.mcc_collection_handler(request)
         user = request.state.user
 
-        if search.strip():
-            total_items = await handler.count_search(keyword=search.strip(), owner=user)
-        else:
-            total_items = await handler.count(owner=user)
+        # Search: MCC name / code or VLCC name / code; dates (yyyy-mm-dd) are whole days
+        keyword = search.strip()
+        start = MccCollectionController._parse_day(date_from)
+        end = MccCollectionController._parse_day(date_to)
+        if start and end and start > end:
+            start, end = end, start
+        end_exclusive = end + timedelta(days=1) if end else None
 
+        total_items = await handler.count(owner=user, keyword=keyword, date_from=start, date_to=end_exclusive)
         total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
 
         result = await handler.list(
             ListMccCollectionsQuery(
                 page=page,
                 size=limit,
-                keyword=search.strip(),
+                keyword=keyword,
+                date_from=start,
+                date_to=end_exclusive,
             ),
             owner=user
         )
@@ -83,9 +91,19 @@ class MccCollectionController:
                 "limit": limit,
                 "total_pages": total_pages,
                 "search": search,
+                "date_from": start.strftime("%Y-%m-%d") if start else "",
+                "date_to": end.strftime("%Y-%m-%d") if end else "",
                 "total_items": total_items,
             },
         )
+
+    @staticmethod
+    def _parse_day(value: str) -> datetime | None:
+        """yyyy-mm-dd (native date input) -> start of that day; None when empty / invalid."""
+        try:
+            return datetime.strptime((value or "").strip(), "%Y-%m-%d")
+        except ValueError:
+            return None
 
     # =========================================================
     # CREATE PAGE

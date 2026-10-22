@@ -38,12 +38,12 @@ class MccShiftSummaryExecutor(ReportExecutor):
         rows_stmt = (
             select(
                 v.vlcc_code.label("vlcc_code"),
-                v.uic_code.label("uic_code"),
+                # v.uic_code.label("uic_code"),
                 v.name.label("vlcc_name"),
-                m.milk_type.label("type"),
-                m.quantity,
+                # m.milk_type.label("type"),
                 m.fat_percent.label("fat"),
                 m.snf_percent.label("snf"),
+                m.quantity,
                 m.rate_per_unit.label("rate"),
                 m.total_amount.label("amount"),
                 m.measurement_mode.label("measurement_mode"),
@@ -130,13 +130,11 @@ class MccShiftSummaryExecutor(ReportExecutor):
     @property
     def headers(self) -> list[str]:
         return [
-            "VLCC Code",
-            "UIC",
+            "V.C.",
             "Name",
-            "Type",
-            "Qty",
             "FAT",
             "SNF",
+            "Qty",
             "Rate",
             "Amount",
         ]

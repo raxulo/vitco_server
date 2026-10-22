@@ -216,7 +216,48 @@ class MccCollectionRepository(IMccCollectionRepository):
     # LIST
     # =========================================================
 
-    async def list(self, offset: int, limit: int,owner: CurrentUser) -> list[MccCollectionListDto]:
+    @staticmethod
+    def _list_conditions(
+        owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list:
+        """
+        Collection list filters (MccModel joined, VlccModel outer-joined):
+        - keyword: MCC name / code or VLCC name / code (any of them, case-insensitive)
+        - date_from / date_to: collected_at range (date_to is exclusive)
+        """
+        conditions = [
+            MccCollectionModel.is_deleted.is_(False),
+            MccCollectionAccessScope.condition(owner),
+        ]
+        keyword = (keyword or "").strip()
+        if keyword:
+            pattern = f"%{keyword}%"
+            conditions.append(
+                or_(
+                    MccModel.name.ilike(pattern),
+                    MccModel.code.ilike(pattern),
+                    VlccModel.name.ilike(pattern),
+                    VlccModel.vlcc_code.ilike(pattern),
+                )
+            )
+        if date_from:
+            conditions.append(MccCollectionModel.collected_at >= date_from)
+        if date_to:
+            conditions.append(MccCollectionModel.collected_at < date_to)
+        return conditions
+
+    async def list(
+        self,
+        offset: int,
+        limit: int,
+        owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[MccCollectionListDto]:
         stmt = (
             select(
                 MccCollectionModel.id,
@@ -245,10 +286,7 @@ class MccCollectionRepository(IMccCollectionRepository):
             .select_from(MccCollectionModel)
             .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
             .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
-            .where(
-                MccCollectionModel.is_deleted == False,
-                MccCollectionAccessScope.condition(owner),
-            )
+            .where(*self._list_conditions(owner, keyword, date_from, date_to))
             .order_by(MccCollectionModel.collected_at.desc())
             .offset(offset)
             .limit(limit)
@@ -263,68 +301,38 @@ class MccCollectionRepository(IMccCollectionRepository):
     # SEARCH
     # =========================================================
 
-    async def search(self, keyword: str, offset: int, limit: int,owner: CurrentUser) -> list[MccCollectionListDto]:
-        keyword = keyword.strip()
-        if not keyword:
-            return await self.list(offset=offset, limit=limit,owner=owner)
-
-        pattern = f"%{keyword}%"
-        stmt = (
-            select(
-                MccCollectionModel.id,
-                MccCollectionModel.mcc_id,
-                MccCollectionModel.vlcc_id,
-                MccCollectionModel.collected_at,
-                MccCollectionModel.shift,
-                MccCollectionModel.milk_type,
-                MccCollectionModel.quantity,
-                MccCollectionModel.total_amount,
-                MccCollectionModel.status,
-                MccCollectionModel.fat_percent,
-                MccCollectionModel.snf_percent,
-                MccCollectionModel.clr_value,
-                MccCollectionModel.sample_number,
-                MccCollectionModel.can_count,
-                MccCollectionModel.rate_per_unit,
-                MccCollectionModel.payment_mode,
-                MccCollectionModel.quantity_collection_mode,
-                MccCollectionModel.measurement_mode,
-                MccModel.name.label("mcc_name"),
-                MccModel.code.label("mcc_code"),
-                VlccModel.name.label("vlcc_name"),
-                VlccModel.vlcc_code.label("vlcc_uic_code"),
-            )
-            .select_from(MccCollectionModel)
-            .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
-            .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
-            .where(
-                (MccCollectionModel.is_deleted == False) & (
-                    MccModel.name.ilike(pattern) |
-                    MccModel.mcc_code.ilike(pattern) |
-                    VlccModel.name.ilike(pattern) |
-                    VlccModel.vlcc_code.ilike(pattern)
-                ),
-                MccCollectionAccessScope.condition(owner),
-            )
-            .order_by(MccCollectionModel.collected_at.desc())
-            .offset(offset)
-            .limit(limit)
+    async def search(
+        self,
+        keyword: str,
+        offset: int,
+        limit: int,
+        owner: CurrentUser,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list[MccCollectionListDto]:
+        """MCC name / code or VLCC name / code search (same rules as `list`)."""
+        return await self.list(
+            offset=offset, limit=limit, owner=owner,
+            keyword=keyword, date_from=date_from, date_to=date_to,
         )
-        result = await self._session.execute(stmt)
-        return [
-            MccCollectionListDto(**dict(row))
-            for row in result.mappings()
-        ]
 
     # =========================================================
     # COUNT
     # =========================================================
 
-    async def count(self, owner: CurrentUser) -> int:
-        from sqlalchemy import func
-        stmt = select(func.count(MccCollectionModel.id)).where(
-            MccCollectionModel.is_deleted == False,
-            MccCollectionAccessScope.condition(owner),
+    async def count(
+        self,
+        owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        stmt = (
+            select(func.count(MccCollectionModel.id))
+            .select_from(MccCollectionModel)
+            .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
+            .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
+            .where(*self._list_conditions(owner, keyword, date_from, date_to))
         )
         return await self._session.scalar(stmt) or 0
 
@@ -332,16 +340,14 @@ class MccCollectionRepository(IMccCollectionRepository):
     # COUNT SEARCH
     # =========================================================
 
-    async def count_search(self, keyword: str,owner: CurrentUser) -> int:
-        from sqlalchemy import func
-        keyword = keyword.strip()
-        pattern = f"%{keyword}%"
-        stmt = select(func.count(MccCollectionModel.id)).where(
-            MccCollectionModel.collection_number.ilike(pattern) &
-            (MccCollectionModel.is_deleted == False),
-            MccCollectionAccessScope.condition(owner),
-        )
-        return await self._session.scalar(stmt) or 0
+    async def count_search(
+        self,
+        keyword: str,
+        owner: CurrentUser,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        return await self.count(owner, keyword=keyword, date_from=date_from, date_to=date_to)
 
     async def genext_sample_number(self, query: GetNextSampleNumberQuery) -> MccSampleResult:
         day_start, day_end = day_bounds_ist(query.collected_at)

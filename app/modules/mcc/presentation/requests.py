@@ -4,10 +4,20 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from app.core.validators import (
     apply_milk_quality_rules,
+    apply_sample_rules,
     apply_shift_time_rules,
     digits_only,
+    limit_at_most,
     min_not_above_max,
     mobile_number,
+    sample_code,
+)
+
+# FAT / SNF limit fields: 2 digits, "." and 2 digits at most (99.99)
+_LIMIT_FIELDS = (
+    "cow_min_fat", "cow_max_fat", "cow_min_snf", "cow_max_snf",
+    "buffalo_min_fat", "buffalo_max_fat", "buffalo_min_snf", "buffalo_max_snf",
+    "min_fat", "max_fat", "min_snf", "max_snf",
 )
 from app.modules.mcc.domain.enums import MccType
 from typing import Any
@@ -96,8 +106,20 @@ class CreateMccRequest(BaseModel):
     min_snf: float | None = Field(default=0.0, ge=0)
     max_snf: float | None = Field(default=0.0, ge=0)
 
+    @field_validator("sample_start", mode="before")
+    @classmethod
+    def _sample_start_digits(cls, value):
+        return sample_code(value, "Sample start code")
+
+    @field_validator("sample_end", mode="before")
+    @classmethod
+    def _sample_end_digits(cls, value):
+        return sample_code(value, "Sample end code")
+
     @model_validator(mode="after")
     def _quality_rules(self):
+        apply_sample_rules(self, MccType.WEIGHT)
+        limit_at_most(self, _LIMIT_FIELDS)
         apply_milk_quality_rules(self)
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
@@ -212,8 +234,20 @@ class UpdateMccRequest(BaseModel):
     min_snf: float | None = Field(default=0.0, ge=0)
     max_snf: float | None = Field(default=0.0, ge=0)
 
+    @field_validator("sample_start", mode="before")
+    @classmethod
+    def _sample_start_digits(cls, value):
+        return sample_code(value, "Sample start code")
+
+    @field_validator("sample_end", mode="before")
+    @classmethod
+    def _sample_end_digits(cls, value):
+        return sample_code(value, "Sample end code")
+
     @model_validator(mode="after")
     def _quality_rules(self):
+        apply_sample_rules(self, MccType.WEIGHT)
+        limit_at_most(self, _LIMIT_FIELDS)
         apply_milk_quality_rules(self)
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")

@@ -130,14 +130,9 @@
                         {# VLCC login: its own VLCC comes pre-selected and cannot be changed #}
                         {% set lock_vlcc = current_user and current_user.role|int == 5 %}
                         <select id="vlcc-select" name="vlcc_id" class="form-control" required
-                            {% if lock_vlcc %}tabindex="-1" aria-disabled="true" {% if not farmer %}data-autoload="1"{% endif %}
+                            {% if lock_vlcc %}tabindex="-1" aria-disabled="true"
                             style="pointer-events: none; background-color: #f1f5f9; cursor: not-allowed;"{% endif %}
                             onchange="toggleFormFields(this.value)"
-                            hx-get="/farmer/api/ratecharts"
-                            hx-trigger="change"
-                            hx-target="#rate-chart-select"
-                            hx-swap="innerHTML"
-                            hx-select="#rate-chart-select option"
                         >
                             {% if not lock_vlcc %}
                             <option value="" disable>Select VLCC Center</option>
@@ -169,10 +164,16 @@
                             name="farmer_code"
                             type="text"
                             class="form-control"
-                            placeholder="FMR001"
+                            placeholder="101"
                             value="{{ farmer.farmer_code if farmer else '' }}"
                             {% if farmer %} readonly {% else %}
                             required
+                            {# Digits only, at most 6 #}
+                            inputmode="numeric"
+                            maxlength="6"
+                            pattern="[0-9]{1,6}"
+                            title="Farmer code: digits only, at most 6"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6)"
                             hx-get="/farmer/validation-code"
                             hx-trigger="keyup changed delay:400ms"
                             hx-target="#farmer-code-validation-message"
@@ -306,20 +307,15 @@
 
 
 
-                <!-- Assigned Rate Chart -->
+                <!-- Assigned Chart Rank: R<n> picks the VLCC's n-th assigned rate chart at collection -->
                 <div class="form-field">
-                    <label>Assigned Rate Chart</label>
+                    <label>Assigned Chart Rank</label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-file-invoice-dollar"></i>
                         <select id="rate-chart-select" name="assigned_chart_rank" class="form-control">
-                            <option value="1">Select Rate Chart (Optional)</option>
-                            {% for chart in rate_charts %}
-                            <option
-                                value="{{ loop.index }}"
-                                {{ 'selected' if farmer and farmer.assigned_chart_rank|string == loop.index|string else '' }}
-                            >
-                                {{ chart.chart_name if chart.chart_name else chart.name }}
-                            </option>
+                            {% set current_rank = (farmer.assigned_chart_rank if farmer and farmer.assigned_chart_rank else 1)|int %}
+                            {% for rank in range(1, 16) %}
+                            <option value="{{ rank }}" {{ 'selected' if current_rank == rank else '' }}>R{{ rank }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -659,10 +655,6 @@
         const selectEl = document.getElementById("vlcc-select");
         if (selectEl) {
             toggleFormFields(selectEl.value);
-            // A locked (pre-selected) VLCC on a new farmer never fires change: load its rate charts now
-            if (selectEl.dataset.autoload && selectEl.value && window.htmx) {
-                htmx.trigger(selectEl, "change");
-            }
         }
 
         const form = document.getElementById("farmerForm");

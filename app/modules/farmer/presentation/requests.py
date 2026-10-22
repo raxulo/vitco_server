@@ -3,7 +3,7 @@ from typing import Any
 from pydantic import field_validator, model_validator
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
-from app.core.validators import mobile_number
+from app.core.validators import digits_only, mobile_number
 from app.modules.farmer.domain.enums import MilkType
 
 
@@ -23,7 +23,16 @@ class CreateFarmerRequest(BaseModel):
     # Farmer Specific
     farmer_code: str = Field(..., min_length=1, max_length=30)
     vlcc_id: UUID
-    assigned_chart_rank: int = 1
+    # R1..R15: the VLCC's n-th assigned rate chart
+    assigned_chart_rank: int = Field(default=1, ge=1, le=15)
+
+    @field_validator("farmer_code")
+    @classmethod
+    def _farmer_code_digits(cls, value: str) -> str:
+        value = digits_only(value, "Farmer code")
+        if len(value) > 6:
+            raise ValueError("Farmer code can have at most 6 digits")
+        return value
     milk_type: MilkType = Field(default=MilkType.MIXED)
     profile_image: UploadFile = None
     sms_enabled: bool = False
