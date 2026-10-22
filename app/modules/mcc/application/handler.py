@@ -30,7 +30,6 @@ from app.modules.common.fixedrate_config.domain.entities import FixedRateConfig
 from app.modules.common.fixedrate_config.presentation.response import FixedRateConfigResponse
 from app.modules.administration.application.command import CreateUserCommand
 
-import re
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 from email_validator import validate_email
@@ -819,23 +818,9 @@ class MccHandler:
 
 
     def _password_validate(self, password: str|None) -> None:
-        if password is None:
+        # Any password is accepted (any case, length or characters); it only has to be given
+        if password is None or not str(password).strip():
             raise ValidateError(message="Password is required.")
-
-        if len(password) < 8:
-            raise ValidateError("Password must be at least 8 characters long.")
-
-        if not re.search(r"[A-Z]", password):
-            raise ValidateError("Password must contain at least one uppercase letter.")
-
-        if not re.search(r"[a-z]", password):
-            raise ValidateError("Password must contain at least one lowercase letter")
-
-        if not re.search(r"[0-9]", password):
-            raise ValidateError("Password must contain at least one number")
-
-        if not re.search(r"[!@#$%^&*()]", password):
-            raise ValidateError("Password must contain at least one special character")
 
     @staticmethod
     def ensure_can_create(owner: CurrentUser | None) -> None:

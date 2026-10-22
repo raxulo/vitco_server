@@ -745,6 +745,7 @@ class VlccHandler:
             uic_code=row.VlccModel.uic_code,
             route_code=row.VlccModel.route_code,
             mobile=row.UserModel.mobile if row.UserModel else None,
+            owner_name=row.owner_name,
         ) for row in result]
 
     async def get_vlccs_with_details_by_mcc(

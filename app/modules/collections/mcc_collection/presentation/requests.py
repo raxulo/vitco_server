@@ -20,10 +20,10 @@ class CreateMccCollectionRequest(BaseModel):
     collection_date: datetime
     shift: CollectionShift
     milk_type: MilkType = MilkType.COW
-    fat_percent: Decimal | None = None
-    snf_percent: Decimal | None = None
+    fat_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
+    snf_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
     clr_value: Decimal | None = None
-    quantity: Decimal = Field(..., gt=Decimal("0.00"))
+    quantity: Decimal = Field(..., gt=Decimal("0.00"), lt=Decimal("1000000"))
     quantity_collection_mode: QuantityCollectionMode = Field(default=QuantityCollectionMode.MANUAL)
     measurement_mode: MeasurementMode = Field(default=MeasurementMode.MANUAL)
     rate_per_unit: Decimal = Field(default=Decimal("0.00"))
@@ -43,10 +43,10 @@ class UpdateMccCollectionRequest(BaseModel):
     collection_date: datetime
     shift: CollectionShift
     milk_type: MilkType
-    fat_percent: Decimal | None = None
-    snf_percent: Decimal | None = None
+    fat_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
+    snf_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
     clr_value: Decimal | None = None
-    quantity: Decimal = Field(..., gt=Decimal("0.000"))
+    quantity: Decimal = Field(..., gt=Decimal("0.000"), lt=Decimal("1000000"))
     quantity_collection_mode: QuantityCollectionMode
     measurement_mode: MeasurementMode
     rate_per_unit: Decimal

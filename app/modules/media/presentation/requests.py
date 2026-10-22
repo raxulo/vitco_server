@@ -9,7 +9,8 @@ class CreateVlccRequest(BaseModel):
     vlcc_code: str = Field(..., min_length=1, max_length=30)
     name: str = Field(..., min_length=1, max_length=150)
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=128)
+    # Any password is accepted (any case, length or characters)
+    password: str = Field(..., min_length=1, max_length=128)
     contact_person: str | None = Field(None, max_length=150)
     address_id: UUID | None = None
     bank_account_id: UUID | None = None
@@ -28,7 +29,7 @@ class UpdateVlccRequest(BaseModel):
     vlcc_code: str = Field(..., min_length=1, max_length=30)
     name: str = Field(..., min_length=1, max_length=150)
     email: EmailStr
-    password: str | None = Field(None, min_length=8, max_length=128)
+    password: str | None = Field(None, min_length=1, max_length=128)
     contact_person: str | None = Field(None, max_length=150)
     address_id: UUID | None = None
     bank_account_id: UUID | None = None

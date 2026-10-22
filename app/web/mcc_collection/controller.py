@@ -533,6 +533,7 @@ class MccCollectionController:
         matched_vlcc_code = ""
         matched_vlcc_route = ""
         matched_vlcc_mobile = ""
+        matched_vlcc_owner = ""
         if result and result.vlcc_id:
             for v in vlccs:
                 if str(v.vlcc_id) == str(result.vlcc_id):
@@ -540,6 +541,7 @@ class MccCollectionController:
                     matched_vlcc_code = getattr(v, "vlcc_code", "") or getattr(v, "uic_code", "") or ""
                     matched_vlcc_route = getattr(v, "route_code", "") or ""
                     matched_vlcc_mobile = getattr(v, "mobile", "") or ""
+                    matched_vlcc_owner = getattr(v, "owner_name", "") or ""
                     break
 
         import json
@@ -553,10 +555,10 @@ class MccCollectionController:
                     "vlcc_code": matched_vlcc_code,
                     "route_code": matched_vlcc_route,
                     "mobile": matched_vlcc_mobile,
+                    "owner_name": matched_vlcc_owner,
                     "assigned_chart_rank": assigned_chart_rank,
                 }
             }
-            print("TTTTTT", trigger_data)
             headers = {"HX-Trigger": json.dumps(trigger_data)}
             html = '<div id="cf-sample-error" style="display: none;" hx-swap-oob="true"></div>'
             return HTMLResponse(html, headers=headers)

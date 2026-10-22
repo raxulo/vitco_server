@@ -19,9 +19,9 @@ class CreateVlccCollectionRequest(BaseModel):
     collection_date: datetime
     shift: CollectionShift
     milk_type: MilkType
-    fat_percent: Decimal | None = None
-    snf_percent: Decimal | None = None
-    quantity: Decimal = Field(..., gt=Decimal("0.00"))
+    fat_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
+    snf_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
+    quantity: Decimal = Field(..., gt=Decimal("0.00"), lt=Decimal("1000000"))
     quantity_collection_mode: QuantityCollectionMode = Field(default=QuantityCollectionMode.MANUAL)
     measurement_mode: MeasurementMode = Field(default=MeasurementMode.MANUAL)
     rate_per_unit: Decimal = Field(default=Decimal("0.00"))
@@ -39,9 +39,9 @@ class UpdateVlccCollectionRequest(BaseModel):
     collection_date: datetime
     shift: CollectionShift
     milk_type: MilkType
-    fat_percent: Decimal | None = None
-    snf_percent: Decimal | None = None
-    quantity: Decimal = Field(..., gt=Decimal("0.00"))
+    fat_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
+    snf_percent: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("99.99"))
+    quantity: Decimal = Field(..., gt=Decimal("0.00"), lt=Decimal("1000000"))
     quantity_collection_mode: QuantityCollectionMode
     measurement_mode: MeasurementMode
     rate_per_unit: Decimal

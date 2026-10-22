@@ -107,10 +107,7 @@ class CreateMccRequest(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        if len(value) < 8:
-            raise ValueError("Password must have at least 8 characters.")
+        # Any password is accepted (any case, length or characters)
         return value
 
     @model_validator(mode="before")

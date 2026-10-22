@@ -75,6 +75,7 @@ class VlccWithMccListDto:
     uic_code: str | None = None
     route_code: str | None = None
     mobile: str | None = None
+    owner_name: str | None = None
 
 @dataclass(slots=True)
 class VlccForMccDto:

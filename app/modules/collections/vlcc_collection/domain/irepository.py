@@ -61,6 +61,9 @@ class IVlccCollectionRepository(ABC):
         offset: int,
         limit: int,
         owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
     ) -> list[VlccCollectionListDto]:
         ...
 
@@ -75,7 +78,13 @@ class IVlccCollectionRepository(ABC):
         ...
 
     @abstractmethod
-    async def count(self, owner: CurrentUser) -> int:
+    async def count(
+        self,
+        owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
         ...
 
     @abstractmethod

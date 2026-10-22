@@ -192,36 +192,67 @@ class VlccCollectionRepository(IVlccCollectionRepository):
     # LIST
     # =========================================================
 
+    @staticmethod
+    def _with_list_joins(stmt):
+        """VLCC name, farmer code and farmer name (the farmer's user) for list / search / count."""
+        return (
+            stmt.join(VlccModel, VlccModel.id == VlccCollectionModel.vlcc_id)
+            .join(FarmerModel, FarmerModel.id == VlccCollectionModel.farmer_id)
+            .join(UserModel, UserModel.id == FarmerModel.user_id)
+        )
+
+    @staticmethod
+    def _list_conditions(
+        owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> list:
+        """
+        Collection list filters:
+        - keyword: VLCC name, farmer name or farmer code (any of them, case-insensitive)
+        - date_from / date_to: collected_at range (date_to is exclusive)
+        """
+        conditions = [
+            VlccCollectionModel.is_deleted.is_(False),
+            VlccCollectionAccessScope.condition(owner),
+        ]
+        keyword = (keyword or "").strip()
+        if keyword:
+            pattern = f"%{keyword}%"
+            conditions.append(
+                or_(
+                    VlccModel.name.ilike(pattern),
+                    UserModel.name.ilike(pattern),
+                    FarmerModel.farmer_code.ilike(pattern),
+                )
+            )
+        if date_from:
+            conditions.append(VlccCollectionModel.collected_at >= date_from)
+        if date_to:
+            conditions.append(VlccCollectionModel.collected_at < date_to)
+        return conditions
+
     async def list(
         self,
         offset: int,
         limit: int,
         owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
     ) -> list[VlccCollectionListDto]:
 
         stmt = (
-            select(
-                VlccCollectionModel,
-                VlccModel.name.label("vlcc_name"),
-                UserModel.name.label("farmer_name"),
-                FarmerModel.farmer_code.label("farmer_code"),
+            self._with_list_joins(
+                select(
+                    VlccCollectionModel,
+                    VlccModel.name.label("vlcc_name"),
+                    UserModel.name.label("farmer_name"),
+                    FarmerModel.farmer_code.label("farmer_code"),
+                )
             )
-            .join(
-                VlccModel,
-                VlccModel.id == VlccCollectionModel.vlcc_id,
-            )
-            .join(
-                FarmerModel,
-                FarmerModel.id == VlccCollectionModel.farmer_id,
-            )
-            .join(
-                UserModel,
-                UserModel.id == FarmerModel.user_id,
-            )
-            .where(
-                VlccCollectionModel.is_deleted.is_(False),
-                VlccCollectionAccessScope.condition(owner),
-            )
+            .where(*self._list_conditions(owner, keyword, date_from, date_to))
             .order_by(
                 VlccCollectionModel.collected_at.desc(),
             )
@@ -262,84 +293,32 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         offset: int,
         limit: int,
         owner: CurrentUser,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
     ) -> list[VlccCollectionListDto]:
-
-        keyword = keyword.strip()
-
-        if not keyword:
-            return await self.list(
-                offset=offset,
-                limit=limit,
-                owner=owner,
-            )
-
-        pattern = f"%{keyword}%"
-
-        stmt = (
-            select(
-                VlccCollectionModel.id,
-                VlccCollectionModel.vlcc_id,
-                VlccCollectionModel.farmer_id,
-                VlccCollectionModel.collected_at,
-                VlccCollectionModel.shift,
-                VlccCollectionModel.milk_type,
-                VlccCollectionModel.fat_percent,
-                VlccCollectionModel.snf_percent,
-                VlccCollectionModel.quantity,
-                VlccCollectionModel.rate_per_unit,
-                VlccCollectionModel.total_amount,
-                VlccCollectionModel.status,
-                VlccModel.name.label("vlcc_name"),
-                UserModel.name.label("farmer_name"),
-                FarmerModel.farmer_code.label("farmer_code"),
-            )
-            .join(
-                VlccModel,
-                VlccModel.id == VlccCollectionModel.vlcc_id,
-            )
-            .join(
-                FarmerModel,
-                FarmerModel.id == VlccCollectionModel.farmer_id,
-            )
-            .join(
-                UserModel,
-                UserModel.id == FarmerModel.user_id,
-            )
-            .where(
-                VlccCollectionModel.is_deleted.is_(False),
-                VlccCollectionAccessScope.condition(owner),
-                or_(
-                    VlccCollectionModel.collection_number.ilike(pattern),
-                    VlccModel.name.ilike(pattern),
-                    FarmerModel.name.ilike(pattern),
-                    FarmerModel.farmer_code.ilike(pattern),
-                ),
-            )
-            .order_by(
-                VlccCollectionModel.collected_at.desc(),
-            )
-            .offset(offset)
-            .limit(limit)
+        """VLCC name / farmer name / farmer code search (same rules as `list`)."""
+        return await self.list(
+            offset=offset,
+            limit=limit,
+            owner=owner,
+            keyword=keyword,
+            date_from=date_from,
+            date_to=date_to,
         )
-
-        rows = (
-            await self._session.execute(stmt)
-        ).mappings().all()
-
-        return [
-            VlccCollectionListDto(**row)
-            for row in rows
-        ]
 
     # =========================================================
     # COUNT
     # =========================================================
 
-    async def count(self, owner: CurrentUser) -> int:
-        from sqlalchemy import func
-        stmt = select(func.count(VlccCollectionModel.id)).where(
-            VlccCollectionModel.is_deleted == False,
-            VlccCollectionAccessScope.condition(owner),
+    async def count(
+        self,
+        owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        stmt = self._with_list_joins(select(func.count(VlccCollectionModel.id))).where(
+            *self._list_conditions(owner, keyword, date_from, date_to)
         )
         return await self._session.scalar(stmt) or 0
 
@@ -351,16 +330,10 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         self,
         keyword: str,
         owner: CurrentUser,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
     ) -> int:
-        from sqlalchemy import func
-        keyword = keyword.strip()
-        pattern = f"%{keyword}%"
-        stmt = select(func.count(VlccCollectionModel.id)).where(
-            VlccCollectionModel.collection_number.ilike(pattern) &
-            (VlccCollectionModel.is_deleted == False),
-            VlccCollectionAccessScope.condition(owner),
-        )
-        return await self._session.scalar(stmt) or 0
+        return await self.count(owner, keyword=keyword, date_from=date_from, date_to=date_to)
 
     # =========================================================
     # USER ID LOOKUPS

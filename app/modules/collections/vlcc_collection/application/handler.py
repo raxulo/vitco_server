@@ -210,24 +210,24 @@ class VlccCollectionHandler:
         query: ListVlccCollectionsQuery,
         owner: CurrentUser,
     ) -> list[VlccCollectionListDto]:
-        if query.keyword:
-            entities = await self._repository.search(
-                keyword=query.keyword,
-                offset=query.offset,
-                limit=query.size,
-                owner=owner,
-            )
-        else:
-            entities = await self._repository.list(
-                offset=query.offset,
-                limit=query.size,
-                owner=owner,
-            )
+        return await self._repository.list(
+            offset=query.offset,
+            limit=query.size,
+            owner=owner,
+            keyword=query.keyword,
+            date_from=query.date_from,
+            date_to=query.date_to,
+        )
 
-        return entities
-
-    async def count(self, owner: CurrentUser) -> int:
-        return await self._repository.count(owner)
+    async def count(
+        self,
+        owner: CurrentUser,
+        keyword: str | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        """Rows matching the same filters as `list` (for pagination)."""
+        return await self._repository.count(owner, keyword=keyword, date_from=date_from, date_to=date_to)
 
     async def count_search(self, keyword: str, owner: CurrentUser) -> int:
         return await self._repository.count_search(keyword, owner)

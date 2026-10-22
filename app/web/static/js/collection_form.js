@@ -11,6 +11,12 @@
  *   which always describes the entry being typed (it resets with the form).
  * - A save button marked data-require-unit-weight stays disabled until the
  *   supplying unit (#cf-shopid) is selected and a weight (#cf-qty) is entered.
+ * - Typed values accept digits only:
+ *     weight  (#cf-qty)            at most 6 digits, optional "." with up to 2 decimals
+ *     FAT/SNF (#cf-fat, #cf-snf)   up to 2 digits "." up to 2 digits (max 99.99, e.g. 22.55)
+ *     cans    (#cf-cans)           whole number
+ * - Rate is 0 until both FAT and SNF are entered (and back to 0 when either is
+ *   cleared); amount = weight x rate, so a 0 weight keeps the amount at 0.
  */
 (function () {
     const MILK_COW = "0";
@@ -66,6 +72,76 @@
         set("lbl-qty", qty.toFixed(2));
     }
 
+    // ---------------------------------------------------------
+    // Typed values: digits only, with the allowed length / decimals
+    // ---------------------------------------------------------
+    const WEIGHT_MAX_DIGITS = 6;
+
+    /** Keep digits and the first "."; cut the integer / decimal parts to the given lengths. */
+    function cleanDecimal(value, maxInt, maxDec) {
+        let text = String(value || "").replace(/[^\d.]/g, "");
+        const dot = text.indexOf(".");
+        let intPart = dot === -1 ? text : text.slice(0, dot);
+        let decPart = dot === -1 ? null : text.slice(dot + 1).replace(/\./g, "");
+        intPart = intPart.slice(0, maxInt);
+        if (decPart !== null) decPart = decPart.slice(0, maxDec);
+        return decPart === null ? intPart : `${intPart}.${decPart}`;
+    }
+
+    /** Weight: at most 6 digits in all, up to 2 of them after the "." (e.g. 123456, 1234.56). */
+    function cleanWeight(value) {
+        let text = cleanDecimal(value, WEIGHT_MAX_DIGITS, 2);
+        const digits = text.replace(".", "");
+        const [intPart, decPart] = text.split(".");
+        if (decPart === undefined) return text;
+        // 6 whole digits leave no room for decimals (or the ".")
+        const room = WEIGHT_MAX_DIGITS - intPart.length;
+        if (room <= 0) return intPart;
+        return digits.length > WEIGHT_MAX_DIGITS ? `${intPart}.${decPart.slice(0, room)}` : text;
+    }
+
+    const CLEANERS = {
+        "cf-qty": cleanWeight,
+        "cf-fat": (v) => cleanDecimal(v, 2, 2),
+        "cf-snf": (v) => cleanDecimal(v, 2, 2),
+        "cf-cans": (v) => String(v || "").replace(/\D/g, ""),
+    };
+
+    // Capture phase: cleaned before the forms' own input handlers (rate, amount) read the value
+    document.addEventListener("input", (evt) => {
+        const el = evt.target;
+        const clean = el && CLEANERS[el.id];
+        if (!clean || el.readOnly) return;
+        const cleaned = clean(el.value);
+        if (cleaned !== el.value) el.value = cleaned;
+    }, true);
+
+    // ---------------------------------------------------------
+    // Rate: 0 until FAT and SNF are both entered
+    // ---------------------------------------------------------
+    /** True when FAT and SNF both hold a value above 0. */
+    function hasFatAndSnf() {
+        return num("cf-fat") > 0 && num("cf-snf") > 0;
+    }
+
+    /** Rate back to 0 (and the amount with it). */
+    function resetCollectionRate() {
+        const rate = byId("cf-rate");
+        if (rate) rate.value = "0.00";
+        updateCollectionAmount();
+    }
+
+    // A rate response that arrives after FAT / SNF was cleared must not bring the rate back
+    document.body.addEventListener("htmx:afterSwap", (evt) => {
+        const target = evt.detail.target;
+        if (target && (target.id === "group-rate" || target.id === "cf-rate") && !hasFatAndSnf()) {
+            resetCollectionRate();
+        }
+    });
+
+    window.hasFatAndSnf = hasFatAndSnf;
+    window.resetCollectionRate = resetCollectionRate;
+
     /** Enable the save button only once the unit is selected and the weight entered. */
     function updateCollectionSaveState() {
         const button = document.querySelector("#form-collection [data-require-unit-weight]");
@@ -86,6 +162,7 @@
     // A freshly rendered form (page load, unit change, after save): derive milk type, reset totals
     function initForm() {
         applyAutoMilkType();
+        if (!hasFatAndSnf()) resetCollectionRate();
         updateCollectionAmount();
         updateCollectionSaveState();
     }
@@ -93,7 +170,10 @@
     document.body.addEventListener("htmx:afterSwap", (evt) => {
         const target = evt.detail.target;
         if (target && (target.id === "form-collection" || target.id === "group-rate" || target.id === "cf-rate")) {
-            if (target.id === "form-collection") applyAutoMilkType();
+            if (target.id === "form-collection") {
+                applyAutoMilkType();
+                if (!hasFatAndSnf()) resetCollectionRate();
+            }
             updateCollectionAmount();
             updateCollectionSaveState();
         }

@@ -12,7 +12,8 @@ class CreateFarmerRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
     email: EmailStr
     mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
-    password: str = Field(..., min_length=8, max_length=128)
+    # Any password is accepted (any case, length or characters)
+    password: str = Field(..., min_length=1, max_length=128)
 
     @field_validator("mobile", mode="before")
     @classmethod
@@ -70,7 +71,7 @@ class UpdateFarmerRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
     email: EmailStr
     mobile: str = Field(default=None, validate_default=True)  # missing -> "Mobile number is required"
-    password: str | None = Field(None, min_length=8, max_length=128)
+    password: str | None = Field(None, min_length=1, max_length=128)
 
     @field_validator("mobile", mode="before")
     @classmethod

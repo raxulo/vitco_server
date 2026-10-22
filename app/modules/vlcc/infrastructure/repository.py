@@ -483,12 +483,16 @@ class VlccRepository(IVlccRepository):
         mcc_creators = select(MccModel.user_id).where(MccModel.id == mcc_id).union(
             select(MccModel.created_by).where(MccModel.id == mcc_id)
         )
+        from sqlalchemy.orm import aliased
+        creator = aliased(UserModel)
         stmt = (
             select(
                 VlccModel,
                 UserModel,
                 AddressModel,
                 BankAccountModel,
+                # Who created the VLCC (its owner), shown on the collection slip
+                select(creator.name).where(creator.id == VlccModel.created_by).scalar_subquery().label("owner_name"),
             )
             .outerjoin(
                 UserModel,

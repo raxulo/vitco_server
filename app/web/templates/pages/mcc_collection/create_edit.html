@@ -105,7 +105,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='js/collection_form.js') }}?v=2"></script>
+<script src="{{ url_for('static', path='js/collection_form.js') }}?v=3"></script>
 <script>
     const getRateInput = () => document.getElementById("cf-rate");
     const calculateRate = () => {
@@ -113,10 +113,11 @@
         const fat = document.getElementById("cf-fat")?.value?.trim();
         const snf = document.getElementById("cf-snf")?.value?.trim();
 
-        if (!chart || !fat || !snf) {
+        // FAT or SNF missing (or no chart) -> rate and amount are 0, no request
+        if (!chart || !fat || !snf || !hasFatAndSnf()) {
+            resetCollectionRate();
             return;
         }
-        console.log("calculating rate");
 
         const rateInput = getRateInput();
         if (rateInput) {
@@ -185,6 +186,7 @@
                 if (data.route_code) opt.setAttribute('data-route', data.route_code);
                 if (data.mobile) opt.setAttribute('data-mobile', data.mobile);
                 if (data.vlcc_name) opt.setAttribute('data-name', data.vlcc_name);
+                if (data.owner_name) opt.setAttribute('data-owner', data.owner_name);
                 shopSelect.appendChild(opt);
             } else if (existingOpt) {
                 if (data.assigned_chart_rank) existingOpt.setAttribute('data-assigned-chart-rank', data.assigned_chart_rank);
@@ -192,6 +194,7 @@
                 if (data.route_code) existingOpt.setAttribute('data-route', data.route_code);
                 if (data.mobile) existingOpt.setAttribute('data-mobile', data.mobile);
                 if (data.vlcc_name) existingOpt.setAttribute('data-name', data.vlcc_name);
+                if (data.owner_name) existingOpt.setAttribute('data-owner', data.owner_name);
             }
             shopSelect.value = data.vlcc_id;
             if (data.assigned_chart_rank) {
@@ -227,7 +230,10 @@
         let vlccCode = '—';
         let vlccRoute = mccRoute || 'N/A';
         let vlccMobile = 'N/A';
+        // The supplying VLCC's owner (whoever created it), printed under VITCO
+        let vlccOwner = '';
         if (selectedShopOpt) {
+            vlccOwner = (selectedShopOpt.getAttribute('data-owner') || '').trim();
             vlccName = selectedShopOpt.getAttribute('data-name') || selectedShopOpt.text.split('(UIC')[0].trim() || 'N/A';
             vlccCode = selectedShopOpt.getAttribute('data-code') || selectedShopOpt.getAttribute('data-uic') || '';
             if (!vlccCode && selectedShopOpt.text.includes('UIC:')) {
@@ -427,6 +433,7 @@
                 <!-- Header Details -->
                 <div style="text-align: center; margin-bottom: 10px;">
                     <div style="font-size: 20px; font-weight: 800; color: #000000; letter-spacing: 2px; line-height: 1.15;">VITCO</div>
+                    ${vlccOwner ? `<div style="font-size: 15px; font-weight: 700; color: #000000; margin-top: 2px; line-height: 1.15;">${vlccOwner}</div>` : ''}
                     <div style="font-size: 13px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">Provisional Acknowledgement Slip</div>
                     <div style="font-size: 16px; font-weight: 800; color: #000000; margin-top: 5px; line-height: 1.15;">${mccName || 'VITCO BULK MCC'}</div>
                     <div style="font-size: 12.5px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">UIC - ${mccCode || '—'}</div>

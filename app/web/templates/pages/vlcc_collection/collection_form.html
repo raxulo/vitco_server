@@ -22,7 +22,7 @@
                 hx-trigger="change" hx-target="#form-collection" hx-swap="outerHTML"{% endif %}>
                 {% if not lock_vlcc %}<option value=""> -- Select VLCC -- </option>{% endif %}
                 {% for v in vlccs %}
-                <option value="{{ v.id }}" data-code="{{ v.vlcc_code }}" data-uic="{{ v.uic_code or '' }}" data-route="{{ v.route_code if v.route_code is not none else '' }}" data-city="{{ v.city or '' }}" {{ 'selected' if (selected_vlcc_id|string==v.id|string) or (collection and
+                <option value="{{ v.id }}" data-code="{{ v.vlcc_code }}" data-uic="{{ v.uic_code or '' }}" data-owner="{{ v.owner_name or '' }}" data-route="{{ v.route_code if v.route_code is not none else '' }}" data-city="{{ v.city or '' }}" {{ 'selected' if (selected_vlcc_id|string==v.id|string) or (collection and
                     collection.vlcc_id|string==v.id|string) else '' }}>
                     {{ v.name }}
                 </option>
@@ -351,7 +351,8 @@
 
                 <i class="fa-solid fa-weight-hanging"></i>
 
-                <input type="number" step="0.01" name="quantity" id="cf-qty" class="form-control" placeholder="0.00"
+                {# Digits only, max 6 (static/js/collection_form.js) #}
+                <input type="text" inputmode="decimal" maxlength="7" autocomplete="off" name="quantity" id="cf-qty" class="form-control" placeholder="0.00"
                     required {% if setting and setting.weight_collection_mode|int==1 %}readonly{% endif %}>
 
             </div>
@@ -365,7 +366,7 @@
 
                 <label>FAT % *</label>
 
-                <input type="number" step="0.1" name="fat_percent" id="cf-fat" class="form-control" placeholder="0.0"
+                <input type="text" inputmode="decimal" maxlength="5" autocomplete="off" name="fat_percent" id="cf-fat" class="form-control" placeholder="0.00"
                     required {% if setting and setting.analyzer_collection_mode|int==1 %}readonly{% endif %}>
 
             </div>
@@ -374,7 +375,7 @@
 
                 <label>SNF % *</label>
 
-                <input type="number" step="0.1" name="snf_percent" id="cf-snf" class="form-control" placeholder="0.0"
+                <input type="text" inputmode="decimal" maxlength="5" autocomplete="off" name="snf_percent" id="cf-snf" class="form-control" placeholder="0.00"
                     required {% if setting and setting.analyzer_collection_mode|int==1 %}readonly{% endif %}>
 
             </div>
@@ -391,7 +392,7 @@
                 <i class="fa-solid fa-indian-rupee-sign"></i>
 
                 <input readonly type="number" step="0.01" name="rate_per_unit" id="cf-rate" class="form-control"
-                    value="{{ collection.rate_per_unit if collection else '' }}"
+                    value="{{ collection.rate_per_unit if collection else '0.00' }}"
                     required hx-get="/ratecharts/get-rate" hx-trigger="rate:calculate"
                     hx-include="#cf-ratechart, #cf-fat, #cf-snf, #cf-type" hx-target="#group-rate" hx-swap="outerHTML">
 

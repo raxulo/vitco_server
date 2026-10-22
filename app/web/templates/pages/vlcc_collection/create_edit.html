@@ -157,7 +157,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='js/collection_form.js') }}?v=2"></script>
+<script src="{{ url_for('static', path='js/collection_form.js') }}?v=3"></script>
 <script>
     const getRateInput = () => document.getElementById("cf-rate");
 
@@ -166,8 +166,11 @@
         const fat = document.getElementById("cf-fat")?.value?.trim();
         const snf = document.getElementById("cf-snf")?.value?.trim();
 
-        // Required values missing → no request
-        if (!chart || !fat || !snf) return;
+        // FAT or SNF missing (or no chart) -> rate and amount are 0, no request
+        if (!chart || !fat || !snf || !hasFatAndSnf()) {
+            resetCollectionRate();
+            return;
+        }
 
         const rateInput = getRateInput();
         if (rateInput) {
@@ -366,6 +369,8 @@
         const vlccUicCode = (selectedVlccOption && selectedVlccOption.getAttribute('data-uic')) ? selectedVlccOption.getAttribute('data-uic').trim() : ((selectedVlccOption && selectedVlccOption.getAttribute('data-code')) ? selectedVlccOption.getAttribute('data-code').trim() : 'UIC001');
         const vlccCity = (selectedVlccOption && selectedVlccOption.getAttribute('data-city')) ? selectedVlccOption.getAttribute('data-city').trim() : '';
         const vlccRoute = (selectedVlccOption && selectedVlccOption.getAttribute('data-route')) ? selectedVlccOption.getAttribute('data-route').trim() : '';
+        // The VLCC's owner (whoever created it), printed under VITCO
+        const vlccOwner = (selectedVlccOption && selectedVlccOption.getAttribute('data-owner')) ? selectedVlccOption.getAttribute('data-owner').trim() : '';
         const vlccUic = vlccUicCode ? ('UIC - ' + vlccUicCode) : 'UIC - N/A';
 
         const farmerCodeInput = document.getElementById('cf-farmer-code')?.value?.trim();
@@ -455,6 +460,7 @@
                 <!-- Header Details -->
                 <div style="text-align: center; margin-bottom: 10px;">
                     <div style="font-size: 20px; font-weight: 800; color: #000000; letter-spacing: 2px; line-height: 1.15;">VITCO</div>
+                    ${vlccOwner ? `<div style="font-size: 15px; font-weight: 700; color: #000000; margin-top: 2px; line-height: 1.15;">${vlccOwner}</div>` : ''}
                     <div style="font-size: 13px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">Provisional Acknowledgement Slip</div>
                     <div style="font-size: 16px; font-weight: 800; color: #000000; margin-top: 5px; line-height: 1.15;">${vlccName}</div>
                     <div style="font-size: 12.5px; font-weight: 500; color: #334155; margin-top: 2px; line-height: 1.15;">${vlccUic}</div>
