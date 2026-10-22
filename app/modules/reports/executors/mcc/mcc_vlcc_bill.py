@@ -131,8 +131,6 @@ class MccVlccBillExecutor(ReportExecutor):
             qty = float(row["quantity"] or 0)
             fat = float(row["fat"] or 0)
             snf = float(row["snf"] or 0)
-            fat_kg = round(qty * fat / 100, 3)
-            snf_kg = round(qty * snf / 100, 3)
 
             grouped[code_val].append(
                 {
@@ -141,9 +139,7 @@ class MccVlccBillExecutor(ReportExecutor):
                     "milk_type": mt_str,
                     "quantity": self.marked(qty, self.is_manual(row["quantity_collection_mode"])),
                     "fat": self.marked(fat, self.is_manual(row["measurement_mode"])),
-                    "snf": row["snf"],
-                    "fat_kg": fat_kg,
-                    "snf_kg": snf_kg,
+                    "snf": snf,
                     "rate": row["rate"],
                     "amount": row["amount"],
                 }
@@ -197,8 +193,6 @@ class MccVlccBillExecutor(ReportExecutor):
             "Qty",
             "Fat",
             "Snf",
-            "FatKG",
-            "SnfKG",
             "Rate",
             "Amt.",
         ]

@@ -86,11 +86,7 @@
                     data-mobile="{{ vlcc.mobile or vlcc.contact_person_mobile or '' }}"
                     data-name="{{ vlcc.name or vlcc.vlcc_name or '' }}"
                     data-owner="{{ vlcc.owner_name or '' }}"
-                    {{ 'selected' if (collection and
-
-                    (collection.vlcc_id|string==vlcc.id|string or collection.vlcc_id|string==vlcc.vlcc_id|string)) or
-
-                    (vlcc_id and vlcc_id|string==vlcc.vlcc_id|string) else '' }}>
+                    {{ 'selected' if (collection and (collection.vlcc_id|string==vlcc.id|string or collection.vlcc_id|string==vlcc.vlcc_id|string)) or (vlcc_id and vlcc_id|string==vlcc.vlcc_id|string) else '' }}>
 
                     {{ vlcc.name or vlcc.vlcc_name }} (UIC: {{ vlcc.uic or vlcc.vlcc_code or vlcc.uic_code }})
 
