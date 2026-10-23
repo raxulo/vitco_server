@@ -166,7 +166,7 @@ class AddressRepository(
             model
         )
     async def update_address_by_command(self, data: UpdateAddressCommand) -> Address:
-        stmt = (
+        result = await self._database.session.execute(
             update(AddressModel)
             .where(
                 AddressModel.id == data.id,
@@ -177,15 +177,16 @@ class AddressRepository(
                 city=data.city,
                 pincode=data.pincode,
             )
-            .execution_options(synchronize_session="fetch")
-            .returning(AddressModel)
         )
 
-        model = await self._database.session.scalar(stmt)
-
-        if model is None:
+        if result.rowcount == 0:
             return None
 
-        return AddressMapper.to_entity(model)
+        # Read the row back (no RETURNING for SQLite compatibility).
+        model = await self._database.session.scalar(
+            select(AddressModel).where(AddressModel.id == data.id)
+        )
+
+        return AddressMapper.to_entity(model) if model else None
     
         

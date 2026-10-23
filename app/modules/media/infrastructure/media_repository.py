@@ -64,13 +64,17 @@ class MediaRepository:
 
     async def delete(self, media_id: UUID) -> MediaModel | None:
 
-        result = await self._session.execute(
-            delete(MediaModel).where(
-                MediaModel.id == media_id,
-            ).returning(MediaModel)
+        # Fetch first, then delete (no RETURNING for SQLite compatibility).
+        model = await self._session.scalar(
+            select(MediaModel).where(MediaModel.id == media_id)
         )
+        if model is None:
+            return None
 
-        return result.scalar_one_or_none()
+        await self._session.execute(
+            delete(MediaModel).where(MediaModel.id == media_id)
+        )
+        return model
 
     async def get_profile_image_by_user_id(self, user_id: UUID) -> MediaModel | None:
 

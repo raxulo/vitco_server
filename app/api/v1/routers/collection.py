@@ -513,48 +513,55 @@ async def create_bulk_collections(request: Request, data: InsertCollectionsReque
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     role_type = user_state.role_type
+
+    # One record maker per role; reject any other role up front.
+    if role_type == Role.VLCC:
+        create_one = _create_a_vlcc_collection
+        label = "VLCC"
+    elif role_type == Role.MCC:
+        create_one = _create_a_mcc_collection
+        label = "MCC"
+    else:
+        raise HTTPException(status_code=403, detail="Only VLCC or MCC users can record milk collections")
+
+    if not data.items:
+        raise HTTPException(status_code=400, detail="No collection items were provided.")
+
     created_items: List[CollectionResponseData] = []
 
     # =====================================================
-    # BULK CREATE VLCC COLLECTION
+    # ALL-OR-NOTHING: the whole batch is one transaction.
+    # Each record runs on a savepoint inside it; the first failure
+    # aborts everything so nothing is half-saved.
     # =====================================================
-    if role_type == Role.VLCC:
-        for body in data.items:
-            try:
-                result = await _create_a_vlcc_collection(request, body)
+    database = request.app.state.application.container.database
+    try:
+        async with database.transaction():
+            for index, body in enumerate(data.items):
+                try:
+                    result = await create_one(request, body)
+                except Exception as exc:
+                    # Point at the offending row; rolls back the whole batch.
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{label} bulk collection failed at item {index + 1}: {exc}. Nothing was saved.",
+                    ) from exc
                 created_items.append(result.collection)
-            except Exception as exc:
-                print(exc)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{label} bulk collection failed: {exc}. Nothing was saved.",
+        ) from exc
 
-        return BulkCreateCollectionResponse(
-            status=True,
-            code=200,
-            message="VLCC bulk milk collections recorded successfully",
-            created_count=len(created_items),
-            collections=created_items,
-        )
-
-    # =====================================================
-    # BULK CREATE MCC COLLECTION
-    # =====================================================
-    elif role_type == Role.MCC:
-        for body in data.items:
-            try:
-                result = await _create_a_mcc_collection(request, body)
-                created_items.append(result.collection)
-            except Exception as exc:
-                print(exc)
-
-        return BulkCreateCollectionResponse(
-            status=True,
-            code=200,
-            message="MCC bulk milk collections recorded successfully",
-            created_count=len(created_items),
-            collections=created_items,
-        )
-
-    else:
-        raise HTTPException(status_code=403, detail="Only VLCC or MCC users can record milk collections")
+    return BulkCreateCollectionResponse(
+        status=True,
+        code=200,
+        message=f"{label} bulk milk collections recorded successfully",
+        created_count=len(created_items),
+        collections=created_items,
+    )
 
 
 # =========================================================

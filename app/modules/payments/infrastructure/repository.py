@@ -94,17 +94,16 @@ class AccountBalanceRepository:
         balance: Decimal = Decimal("0.00"),
     ) -> AccountBalanceModel:
 
-        stmt = (
-            insert(AccountBalanceModel)
-            .values(
-                user_id=user_id,
-                balance=balance,
-                version=0,
-            )
-            .returning(AccountBalanceModel)
+        # No RETURNING: not all SQLite builds support it. Use the ORM so the
+        # row is inserted and the populated instance (with its id) comes back.
+        model = AccountBalanceModel(
+            user_id=user_id,
+            balance=balance,
+            version=0,
         )
-
-        return await self._session.scalar(stmt)
+        self._session.add(model)
+        await self._session.flush()
+        return model
 
     # =========================================================
     # ATOMIC BALANCE UPDATE
@@ -122,7 +121,7 @@ class AccountBalanceRepository:
         ledger_id: UUID,
     ) -> Decimal:
 
-        stmt = (
+        result = await self._session.execute(
             update(AccountBalanceModel)
             .where(
                 AccountBalanceModel.user_id == user_id,
@@ -132,19 +131,17 @@ class AccountBalanceRepository:
                 version=AccountBalanceModel.version + 1,
                 last_ledger_id=ledger_id,
             )
-            .returning(
-                AccountBalanceModel.balance - delta,
-                AccountBalanceModel.balance,
-            )
         )
 
-        result = await self._session.execute(stmt)
-        row = result.one_or_none()
-
-        if row is None:
+        if result.rowcount == 0:
             raise ValueError(f"Account balance not found: {user_id}")
 
-        return row[1]
+        # Read the new balance back (no RETURNING for SQLite compatibility).
+        return await self._session.scalar(
+            select(AccountBalanceModel.balance).where(
+                AccountBalanceModel.user_id == user_id,
+            )
+        )
 
     # =========================================================
     # UPSERT + DELTA
@@ -186,11 +183,16 @@ class AccountBalanceRepository:
                 "last_ledger_id": ledger_id,
                 "updated_at": now_naive_ist(),
             },
-        ).returning(AccountBalanceModel)
+        )
 
-        result = await self._session.execute(stmt)
+        await self._session.execute(stmt)
 
-        return result.scalar_one()
+        # Read the row back (no RETURNING for SQLite compatibility).
+        return await self._session.scalar(
+            select(AccountBalanceModel).where(
+                AccountBalanceModel.user_id == user_id,
+            )
+        )
 
     # =========================================================
     # BULK UPDATE
@@ -242,11 +244,18 @@ class AccountBalanceRepository:
                 ),
                 "updated_at": now_naive_ist(),
             },
-        ).returning(AccountBalanceModel)
+        )
 
-        result = await self._session.execute(stmt)
+        await self._session.execute(stmt)
 
-        return list(result.scalars())
+        # Read the affected rows back (no RETURNING for SQLite compatibility).
+        user_ids = [user_id for user_id, _, _ in changes]
+        rows = await self._session.scalars(
+            select(AccountBalanceModel).where(
+                AccountBalanceModel.user_id.in_(user_ids),
+            )
+        )
+        return list(rows)
 
 
 class PaymentTransferRepository:
@@ -314,17 +323,16 @@ class PaymentTransferRepository:
                     PaymentTransferModel.idempotency_key,
                 ),
             )
-            .returning(
-                PaymentTransferModel.id,
-            )
         )
 
         result = await self._session.execute(stmt)
 
-        created_id = result.scalar_one_or_none()
-
-        if created_id is not None:
-            return created_id, True
+        # rowcount is 1 when the row was inserted, 0 when the idempotency key
+        # already existed. RETURNING is intentionally not used: SQLite rejects
+        # "RETURNING" together with "ON CONFLICT DO NOTHING", and the id is
+        # already known (we generated transfer_id above).
+        if result.rowcount and result.rowcount > 0:
+            return transfer_id, True
 
         # -----------------------------------------------------
         # Existing idempotent transaction.
@@ -1087,9 +1095,12 @@ class PaymentPairBalanceRepository:
 
         stmt = (
             insert_stmt.on_conflict_do_update(
-                constraint=(
-                    "uq_payment_pair_user_counterparty"
-                ),
+                # Name the conflict columns, not the constraint name: SQLite does
+                # not support "ON CONFLICT ON CONSTRAINT <name>".
+                index_elements=[
+                    PaymentPairBalanceModel.user_id,
+                    PaymentPairBalanceModel.counterparty_id,
+                ],
                 set_={
                     "balance": (
                         PaymentPairBalanceModel.balance
@@ -1105,14 +1116,17 @@ class PaymentPairBalanceRepository:
                     "updated_at": now_naive_ist(),
                 },
             )
-            .returning(
-                PaymentPairBalanceModel.balance,
-            )
         )
 
-        result = await self._session.execute(stmt)
+        await self._session.execute(stmt)
 
-        return result.scalar_one()
+        # Read the resulting balance back (no RETURNING for SQLite compatibility).
+        return await self._session.scalar(
+            select(PaymentPairBalanceModel.balance).where(
+                PaymentPairBalanceModel.user_id == user_id,
+                PaymentPairBalanceModel.counterparty_id == counterparty_id,
+            )
+        )
 
     # =========================================================
     # UPSERT TWO SIDES

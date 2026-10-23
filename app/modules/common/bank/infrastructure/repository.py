@@ -183,7 +183,7 @@ class BankAccountRepository(
         )
 
     async def update_bank_by_command(self, data: UpdateBankAccountCommand) -> BankAccount:
-        stmt = (
+        result = await self._database.session.execute(
             update(BankAccountModel)
             .where(BankAccountModel.id == data.id)
             .values(
@@ -193,11 +193,15 @@ class BankAccountRepository(
                 ifsc_code=data.ifsc_code,
                 upi_id=data.upi_id,
             )
-            .execution_options(synchronize_session="fetch")
-            .returning(BankAccountModel)
         )
 
-        model = await self._database.session.scalar(stmt)
+        if result.rowcount == 0:
+            raise ValueError("Bank account not found")
+
+        # Read the row back (no RETURNING for SQLite compatibility).
+        model = await self._database.session.scalar(
+            select(BankAccountModel).where(BankAccountModel.id == data.id)
+        )
 
         if model is None:
             raise ValueError("Bank account not found")
