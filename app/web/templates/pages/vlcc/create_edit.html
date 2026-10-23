@@ -353,7 +353,7 @@
 
                 <!-- ENTRY MODE -->
                 <div class="form-field">
-                    <label>Collection Entry Mode</label>
+                    <label>Measurement Mode</label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-keyboard"></i>
                         <select name="entry_mode" class="form-control">
@@ -754,17 +754,20 @@
                     <label>Slip Printer Receipt Size</label>
                     <select name="receipt_size" class="form-control">
                         <option value="0" {{ 'selected' if vlcc and setting and setting.receipt_size == 0 else '' }}>Small</option>
-                        <option value="1" {{ 'selected' if vlcc and setting and setting.receipt_size == 1 else '' }}>Large</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.receipt_size == 1 else '' }}>Medium</option>
+                        <option value="2" {{ 'selected' if vlcc and setting and setting.receipt_size == 2 else '' }}>Large</option>
                     </select>
                 </div>
 
 
                 <!-- PRINTER TYPE -->
                 <div class="form-field">
-                    <label>Thermal Printer Model</label>
+                    <label>Printer Type</label>
                     <select name="printer_type" class="form-control">
-                        <option value="0" {{ 'selected' if vlcc and setting and setting.printer_type == 0 else '' }}>Printer A</option>
-                        <option value="1" {{ 'selected' if vlcc and setting and setting.printer_type == 1 else '' }}>Printer B</option>
+                        <option value="0" {{ 'selected' if vlcc and setting and setting.printer_type == 0 else '' }}>THERMAL</option>
+                        <option value="1" {{ 'selected' if vlcc and setting and setting.printer_type == 1 else '' }}>DOTMATRIX</option>
+                        <option value="2" {{ 'selected' if vlcc and setting and setting.printer_type == 2 else '' }}>LASER</option>
+                        
                     </select>
                 </div>
 
