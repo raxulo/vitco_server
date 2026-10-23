@@ -17,8 +17,24 @@ from typing import Literal
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
+import sys
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+
+def _resolve_base_dir() -> Path:
+    """
+    Folder that holds the app's data: .env, storage/, logs/ and the SQLite DB.
+
+    - Normal run: the project root (two levels above this file).
+    - PyInstaller single-file build (``sys.frozen``): the folder that contains
+      the executable, so data lives next to the binary and survives restarts
+      instead of being written into the temporary unpack directory and lost.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[2]
+
+
+BASE_DIR = _resolve_base_dir()
 
 class Settings(BaseSettings):
     """
@@ -32,7 +48,7 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
