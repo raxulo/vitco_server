@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 
-from sqlalchemy import Integer, cast, func, select
+from sqlalchemy import func, select
 
 from app.modules.administration.domain.enums import Role
 from app.modules.collections.mcc_collection.domain.enums import QuantityCollectionMode
@@ -32,10 +32,7 @@ class MccWeightRouteWiseExecutor(ReportExecutor):
         mcc = await self.get_mcc(session, query.mcc_id)
         filters = self.filters(m, query)
 
-        route_from = int(query.route_from)
-        route_to = int(query.route_to)
-
-        route = cast(v.route_code, Integer)
+        route = self.code_as_int(v.route_code)
 
         # =========================================================
         # Rows
@@ -54,7 +51,7 @@ class MccWeightRouteWiseExecutor(ReportExecutor):
             .join(v, v.id == m.vlcc_id)
             .where(
                 *filters,
-                route.between(route_from, route_to),
+                *self.code_between(v.route_code, query.route_from, query.route_to),
             )
             .order_by(
                 route,
@@ -77,7 +74,7 @@ class MccWeightRouteWiseExecutor(ReportExecutor):
             .join(v, v.id == m.vlcc_id)
             .where(
                 *filters,
-                route.between(route_from, route_to),
+                *self.code_between(v.route_code, query.route_from, query.route_to),
             )
             .group_by(route)
         )

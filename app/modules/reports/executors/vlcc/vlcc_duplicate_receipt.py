@@ -41,7 +41,7 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
             select(u.name, u.mobile)
             .select_from(f)
             .join(u, u.id == f.user_id)
-            .where(f.farmer_code == query.member_code, f.vlcc_id == query.vlcc_id)
+            .where(ReportExecutor.code_match(f.farmer_code, query.member_code), f.vlcc_id == query.vlcc_id)
             .limit(1)
         )
         farmer_res = (await session.execute(farmer_stmt)).mappings().one_or_none()
@@ -66,7 +66,7 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
             .where(*filters)
         )
 
-        rows_stmt = rows_stmt.where(f.farmer_code == query.member_code)
+        rows_stmt = rows_stmt.where(ReportExecutor.code_match(f.farmer_code, query.member_code))
 
         rows_result = await session.execute(rows_stmt)
 

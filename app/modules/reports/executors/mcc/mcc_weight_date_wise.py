@@ -1,12 +1,11 @@
 from datetime import date
 
 from app.modules.reports.application.dto import LedgerResult
-from sqlalchemy import Integer
 from app.modules.reports.executors.base import ReportExecutor
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.collections.mcc_collection.infrastructure.models import MccCollectionModel
 from app.modules.reports.application.queries import ReportQuery
-from sqlalchemy import select, func, cast, Date
+from sqlalchemy import select, func, Date
 from app.modules.reports.application.dto import ReportResult
 from app.modules.reports.application.dto import ReportMetadata
 from app.modules.administration.domain.enums import Role
@@ -34,10 +33,7 @@ class MccWeightDateWiseExecutor(ReportExecutor):
         filters = self.filters(m, query)
 
         # Apply custom code range filters on VLCC code
-        if query.code_from:
-            filters.append(cast(v.vlcc_code, Integer) >= int(query.code_from))
-        if query.code_to:
-            filters.append(cast(v.vlcc_code, Integer) <= int(query.code_to))
+        filters += self.code_between(v.vlcc_code, query.code_from, query.code_to)
 
         # One row per VLCC per day: that day's cans and quantity
         day = func.date(m.collected_at)
@@ -53,7 +49,7 @@ class MccWeightDateWiseExecutor(ReportExecutor):
             .join(v, v.id == m.vlcc_id)
             .where(*filters)
             .group_by(v.vlcc_code, v.name, day)
-            .order_by(cast(v.vlcc_code, Integer).asc(), day.asc())
+            .order_by(self.code_as_int(v.vlcc_code).asc(), day.asc())
             .offset(query.offset)
             .limit(query.size)
         )

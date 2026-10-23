@@ -2,7 +2,7 @@
 
 from app.modules.administration.infrastructure.models import UserModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import Integer, cast, select
 from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.common.address.infrastructure.models import AddressModel
 from typing import Any
@@ -27,6 +27,52 @@ from app.modules.reports.application.dto import ReportResult
 
 
 class ReportExecutor(ABC):
+
+    # =========================================================
+    # Code filters (member / VLCC / farmer / route codes)
+    #
+    # Codes are compared numerically so leading zeros never matter:
+    # users sometimes type "00001" for what is really "1".
+    # =========================================================
+
+    @staticmethod
+    def code_as_int(column):
+        """The code column as an integer, so "00001" and "1" are equal."""
+        return cast(column, Integer)
+
+    @staticmethod
+    def _code_int(value) -> int | None:
+        """A user-entered code as int; None when blank or not all digits."""
+        text = str(value).strip() if value is not None else ""
+        return int(text) if text.isdigit() else None
+
+    @classmethod
+    def code_match(cls, column, value):
+        """
+        Equality on a code, ignoring leading zeros ("00001" matches "1").
+        Falls back to an exact text match when the value is not all digits.
+        """
+        number = cls._code_int(value)
+        if number is None:
+            return column == value
+        return cls.code_as_int(column) == number
+
+    @classmethod
+    def code_between(cls, column, low, high) -> list:
+        """
+        Inclusive numeric range conditions for a code column, ignoring leading
+        zeros. A blank / non-digit bound is skipped. Returns a list to splat
+        into ``.where(...)`` (or extend a filter list with).
+        """
+        numeric = cls.code_as_int(column)
+        conditions = []
+        low_int = cls._code_int(low)
+        high_int = cls._code_int(high)
+        if low_int is not None:
+            conditions.append(numeric >= low_int)
+        if high_int is not None:
+            conditions.append(numeric <= high_int)
+        return conditions
 
     @abstractmethod
     async def execute(

@@ -109,7 +109,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
             select(VlccModel.id, VlccModel.name, UserModel.mobile)
             .outerjoin(UserModel, UserModel.id == VlccModel.user_id)
             .where(
-                VlccModel.vlcc_code == query.member_code,
+                ReportExecutor.code_match(VlccModel.vlcc_code, query.member_code),
                 VlccModel.created_by.in_(mcc_creators),
                 VlccModel.is_deleted.is_(False),
             )

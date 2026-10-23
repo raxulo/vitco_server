@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 
-from sqlalchemy import Integer, cast, func, select
+from sqlalchemy import func, select
 
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.models import UserModel
@@ -33,10 +33,7 @@ class MccWeightVlccWiseExecutor(ReportExecutor):
         mcc = await self.get_mcc(session, query.mcc_id)
         filters = self.filters(m, query)
 
-        code_from = int(query.code_from)
-        code_to = int(query.code_to)
-
-        vlcc_code_int = cast(v.vlcc_code, Integer)
+        vlcc_code_int = self.code_as_int(v.vlcc_code)
 
         # =========================================================
         # Rows
@@ -59,7 +56,7 @@ class MccWeightVlccWiseExecutor(ReportExecutor):
             .outerjoin(UserModel, UserModel.id == v.user_id)
             .where(
                 *filters,
-                vlcc_code_int.between(code_from, code_to),
+                *self.code_between(v.vlcc_code, query.code_from, query.code_to),
             )
             .order_by(
                 vlcc_code_int,
@@ -80,7 +77,7 @@ class MccWeightVlccWiseExecutor(ReportExecutor):
             .join(v, v.id == m.vlcc_id)
             .where(
                 *filters,
-                vlcc_code_int.between(code_from, code_to),
+                *self.code_between(v.vlcc_code, query.code_from, query.code_to),
             )
             .group_by(vlcc_code_int)
         )
