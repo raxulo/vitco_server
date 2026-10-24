@@ -804,6 +804,8 @@ class VlccHandler:
                             id=vlcc_relation.user_id,
                             name=command.user.name,
                             email=command.user.email,
+                            role=Role.VLCC,
+                            password_hash=None,
                             mobile=command.user.mobile,
                             updated_by=command.updated_by,
                         )

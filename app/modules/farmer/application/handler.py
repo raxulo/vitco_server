@@ -221,6 +221,8 @@ class FarmerHandler:
                         id=relations.user_id,
                         name=command.user.name,
                         email=command.user.email,
+                        role=Role.FARMER,
+                        password_hash=None,
                         mobile=command.user.mobile,
                         updated_by=command.updated_by,
                     )

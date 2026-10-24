@@ -1138,6 +1138,7 @@ async def update_profile(
                 user=new_user,
                 address=new_address,
                 bank_account=new_bank_account,
+                milk_quality_config=None,
                 device_item_versions=None,
             ),
         )
@@ -1151,6 +1152,7 @@ async def update_profile(
                 updated_by=user.id,
                 user=new_user,
                 address=new_address,
+                milk_quality_config=None,
                 bank_account=new_bank_account,
                 device_item_versions=None,
             ),
