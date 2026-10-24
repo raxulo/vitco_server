@@ -25,6 +25,7 @@ from app.modules.ratechart.domain.enums import (
 )
 from app.modules.ratechart.application.command import (
     CreateRateChartCommand,
+    UpdateRateChartCommand,
     DeleteRateChartCommand,
     GetRateChartQuery,
     GridRowInput,
@@ -303,6 +304,142 @@ async def create_rate_chart(
                 is_default=False
             )
         )
+    return res_data
+
+
+@router.put("/{ratechart_id}", response_model=RateChartDetailResponse)
+async def update_rate_chart(
+    request: Request,
+    ratechart_id: UUID,
+    body: CreateRateChartApiRequest,
+):
+    """
+    Update a Rate Chart and replace its formula config / grid rows / prodata rows.
+    Same body as create. Chart type is fixed after creation (matches web controller).
+    """
+    user: CurrentUser | None = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    handler = GetHandler.ratechart_handler(request)
+    await handler.ensure_modifiable(ratechart_id, user)
+
+    current = await handler.get(GetRateChartQuery(id=ratechart_id, owner=user))
+    chart_type_val = RateChartType(int(current.chart_type))
+
+    try:
+        milk_type_val = MilkType(int(body.milk_type.value))
+    except Exception:
+        milk_type_val = MilkType.MIXED
+
+    try:
+        calc_type_val = RateCalculationType(int(body.calculation_type.value))
+    except Exception:
+        calc_type_val = RateCalculationType.FAT_AND_SNF
+
+    try:
+        status_val = RateChartStatus(int(body.status.value))
+    except Exception:
+        status_val = RateChartStatus.ACTIVE
+
+    command = UpdateRateChartCommand(
+        id=ratechart_id,
+        chart_name=body.chart_name.strip(),
+        chart_type=chart_type_val,
+        milk_type=milk_type_val,
+        calculation_type=calc_type_val,
+        effective_from=body.effective_from,
+        effective_to=body.effective_to,
+        status=status_val,
+        description=body.description,
+        owner=user,
+    )
+    await handler.update(command)
+
+    # Replace child configuration (grid / prodata rows are replaced by the handler)
+    if chart_type_val == RateChartType.FORMULA:
+        fc = body.formula_config
+        await handler.save_formula_config(
+            SaveFormulaConfigCommand(
+                rate_chart_id=ratechart_id,
+                milk_type=milk_type_val,
+                cow_standard_fat=fc.cow_standard_fat if fc else 0.0,
+                cow_standard_snf=fc.cow_standard_snf if fc else 0.0,
+                cow_standard_rate=fc.cow_standard_rate if fc else 0.0,
+                buffalo_standard_fat=fc.buffalo_standard_fat if fc else 0.0,
+                buffalo_standard_snf=fc.buffalo_standard_snf if fc else 0.0,
+                buffalo_standard_rate=fc.buffalo_standard_rate if fc else 0.0,
+                cow_fat_percentage=fc.cow_fat_percentage if fc else 0.0,
+                cow_snf_percentage=fc.cow_snf_percentage if fc else 0.0,
+                buffalo_fat_percentage=fc.buffalo_fat_percentage if fc else 0.0,
+                buffalo_snf_percentage=fc.buffalo_snf_percentage if fc else 0.0,
+            ),
+            user,
+        )
+    elif chart_type_val in (RateChartType.CSV, RateChartType.TEXT):
+        # Rows are only replaced when sent, so an edit without a new file keeps the grid
+        if body.grids is not None:
+            rows = [
+                GridRowInput(
+                    row_number=g.row_number or (idx + 1),
+                    fat=g.fat,
+                    snf=g.snf,
+                    rate=g.rate,
+                )
+                for idx, g in enumerate(body.grids)
+            ]
+            await handler.save_grid_rows(SaveGridRowsCommand(rate_chart_id=ratechart_id, rows=rows), user)
+    elif chart_type_val == RateChartType.PRODATA:
+        if body.prodata_rows is not None:
+            rows = [
+                ProdataRowInput(
+                    row_number=r.row_number or (idx + 1),
+                    fat_min=r.fat_min,
+                    fat_max=r.fat_max,
+                    snf_min=r.snf_min,
+                    snf_max=r.snf_max,
+                    fat_rate_per_kg=r.kg_fat_rate,
+                    snf_rate_per_kg=r.kg_snf_rate,
+                    snf_cutoff=r.snf_cut_off,
+                    snf_deduction=r.snf_deduction,
+                )
+                for idx, r in enumerate(body.prodata_rows)
+            ]
+            await handler.save_prodata_rows(SaveProdataRowsCommand(rate_chart_id=ratechart_id, rows=rows), user)
+
+    chart_dto = await handler.get(GetRateChartQuery(id=ratechart_id, owner=user))
+    res_data = RateChartDetailResponse.model_validate(chart_dto)
+
+    if chart_type_val == RateChartType.FORMULA:
+        try:
+            res_data.formula_config = await handler.get_formula_config(ratechart_id)
+        except Exception:
+            pass
+    elif chart_type_val in (RateChartType.CSV, RateChartType.TEXT):
+        try:
+            grids = await handler.get_grid_rows(ratechart_id)
+            res_data.grids = [{"fat": float(g.fat), "snf": float(g.snf), "rate": float(g.rate)} for g in grids]
+        except Exception:
+            pass
+    elif chart_type_val == RateChartType.PRODATA:
+        try:
+            prodata = await handler.get_prodata_rows(ratechart_id)
+            res_data.prodata_rows = [
+                {
+                    "fat_min": float(p.fat_min),
+                    "fat_max": float(p.fat_max),
+                    "snf_min": float(p.snf_min) if p.snf_min is not None else None,
+                    "snf_max": float(p.snf_max) if p.snf_max is not None else None,
+                    "kg_fat_rate": float(p.fat_rate_per_kg) if p.fat_rate_per_kg is not None else 0.0,
+                    "kg_snf_rate": float(p.snf_rate_per_kg) if p.snf_rate_per_kg is not None else 0.0,
+                    "snf_cut_off": float(p.snf_cutoff) if p.snf_cutoff is not None else 0.0,
+                    "snf_deduction": float(p.snf_deduction) if p.snf_deduction is not None else 0.0,
+                }
+                for p in prodata
+            ]
+        except Exception:
+            pass
+
     return res_data
 
 

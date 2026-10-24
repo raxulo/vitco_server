@@ -265,19 +265,22 @@ class RateChartRepository(IRateChartRepository):
         owner: CurrentUser,
     ) -> RateChart | None:
 
+        Creator = aliased(UserModel, name="creator")
+        can_modify = RateChartAccessScope.can_modify(owner, RateChartModel.created_by)
         stmt = (
-            select(RateChartModel)
+            select(RateChartModel, can_modify.label("can_modify"), Creator.name.label("owner_name"))
+            .outerjoin(Creator, Creator.id == RateChartModel.created_by)
             .where(
                 RateChartModel.id == id,
                 RateChartAccessScope.get_condition(owner),
             )
         )
 
-        model = await self._session.scalar(stmt)
+        row = (await self._session.execute(stmt)).one_or_none()
 
         return (
-            RateChartMapper.to_entity(model)
-            if model
+            RateChartMapper.to_entity(row.RateChartModel, row.can_modify, row.owner_name)
+            if row
             else None
         )
 
