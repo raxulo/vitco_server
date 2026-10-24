@@ -647,25 +647,47 @@
         }, 10);
     }
 
+    // FAT min of any row after the first is automatic (previous row's FAT max + 0.1)
+    // and read-only. Only the first row's FAT min is editable.
+    function recomputeProdataFat() {
+        const rows = document.querySelectorAll('#prodata-tbody tr');
+        rows.forEach((row, i) => {
+            row.querySelector('.pro-index').innerText = i + 1;
+            const fatMin = row.querySelector('.pd-fat-min');
+            if (i === 0) {
+                fatMin.readOnly = false;
+                fatMin.style.background = '';
+            } else {
+                const prevMax = parseFloat(rows[i - 1].querySelector('.pd-fat-max').value);
+                if (!isNaN(prevMax)) fatMin.value = (prevMax + 0.1).toFixed(1);
+                fatMin.readOnly = true;
+                fatMin.style.background = '#f1f5f9';
+            }
+        });
+    }
+
     function addProdataRow(fatMin = '', fatMax = '', snfMin = '', snfMax = '', kgFat = '', kgSnf = '', cutOff = '', deduction = '') {
         const tbody = document.getElementById('prodata-tbody');
         const empty = document.getElementById('prodata-empty');
         empty.style.display = 'none';
 
-        if (fatMin === '') {
+        const isFirst = tbody.children.length === 0;
+
+        // New non-first row: auto FAT min = previous row's FAT max + 0.1
+        if (!isFirst && fatMin === '') {
             const rows = tbody.querySelectorAll('tr');
-            if (rows.length > 0) {
-                const lastFatMax = parseFloat(rows[rows.length - 1].querySelector('.pd-fat-max').value);
-                if (!isNaN(lastFatMax)) fatMin = (lastFatMax + 0.1).toFixed(1);
-            }
+            const lastFatMax = parseFloat(rows[rows.length - 1].querySelector('.pd-fat-max').value);
+            if (!isNaN(lastFatMax)) fatMin = (lastFatMax + 0.1).toFixed(1);
         }
 
         const tr = document.createElement('tr');
-        const inp = (cls, val, step = '0.01') => `<input type="number" step="${step}" class="form-control-sm ${cls}" value="${val}" style="padding:4px; border:1px solid #cbd5e1; border-radius:4px; width:80px;">`;
+        // readonly: FAT min is read-only on every row except the first
+        const inp = (cls, val, step = '0.01', readonly = false) =>
+            `<input type="number" step="${step}" ${readonly ? 'readonly' : ''} class="form-control-sm ${cls}" value="${val}" style="padding:4px; border:1px solid #cbd5e1; border-radius:4px; width:80px; ${readonly ? 'background:#f1f5f9;' : ''}">`;
 
         tr.innerHTML = `
             <td class="pro-index" style="color:#64748b; font-weight:700; padding:12px;">${tbody.children.length + 1}</td>
-            <td style="padding:12px;">${inp('pd-fat-min', fatMin, '0.1')}</td>
+            <td style="padding:12px;">${inp('pd-fat-min', fatMin, '0.1', !isFirst)}</td>
             <td style="padding:12px;">${inp('pd-fat-max', fatMax, '0.1')}</td>
             <td style="padding:12px;">${inp('pd-snf-min', snfMin, '0.1')}</td>
             <td style="padding:12px;">${inp('pd-snf-max', snfMax, '0.1')}</td>
@@ -673,9 +695,12 @@
             <td style="padding:12px;">${inp('pd-kg-snf-rate', kgSnf)}</td>
             <td style="padding:12px;">${inp('pd-snf-cut-off', cutOff, '0.1')}</td>
             <td style="padding:12px;">${inp('pd-snf-deduction', deduction)}</td>
-            <td style="text-align:center; padding:12px;"><button type="button" onclick="this.closest('tr').remove()" class="btn btn-danger btn-icon-sm" style="color:#ef4444; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button></td>
+            <td style="text-align:center; padding:12px;"><button type="button" onclick="this.closest('tr').remove(); recomputeProdataFat();" class="btn btn-danger btn-icon-sm" style="color:#ef4444; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button></td>
         `;
         tbody.appendChild(tr);
+
+        // Changing this row's FAT max updates the next row's auto FAT min
+        tr.querySelector('.pd-fat-max').addEventListener('input', recomputeProdataFat);
     }
 
     async function handleSaveRateChart(e) {
@@ -708,18 +733,22 @@
             payload.grids = allGrids;
         } else if (payload.chart_type == 2) {
             const prodata = [];
-            document.querySelectorAll('#prodata-tbody tr').forEach(row => {                
-                const r = {
-                    fat_min: parseFloat(row.querySelector('.pd-fat-min').value),
-                    fat_max: parseFloat(row.querySelector('.pd-fat-max').value),
-                    snf_min: parseFloat(row.querySelector('.pd-snf-min').value),
-                    snf_max: parseFloat(row.querySelector('.pd-snf-max').value),
-                    kg_fat_rate: parseFloat(row.querySelector('.pd-kg-fat-rate').value || 0.0),
-                    kg_snf_rate: parseFloat(row.querySelector('.pd-kg-snf-rate').value || 0.0),
-                    snf_cut_off: parseFloat(row.querySelector('.pd-snf-cut-off').value || 0.0),
-                    snf_deduction: parseFloat(row.querySelector('.pd-snf-deduction').value || 0.0)
-                };
-                if ((row.querySelector('.pro-index').innerText == "1") || (r.fat_min && r.fat_max && r.snf_min && r.snf_max)) prodata.push(r);
+            // 0 / empty is a valid number: empty -> 0.0 for the FAT band and rate
+            // columns, -> null for the SNF range. Every row is sent (no row is
+            // dropped just because a column is 0 / null / empty).
+            const numZero = (el) => { const v = parseFloat(el.value); return isNaN(v) ? 0.0 : v; };
+            const numNull = (el) => { const v = parseFloat(el.value); return isNaN(v) ? null : v; };
+            document.querySelectorAll('#prodata-tbody tr').forEach(row => {
+                prodata.push({
+                    fat_min: numZero(row.querySelector('.pd-fat-min')),
+                    fat_max: numZero(row.querySelector('.pd-fat-max')),
+                    snf_min: numNull(row.querySelector('.pd-snf-min')),
+                    snf_max: numNull(row.querySelector('.pd-snf-max')),
+                    kg_fat_rate: numZero(row.querySelector('.pd-kg-fat-rate')),
+                    kg_snf_rate: numZero(row.querySelector('.pd-kg-snf-rate')),
+                    snf_cut_off: numZero(row.querySelector('.pd-snf-cut-off')),
+                    snf_deduction: numZero(row.querySelector('.pd-snf-deduction'))
+                });
             });
             payload.prodata_rows = prodata;
         }
