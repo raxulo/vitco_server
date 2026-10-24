@@ -75,6 +75,7 @@ Python 3.13+
 from app.modules.administration.application.handler import UserHandler
 from app.modules.admin.application.handler import AdminHandler
 from app.core.logging.logger import logger_manager
+from app.worker.supervisor import WorkerSupervisor
 
 from contextlib import asynccontextmanager
 
@@ -115,6 +116,14 @@ async def lifespan(app: FastAPI):
         async with state.container.database.transaction():
             await seeder.create_super_admin()
 
+        # Excel import / export worker: a separate process, so a job can never slow down or crash the API
+        exchange_supervisor = state.container.resolve(WorkerSupervisor)
+        try:
+            await exchange_supervisor.recover()
+            await exchange_supervisor.start()
+        except Exception:
+            logger.exception("Excel exchange worker could not be started; the API keeps running.")
+
         logger.info("Application started.")
 
         yield
@@ -124,6 +133,10 @@ async def lifespan(app: FastAPI):
         logger.info("Stopping application...")
 
         state.set_status(ApplicationStatus.STOPPING)
+        try:
+            await state.container.resolve(WorkerSupervisor).stop()
+        except Exception:
+            logger.exception("Excel exchange worker did not stop cleanly.")
         await state.container.database.shutdown()
         await resource_manager.shutdown()
 

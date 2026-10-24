@@ -42,12 +42,12 @@ updated: 2026-10-25T00:00:00+05:30
 **Discovery:** Level 2 — see [phases/1/RESEARCH.md](phases/1/RESEARCH.md)
 
 **Plans:**
-- [ ] Plan 1.1: Job domain & persistence (wave 1) — [1-PLAN.md](phases/1/1-PLAN.md)
-- [ ] Plan 1.2: Column specs & streaming xlsx (wave 2) — [2-PLAN.md](phases/1/2-PLAN.md)
-- [ ] Plan 1.3: File safety — storage, hostile-file guard, disk guard, duplicate store (wave 2) — [3-PLAN.md](phases/1/3-PLAN.md)
-- [ ] Plan 1.4: Worker process engine (wave 3) — [4-PLAN.md](phases/1/4-PLAN.md)
-- [ ] Plan 1.5: Supervisor, handler & backpressure (wave 4) — [5-PLAN.md](phases/1/5-PLAN.md)
-- [ ] Plan 1.6: Resumable upload & job REST API (wave 5) — [6-PLAN.md](phases/1/6-PLAN.md)
+- [x] Plan 1.1: Job domain & persistence (wave 1) — [1-PLAN.md](phases/1/1-PLAN.md)
+- [x] Plan 1.2: Column specs & streaming xlsx (wave 2) — [2-PLAN.md](phases/1/2-PLAN.md)
+- [x] Plan 1.3: File safety — storage, hostile-file guard, disk guard, duplicate store (wave 2) — [3-PLAN.md](phases/1/3-PLAN.md)
+- [x] Plan 1.4: Worker process engine (wave 3) — [4-PLAN.md](phases/1/4-PLAN.md)
+- [x] Plan 1.5: Supervisor, handler & backpressure (wave 4) — [5-PLAN.md](phases/1/5-PLAN.md)
+- [x] Plan 1.6: Resumable upload & job REST API (wave 5) — [6-PLAN.md](phases/1/6-PLAN.md)
 
 ---
 

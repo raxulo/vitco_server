@@ -59,6 +59,12 @@ from app.config.filesystem import storage_config
 from app.modules.media.domain.local_storage import LocalStorage
 from app.modules.products.application.handler import ProductHandler
 from app.modules.products.infrastructure.repository import ProductRepository
+from app.modules.dataexchange.infrastructure.repository import ExcelJobRepository
+from app.modules.dataexchange.infrastructure.storage import ExchangeStorage
+from app.modules.dataexchange.infrastructure.file_guard import FileGuard
+from app.modules.dataexchange.application.handler import ExcelJobHandler
+from app.modules.dataexchange.application.uploads import ExcelUploadService
+from app.worker.supervisor import WorkerSupervisor
 
 from app.modules.payments.application.service import PaymentPostingService
 from app.bootstrap.state import ApplicationState
@@ -81,6 +87,7 @@ class ModuleConfigurator:
         _container = state.container
         cls._repo_config(_container)
         cls._media_register(_container)
+        cls._dataexchange_register(_container)
         cls._service_register(_container)
         cls._handler_config(_container)
 
@@ -193,6 +200,21 @@ class ModuleConfigurator:
         repository = MarketplaceRepository(_database)
         container.register(MarketplaceRepository, repository)
 
+        repository = ExcelJobRepository(_database)
+        container.register(ExcelJobRepository, repository)
+
+    @classmethod
+    def _dataexchange_register(cls, container: ServiceContainer):
+        """Excel import / export infrastructure, shared by the API and the exchange worker."""
+        mb = 1024 * 1024
+        storage = ExchangeStorage(
+            settings.EXCHANGE_PATH,
+            max_upload_bytes=settings.EXCHANGE_MAX_UPLOAD_MB * mb,
+            min_free_bytes=settings.EXCHANGE_MIN_FREE_DISK_MB * mb,
+        )
+        container.register(ExchangeStorage, storage)
+        container.register(FileGuard, FileGuard(max_uncompressed_bytes=settings.EXCHANGE_MAX_UNCOMPRESSED_MB * mb))
+
     @classmethod
     def _handler_config(cls, container: ServiceContainer):
         cls._administration(container)
@@ -219,6 +241,36 @@ class ModuleConfigurator:
         cls._device_item_version(container)
         cls._reports(container)
         cls._marketplace(container)
+        cls._dataexchange(container)
+
+    @classmethod
+    def _dataexchange(cls, container: ServiceContainer):
+        handler = ExcelJobHandler(
+            database=container.database,
+            repository=container.resolve(ExcelJobRepository),
+            storage=container.resolve(ExchangeStorage),
+            guard=container.resolve(FileGuard),
+            max_queued=settings.EXCHANGE_MAX_QUEUED_JOBS,
+        )
+        container.register(ExcelJobHandler, handler)
+
+        uploads = ExcelUploadService(
+            storage=container.resolve(ExchangeStorage),
+            guard=container.resolve(FileGuard),
+            chunk_size=settings.EXCHANGE_UPLOAD_CHUNK_MB * 1024 * 1024,
+        )
+        container.register(ExcelUploadService, uploads)
+
+        supervisor = WorkerSupervisor(
+            database=container.database,
+            repository=container.resolve(ExcelJobRepository),
+            storage=container.resolve(ExchangeStorage),
+            enabled=settings.EXCHANGE_WORKER_ENABLED,
+            log_dir=settings.LOG_PATH,
+            heartbeat_timeout_s=settings.EXCHANGE_HEARTBEAT_TIMEOUT_S,
+            file_ttl_hours=settings.EXCHANGE_FILE_TTL_HOURS,
+        )
+        container.register(WorkerSupervisor, supervisor)
 
     @classmethod
     def _marketplace(cls, container: ServiceContainer):

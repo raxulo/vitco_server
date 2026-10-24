@@ -17,6 +17,11 @@ logs/
 
 # User-uploaded media
 storage/media/
+# Excel import / export job files (contain personal and bank data)
+storage/exchange/
+# SQLite WAL side files
+*.db-wal
+*.db-shm
 
 # Editor / OS
 .DS_Store

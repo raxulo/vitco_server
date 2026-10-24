@@ -77,7 +77,7 @@ Load for context:
     1. first 4 bytes `PK\x03\x04` else InvalidExcelFileException("Not an .xlsx file");
     2. `zipfile.ZipFile` directory only (no extraction): reject `BadZipFile`, > max_members, sum(`file_size`) > max_uncompressed_bytes, any member with `file_size / max(compress_size, 1) > max_ratio` and `file_size` > 1 MB, encrypted members, member names with `..` or absolute paths;
     3. must contain `[Content_Types].xml` and `xl/workbook.xml` (else "Not an Excel workbook" — catches .docx / random zips);
-    4. scan the first 64 KB of each `xl/worksheets/*.xml` and `xl/sharedStrings.xml` for `<!DOCTYPE` / `<!ENTITY` → reject (entity-expansion attack); also assert `openpyxl` will use defusedxml (`openpyxl.xml.DEFUSEDXML is True`) at import time and log an error if not.
+    4. scan the first 64 KB of each `xl/worksheets/*.xml` and `xl/sharedStrings.xml` for `<!DOCTYPE` / `<!ENTITY` → reject early with a clear message (the expat reader also refuses them while parsing — DECISION-012, defense in depth).
     Tests build real files under tmp_path: valid workbook passes; text file → rejected; zip without workbook.xml → rejected; high-ratio member (e.g. 50 MB of zeros) → rejected; 10,001 members → rejected; sheet XML with `<!ENTITY` → rejected.
     AVOID: extracting or fully decompressing members to measure them, because that is exactly what a zip bomb exploits.
   </action>

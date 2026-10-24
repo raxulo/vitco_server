@@ -203,8 +203,44 @@ class Settings(BaseSettings):
     CHUNK_PATH: Path = BASE_DIR / "storage" / "chunks"
 
     MEDIA_PATH: Path = BASE_DIR / "storage" / "media"
-    
+
     LOG_PATH: Path = BASE_DIR / "logs"
+
+    # ==========================================================
+    # Excel Data Exchange (import / export jobs)
+    # ==========================================================
+
+    EXCHANGE_PATH: Path = BASE_DIR / "storage" / "exchange"
+
+    EXCHANGE_WORKER_ENABLED: bool = True
+
+    EXCHANGE_MAX_CONCURRENT_JOBS: int = 2
+
+    EXCHANGE_MAX_QUEUED_JOBS: int = 20
+
+    EXCHANGE_MAX_UPLOAD_MB: int = 500
+
+    EXCHANGE_UPLOAD_CHUNK_MB: int = 5
+
+    EXCHANGE_MAX_UNCOMPRESSED_MB: int = 2048
+
+    EXCHANGE_MAX_ROWS: int = 5_000_000
+
+    EXCHANGE_MIN_FREE_DISK_MB: int = 1024
+
+    EXCHANGE_FILE_TTL_HOURS: int = 24
+
+    EXCHANGE_TX_BUDGET_MS: int = 250            # target duration of one worker write transaction
+
+    EXCHANGE_BATCH_PAUSE_MS: int = 20           # pause between batches so API writers get the lock
+
+    EXCHANGE_MAX_BATCH_SIZE: int = 500
+
+    EXCHANGE_WORKER_MAX_MEMORY_MB: int = 1024
+
+    EXCHANGE_HEARTBEAT_TIMEOUT_S: int = 120
+
+    EXCHANGE_POLL_INTERVAL_MS: int = 1000
 
     # ==========================================================
     # Computed

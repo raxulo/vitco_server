@@ -19,6 +19,13 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.request_id import RequestIdMiddleware
 
+# Requests that stream large bodies must not hold a pooled DB connection while bytes
+# are on the wire (Excel uploads, DECISION-009); their handlers never touch the DB.
+_NO_TRANSACTION_PREFIXES = (
+    "/api/v1/excel/uploads",
+)
+
+
 class DatabaseMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(
@@ -26,6 +33,9 @@ class DatabaseMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next,
     ):
+
+        if request.url.path.startswith(_NO_TRANSACTION_PREFIXES):
+            return await call_next(request)
 
         async with request.app.state.application.container.database.transaction():
 

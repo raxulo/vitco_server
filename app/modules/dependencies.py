@@ -12,6 +12,8 @@ from app.modules.admin.application.handler import AdminHandler
 from app.modules.auth.application.handler import LoginHandler
 from app.modules.farmer.application.handler import FarmerHandler
 from app.modules.collections.mcc_collection.application.handler import MccCollectionHandler
+from app.modules.dataexchange.application.handler import ExcelJobHandler
+from app.modules.dataexchange.application.uploads import ExcelUploadService
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -76,6 +78,14 @@ class GetHandler:
     @staticmethod
     def mcc_collection_handler(request: Request)-> MccCollectionHandler:
         return request.app.state.application.container.resolve(MccCollectionHandler)
+
+    @staticmethod
+    def excel_handler(request: Request) -> ExcelJobHandler:
+        return request.app.state.application.container.resolve(ExcelJobHandler)
+
+    @staticmethod
+    def excel_upload_service(request: Request) -> ExcelUploadService:
+        return request.app.state.application.container.resolve(ExcelUploadService)
 
     @staticmethod
     def settings_handler(request: Request)-> SettingsHandler:

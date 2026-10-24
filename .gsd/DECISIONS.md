@@ -34,7 +34,7 @@ Clients must poll. Job files need cleanup (24 h). A restart interrupts running j
 ## [DECISION-002] openpyxl in read-only / write-only modes
 
 **Date**: 2026-10-25
-**Status**: Accepted
+**Status**: Superseded by DECISION-012 (measured during Plan 1.2)
 
 ### Context
 The project has no Excel library. Files can hold 100,000+ rows.
@@ -217,6 +217,36 @@ API writes wait at most one batch budget (~250 ms) instead of seconds; throughpu
 
 ### Rationale
 "Any size" becomes "size only changes the duration": memory, DB lock time, CPU share and disk use are all bounded, and every limit fails with a clear message instead of a crash.
+
+---
+
+## [DECISION-012] Own expat streaming reader + xlsxwriter (replaces openpyxl at runtime)
+
+**Date**: 2026-10-25
+**Status**: Accepted (user decision during Plan 1.2, executor Rule 4)
+
+### Context
+Measured on the dev machine (Python 3.14, 100,000 rows × 21 farmer-like columns):
+
+| Engine | Speed | Memory |
+|--------|-------|--------|
+| openpyxl `read_only` | 2,864 rows/s | loads the whole `sharedStrings.xml` into memory (Excel-saved files always use it) → grows with unique values |
+| own reader on stdlib `xml.parsers.expat` | 15,649–18,130 rows/s | 7.5 MB peak, constant |
+| openpyxl `write_only` | 4,526 rows/s | 0.7 MB |
+| xlsxwriter 3.3.0 `constant_memory` | 7,604 rows/s | 0.8 MB |
+
+openpyxl also ran without lxml (`openpyxl.xml.LXML = False`). Its write-only sheets have no `add_data_validation`; validations go through `ws.data_validations`.
+
+### Decision
+- **Read:** an own streaming reader in `infrastructure/xlsx.py` on stdlib `zipfile` + `xml.parsers.expat`. Shared strings stay in memory up to 100,000 entries, beyond that they move to a scratch SQLite file in the job folder (lookups per batch with a small LRU cache). The parser rejects DOCTYPE / entity declarations itself and caps a cell at Excel's 32,767 characters.
+- **Write:** `xlsxwriter==3.3.0` with `constant_memory` and `tmpdir` = the job folder. Strings are written inline; formats are explicit per cell for text columns; validations, freeze panes, AutoFilter and column widths are set up front.
+- **openpyxl** moves to `requirements-dev.txt`, used by the tests as an independent reader of our output. `defusedxml` is dropped (no runtime openpyxl XML parsing left).
+
+### Rationale
+The reader is 5–6× faster with flat memory whatever the number of unique values (NFR-01). The writer is 1.7× faster and mature. Fewer runtime dependencies.
+
+### Consequences
+We own ~300 lines of xlsx reading code, covered by tests against files written by xlsxwriter, by openpyxl and by hand-built XML (shared strings, inline / rich text, formulas, booleans, gaps). Excel features we do not read (styles, dates as serials) are not needed by our column specs; TIME cells stored as day fractions are converted.
 
 ---
 
