@@ -89,7 +89,7 @@ class VlccMilkBillSummaryExecutor(ReportExecutor):
                 "total_quantity": r["total_quantity"],
                 "average_rate": avg_rate,
                 "total_amount": r["total_amount"],
-                "sign": "─────"
+                "sign": "_____"
             }
             rows.append(ordered_row)
 
