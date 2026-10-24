@@ -1,0 +1,143 @@
+---
+milestone: Excel Data Exchange (v1.1.0)
+updated: 2026-10-25T00:00:00+05:30
+---
+
+# Requirements
+
+## Overview
+
+Requirements derived from SPEC.md Goal 6 for traceability and coverage tracking.
+Decisions behind them: [DECISIONS.md](DECISIONS.md).
+
+---
+
+## Functional Requirements
+
+### Foundation (Phase 1)
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-01 | Every export / import runs as a background job: the request returns `202 {job_id}` at once, and `GET /api/v1/excel/jobs/{id}` returns status, progress and counts | Goal 6 | 1 | Pending |
+| REQ-02 | Job state (status, total, processed, inserted, updated, discarded, file paths, error) is persisted in an `excel_jobs` table, so it survives restarts and is visible to any worker | Goal 6 | 1 | Pending |
+| REQ-03 | A finished job's file (export result or discarded-rows report) downloads from `GET /api/v1/excel/jobs/{id}/file`, streamed from disk; only the job's creator (or Super Admin) may read or download it | Goal 6 | 1 | Pending |
+| REQ-04 | One column-spec definition per entity drives the template, the export, the import validation and the Instructions sheet | Goal 6 | 1 | Pending |
+| REQ-05 | Workbook format: row 1 is the header; data starts at row 2; header frozen with AutoFilter; required headers end with `*`; header fill colour per section; text format for mobile, account number, pincode, IFSC and code columns; dropdowns for enum and YES/NO columns; a second `Instructions` sheet | Goal 6 | 1 | Pending |
+
+### Farmers (Phase 2)
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-06 | Farmer export / import first asks for a VLCC. VLCC login: its own VLCC, locked. MCC / Sub Admin / Admin: searchable VLCCs inside their hierarchy. Super Admin: all VLCCs | Goal 6 | 2 | Pending |
+| REQ-07 | Farmer export returns every non-deleted farmer of the selected VLCC in the farmer sheet format (21 columns: farmer, user, address, bank) | Goal 6 | 2 | Pending |
+| REQ-08 | Farmer import upserts by `farmer_code` inside the selected VLCC: a matching farmer is updated, otherwise one is inserted | Goal 6 | 2 | Pending |
+| REQ-09 | A row is discarded (and the rest continue) when: a required cell is blank; a value has the wrong format; its mobile or email belongs to another user (deleted users included); its code / mobile / email repeats earlier in the same file; or its code belongs to a soft-deleted farmer | Goal 6 | 2 | Pending |
+| REQ-10 | On update a blank cell keeps the stored value; a blank password on insert becomes `Vitco@123` | Goal 6 | 2 | Pending |
+| REQ-11 | The import result shows total / inserted / updated / discarded, and the discarded-rows file has the same columns plus `Row No` and `Reason`, so it can be fixed and uploaded again as-is | Goal 6 | 2 | Pending |
+
+### VLCCs (Phase 3)
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-12 | VLCC export / import first asks for an owner. Super Admin: all Admins and Sub Admins, required. Admin: its Sub Admins, blank = itself. Sub Admin: itself, locked. MCC: itself, locked | Goal 6 | 3 | Pending |
+| REQ-13 | VLCC export returns the VLCCs whose `created_by` is the selected owner, in the VLCC sheet format (44 columns: VLCC, user, address, bank, settings, milk quality) | Goal 6 | 3 | Pending |
+| REQ-14 | VLCC import upserts by `vlcc_code` among the owner's VLCCs; a new VLCC gets `created_by` = the selected owner, not the logged-in user | Goal 6 | 3 | Pending |
+| REQ-15 | Besides the REQ-09 rules, a VLCC row is discarded when its code is already used in the owner's hierarchy line (`Hierarchy.code_conflict`) | Goal 6 | 3 | Pending |
+| REQ-16 | Blank settings / milk quality cells on a new VLCC take the same defaults as the VLCC create form | Goal 6 | 3 | Pending |
+
+### Prodata rate chart (Phase 4)
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-17 | Prodata export returns the rows of one chart the user can see, in row order | Goal 6 | 4 | Pending |
+| REQ-18 | Prodata import replaces all rows of one chart the user may modify, in one transaction. Any invalid row (e.g. `fat_min > fat_max`, overlapping FAT/SNF ranges) rejects the whole file and saves nothing, with a report | Goal 6 | 4 | Pending |
+
+### Web panel (Phase 5)
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-19 | The Farmer, VLCC and Rate Chart list pages have Export / Import / Template actions, a VLCC or owner dropdown (disabled when locked), live progress and a result summary card | Goal 6 | 5 | Pending |
+
+---
+
+## Non-Functional Requirements
+
+> Guiding rule (user, 2026-10-25): **"kitna bhi bada data ho, kabhi freeze, lag ya server crash na ho."**
+> File size may only change how long a job takes, never memory, DB lock time, API latency or stability.
+
+| ID | Requirement | Category | Phase | Status |
+|----|-------------|----------|-------|--------|
+| NFR-01 | **Constant memory:** worker peak RSS stays below `EXCHANGE_WORKER_MAX_MEMORY_MB` (default 1024) and does not grow with file size — measured at 100k, 1M and 5M rows (growth between 100k and 5M < 50 MB) | Performance | 1, 5 | Pending |
+| NFR-02 | **No lag:** while a 1,000,000-row import or export runs, other API endpoints keep p95 < 300 ms and p99 < 1 s, and the API event-loop lag stays < 100 ms | Performance | 1, 5 | Pending |
+| NFR-03 | **No data loss:** writes commit in adaptive batches (≤ 500 rows) with a savepoint per row; killing the worker at any moment loses at most the uncommitted batch, never leaves a half-written row (user without farmer, farmer without user); the job ends `FAILED` with `processed_rows`; re-running the same file is safe (idempotent upsert) | Reliability | 1, 2, 3 | Pending |
+| NFR-04 | **Backpressure:** at most `EXCHANGE_MAX_CONCURRENT_JOBS` (2) running jobs, `EXCHANGE_MAX_QUEUED_JOBS` (20) queued jobs, 1 active job per user per kind; beyond that `429` + `Retry-After`, never a slowdown | Reliability | 1 | Pending |
+| NFR-05 | **Safe uploads:** streamed to disk, resumable in ≤ 5 MB chunks with sha256 verification, rejected above `EXCHANGE_MAX_UPLOAD_MB` (500) or when the file is not a real `.xlsx` | Security | 1 | Pending |
+| NFR-06 | Job files are deleted `EXCHANGE_FILE_TTL_HOURS` (24) after the job finishes | Operations | 1 | Pending |
+| NFR-07 | **Crash isolation:** jobs never run in the API process; a worker crash, freeze or out-of-memory never stops the API; the supervisor restarts the worker within 30 s; a job with a heartbeat older than 120 s is marked `FAILED` | Reliability | 1 | Pending |
+| NFR-08 | **Short DB locks:** every worker write transaction targets ≤ 250 ms (adaptive batch size); API writes during a job never fail with "database is locked" | Reliability | 1, 2, 3 | Pending |
+| NFR-09 | **Hostile files are rejected before parsing:** zip bombs (uncompressed > 2 GB, ratio > 100, > 10,000 members), XML entity expansion (defusedxml), non-xlsx content; a sheet padded with empty rows stops after 1,000 empty rows | Security | 1 | Pending |
+| NFR-10 | **Any row count:** exports above 1,048,575 rows split into numbered sheets; imports read every matching sheet; limit `EXCHANGE_MAX_ROWS` (5,000,000) is configurable | Scalability | 1 | Pending |
+| NFR-11 | **Disk guard:** uploads and exports refuse to start with `507` when free disk < 1 GB + expected size; a running job fails cleanly when disk runs low | Reliability | 1 | Pending |
+| NFR-12 | **Cheap polling:** job status is one primary-key read and returns `poll_after_ms`; 500 clients polling every second keep p95 < 50 ms for the status endpoint | Performance | 1, 5 | Pending |
+| NFR-13 | **No connection hogging:** upload requests never hold a DB connection while receiving bytes (exempt from the request-wide transaction) | Reliability | 1 | Pending |
+| NFR-14 | **Efficient downloads:** job files are not gzipped by `GZipMiddleware` (`Content-Encoding: identity`), stream from disk, and support Range / resume | Performance | 1 | Pending |
+
+---
+
+## Constraints
+
+| ID | Constraint | Source | Impact |
+|----|------------|--------|--------|
+| CON-01 | `DatabaseMiddleware` wraps every request in one transaction stored in a ContextVar; jobs must run in a fresh `contextvars.Context()` and open their own transactions | Technical | runner, all importers |
+| CON-02 | SQLite allows one writer at a time; long write transactions block other writes, so batches stay small | Technical | batch size |
+| CON-03 | No Alembic: new tables come from `Base.metadata.create_all` when the model module is imported | Technical | `excel_jobs` model import |
+| CON-04 | Argon2 hashing (`time_cost=3`, 64 MB) costs ~50–100 ms per call and is synchronous | Technical | password handling |
+| CON-05 | `users.email` is NOT NULL + unique and `users.mobile` is unique, including soft-deleted users; `farmer_master (vlcc_id, farmer_code)` is unique, including soft-deleted farmers | Technical | duplicate checks |
+| CON-06 | Ownership rules come from `app/modules/administration/infrastructure/hierarchy.py` and must not be re-implemented | Technical | scope checks |
+| CON-07 | Code follows AGENTS.md, `.agents/rules/code_standards.md` and `.gsd/STANDARDS.md` | Project | all code |
+| CON-08 | The server runs a single Uvicorn process (`run_server.py`: `workers=1`; `run_on_background.sh` uses `nohup`) — anything CPU-heavy in it slows every request | Technical | worker process (DECISION-008) |
+| CON-09 | SQLite runs with `journal_mode=WAL`, `busy_timeout=5000` (`app/core/database/drivers/sqlite.py`) — a writer waiting > 5 s gets "database is locked" | Technical | batch budget (DECISION-010) |
+| CON-10 | `GZipMiddleware(minimum_size=1024)` compresses every response unless it already has `Content-Encoding` (only `text/event-stream` is excluded) | Technical | downloads |
+| CON-11 | An Excel sheet holds at most 1,048,576 rows and 16,384 columns | Technical | export split, import multi-sheet |
+
+---
+
+## Traceability Matrix
+
+| Requirement | Plans | Tests | Status |
+|-------------|-------|-------|--------|
+| REQ-01 | 1.4, 1.5, 1.6 | `tests/dataexchange/test_worker.py`, `test_jobs_api.py` | — |
+| REQ-02 | 1.1, 1.4 | `tests/dataexchange/test_job_repository.py` | — |
+| REQ-03 | 1.6 | `tests/dataexchange/test_jobs_api.py` | — |
+| REQ-04 | 1.2 | `tests/dataexchange/test_columns.py` | — |
+| REQ-05 | 1.2 | `tests/dataexchange/test_xlsx.py` | — |
+| REQ-06 … REQ-11 | 2.1–2.3 | planned in `/plan 2` | — |
+| REQ-12 … REQ-16 | 3.1–3.3 | planned in `/plan 3` | — |
+| REQ-17, REQ-18 | 4.1–4.2 | planned in `/plan 4` | — |
+| REQ-19 | 5.1 | planned in `/plan 5` | — |
+| NFR-01 | 1.2, 1.3, 1.4, 5.2 | `test_xlsx.py` (tracemalloc), `scripts/loadtest_excel.py` | — |
+| NFR-02 | 1.4, 5.2 | `scripts/loadtest_excel.py` | — |
+| NFR-03 | 1.4, 2.2, 3.2, 5.2 | `test_worker.py` (kill mid-batch), chaos run in 5.2 | — |
+| NFR-04 | 1.5 | `test_supervisor_handler.py` | — |
+| NFR-05 | 1.3, 1.6 | `test_storage.py`, `test_uploads_api.py` | — |
+| NFR-06 | 1.5 | `test_supervisor_handler.py` | — |
+| NFR-07 | 1.4, 1.5 | `test_supervisor_handler.py` (kill worker → restart, stale heartbeat) | — |
+| NFR-08 | 1.4, 5.2 | `test_worker.py` (batch shrinks over budget), load test | — |
+| NFR-09 | 1.2, 1.3 | `test_file_guard.py`, `test_xlsx.py` | — |
+| NFR-10 | 1.2 | `test_xlsx.py` (sheet split / multi-sheet read) | — |
+| NFR-11 | 1.3, 1.4 | `test_file_guard.py` | — |
+| NFR-12 | 1.6, 5.2 | `test_jobs_api.py`, load test | — |
+| NFR-13 | 1.6 | `test_uploads_api.py` | — |
+| NFR-14 | 1.6 | `test_jobs_api.py` | — |
+
+---
+
+## Status Definitions
+
+| Status | Meaning |
+|--------|---------|
+| Pending | Not yet started |
+| In Progress | Being implemented |
+| Complete | Implemented and verified |
+| Blocked | Cannot proceed |
+| Deferred | Moved to later milestone |
