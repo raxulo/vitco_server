@@ -1,0 +1,28 @@
+[33m83dddac[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m fix (ratechart) : 0 addon on add in prodata ratechart
+[33md3e6849[m add update ratechart
+[33m33b48ee[m fix tag
+[33m70ef37f[m fix return issue in sqlite
+[33m680a1b2[m member code check as a integer
+[33m0071b5d[m add for build exe
+[33m1afe56b[m add excutable files on linux server
+[33md043e24[m admin unauthrized in api
+[33mb196194[m a
+[33mb83a75e[m a
+[33m52feb2b[m alo fix
+[33mf433419[m fix report error
+[33m78d2811[m fix marketplace
+[33mc6ba46a[m normal login
+[33m1c31865[m fix mcc
+[33m152610a[m fixed reports and mcc, vlcc permission
+[33ma718901[m toggle web sidebar
+[33m2bbb4c7[m permission handle
+[33mbbbab00[m given permission of unit, item master in subadmin
+[33m95334d2[m profile image process enhanced
+[33md84a06c[m fix fat, quantity *
+[33m999b433[m add weight duplicate receipt
+[33m4bdcd9b[m filter code accept only digit value
+[33m55602f9[m fix member code in mcc and vlcc for duplicate receipt
+[33m8bea97a[m a
+[33m4d7db1f[m Hierarchy access control, MCC reports, validators and IST timestamps
+[33md9922e0[m Checkpoint: snapshot current work before further changes
+[33m8219c9c[m Initial commit - Enterprise Architecture
