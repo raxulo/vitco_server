@@ -90,7 +90,7 @@ def parse_shift_param(shift: Any) -> Any:
     return None
 
 router = APIRouter(
-    prefix="/dashboard",
+    prefix="/dashboard1",
     tags=["Dashboard API"],
 )
 
