@@ -35,7 +35,7 @@ updated: 2026-10-25T00:00:00+05:30
 ## Phases
 
 ### Phase 1: Exchange Foundation
-**Status:** 🔄 Planning
+**Status:** ✅ Complete (verified at runtime 2026-10-25, commit 8d51666)
 **Objective:** Build the reusable, crash-proof `dataexchange` foundation: job table, separate supervised worker process, streaming xlsx with any row count, hostile-file and disk guards, disk-backed duplicate detection, resumable uploads and job APIs — so each later phase only adds an entity adapter.
 **Requirements:** REQ-01 … REQ-05, NFR-01 … NFR-14
 **Decisions:** DECISION-001, 002, 007, 008, 009, 010, 011
@@ -52,15 +52,17 @@ updated: 2026-10-25T00:00:00+05:30
 ---
 
 ### Phase 2: Farmer Excel Exchange
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete (verified at runtime 2026-10-25 — [VERIFICATION.md](phases/2/VERIFICATION.md)); phase commit pending approval
 **Objective:** Export, template and upsert import of the farmers in one selected VLCC, with VLCC selection by role.
 **Requirements:** REQ-06, REQ-07, REQ-08, REQ-09, REQ-10, REQ-11
 **Depends on:** Phase 1
 
-**Plans (draft — finalised by `/plan 2`):**
-- [ ] Plan 2.1: Farmer column spec, template & export
-- [ ] Plan 2.2: Farmer import pipeline (validate → batch pre-check → upsert → discard report)
-- [ ] Plan 2.3: VLCC options API, farmer endpoints & scope enforcement
+**Discovery:** Level 1 — see [phases/2/RESEARCH.md](phases/2/RESEARCH.md) (measured: SQLite ceiling ~2,300 farmers/s, Core bulk 2,068/s, `lower(email)` index 64 → 17 ms)
+
+**Plans:**
+- [x] Plan 2.1: Farmer sheet, bulk repository & export (wave 1) — [1-PLAN.md](phases/2/1-PLAN.md)
+- [x] Plan 2.2: Farmer import pipeline (wave 2) — [2-PLAN.md](phases/2/2-PLAN.md)
+- [x] Plan 2.3: VLCC scope, farmer endpoints & end-to-end (wave 3) — [3-PLAN.md](phases/2/3-PLAN.md)
 
 ---
 

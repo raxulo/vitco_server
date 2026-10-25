@@ -148,8 +148,10 @@ class ExcelJobHandler:
 
     async def _ensure_capacity(self, owner: CurrentUser, kind: ExcelJobKind) -> None:
         async with self._database.transaction():
-            if await self._repository.find_active(owner.id, kind) is not None:
-                raise ExcelJobConflictException()
+            active = await self._repository.find_active(owner.id, kind)
+            if active is not None:
+                # The app can resume polling the running job instead of starting a new one
+                raise ExcelJobConflictException(details={"job_id": str(active.id)})
             if await self._repository.count_queued() >= self._max_queued:
                 raise ExcelJobCapacityException()
 

@@ -64,6 +64,8 @@ from app.modules.dataexchange.infrastructure.storage import ExchangeStorage
 from app.modules.dataexchange.infrastructure.file_guard import FileGuard
 from app.modules.dataexchange.application.handler import ExcelJobHandler
 from app.modules.dataexchange.application.uploads import ExcelUploadService
+from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeHandler
+from app.modules.dataexchange.infrastructure.vlcc_scope import VlccScope
 from app.worker.supervisor import WorkerSupervisor
 
 from app.modules.payments.application.service import PaymentPostingService
@@ -260,6 +262,16 @@ class ModuleConfigurator:
             chunk_size=settings.EXCHANGE_UPLOAD_CHUNK_MB * 1024 * 1024,
         )
         container.register(ExcelUploadService, uploads)
+
+        scope = VlccScope(container.database, container.resolve(FarmerRepository))
+        container.register(VlccScope, scope)
+        container.register(FarmerExchangeHandler, FarmerExchangeHandler(
+            database=container.database,
+            jobs=handler,
+            scope=scope,
+            uploads=uploads,
+            storage=container.resolve(ExchangeStorage),
+        ))
 
         supervisor = WorkerSupervisor(
             database=container.database,

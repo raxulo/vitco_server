@@ -304,8 +304,18 @@ def parent_alive(pid: int) -> bool:
 
 
 def register_processors(container: Any, worker: ExchangeWorker) -> None:
-    """Entity processors (farmers, VLCCs, prodata) are added here by Phases 2-4."""
-    return None
+    """Entity processors; each phase adds its own (farmers: Phase 2, VLCCs: 3, prodata: 4)."""
+    from app.modules.auth.infrastructure.password import PasswordService
+    from app.modules.dataexchange.application.farmer_export import FarmerExportProcessor
+    from app.modules.dataexchange.application.farmer_import import FarmerImportProcessor
+    from app.modules.dataexchange.infrastructure.farmer_repository import FarmerExchangeRepository
+
+    database = container.database
+    farmers = FarmerExchangeRepository(database)
+    worker.register(FarmerExportProcessor(database=database, repository=farmers))
+    worker.register(FarmerImportProcessor(
+        database=database, repository=farmers, password_service=container.resolve(PasswordService),
+    ))
 
 
 def _configure_logging() -> None:
@@ -376,9 +386,15 @@ def build_worker(parent_pid: int | None) -> tuple[ExchangeWorker, DatabaseManage
 async def _main(parent_pid: int | None) -> None:
     from app.config.settings import settings
 
+    from app.modules.dataexchange.infrastructure.indexes import ensure_indexes
+
     _limit_address_space(settings.EXCHANGE_WORKER_MAX_MEMORY_MB)
     worker, database = build_worker(parent_pid)
     await database.startup()
+    try:
+        await ensure_indexes(database)          # one-time build happens here, never in the API process
+    except Exception:
+        logger.exception("could not create exchange indexes; imports still work, only slower")
 
     loop = asyncio.get_running_loop()
     for signum in (signal.SIGTERM, signal.SIGINT):

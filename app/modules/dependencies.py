@@ -14,6 +14,7 @@ from app.modules.farmer.application.handler import FarmerHandler
 from app.modules.collections.mcc_collection.application.handler import MccCollectionHandler
 from app.modules.dataexchange.application.handler import ExcelJobHandler
 from app.modules.dataexchange.application.uploads import ExcelUploadService
+from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeHandler
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -86,6 +87,10 @@ class GetHandler:
     @staticmethod
     def excel_upload_service(request: Request) -> ExcelUploadService:
         return request.app.state.application.container.resolve(ExcelUploadService)
+
+    @staticmethod
+    def farmer_exchange_handler(request: Request) -> FarmerExchangeHandler:
+        return request.app.state.application.container.resolve(FarmerExchangeHandler)
 
     @staticmethod
     def settings_handler(request: Request)-> SettingsHandler:

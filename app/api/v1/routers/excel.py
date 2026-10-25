@@ -23,7 +23,14 @@ from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse
 
-from app.api.v1.schemas.excel import CreateUploadRequest, ExcelJobResponse, UploadResponse
+from app.api.v1.schemas.excel import (
+    CreateUploadRequest,
+    ExcelJobResponse,
+    FarmerExportRequest,
+    FarmerImportRequest,
+    UploadResponse,
+    VlccOptionResponse,
+)
 from app.core.exceptions.base import ApplicationException
 from app.middleware.authentication import CurrentUser
 from app.modules.dataexchange.application.command import (
@@ -32,7 +39,8 @@ from app.modules.dataexchange.application.command import (
     GetExcelJobQuery,
     ListExcelJobsQuery,
 )
-from app.modules.dataexchange.domain.enums import ExcelJobKind, ExcelJobStatus
+from app.modules.dataexchange.domain.enums import ExcelJobKind, ExcelJobStatus, ImportMode
+from app.modules.dataexchange.domain.exceptions import ExcelJobCapacityException, ExcelJobConflictException
 from app.modules.dependencies import GetHandler
 
 router = APIRouter(
@@ -90,6 +98,69 @@ def excel_busy_response(exc: ApplicationException) -> JSONResponse:
         headers=headers,
         content={"success": False, "error": {"code": exc.code, "message": exc.message, "details": exc.details}},
     )
+
+
+def _accepted(dto) -> JSONResponse:
+    return _single(ExcelJobResponse.from_dto(dto), "Job queued", code=202)
+
+
+# =========================================================
+# FARMERS
+# =========================================================
+
+@router.get("/options/vlccs")
+async def vlcc_options(
+    request: Request,
+    search: str | None = Query(None, max_length=100),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """VLCCs this user may export / import farmers for. `locked` = the app shows the selection disabled."""
+    user = _user(request)
+    options = await GetHandler.farmer_exchange_handler(request).vlcc_options(user, search=search, limit=limit, offset=offset)
+    return JSONResponse(content=jsonable_encoder({
+        "status": True,
+        "code": 200,
+        "message": "Records fetched successfully",
+        "items": [VlccOptionResponse(id=item.id, code=item.code, name=item.name) for item in options.items],
+        "locked": options.locked,
+        "default_id": options.default_id,
+        **_compute_pagination(options.total, limit, offset),
+    }))
+
+
+@router.get("/farmers/template")
+async def farmer_template(request: Request):
+    _user(request)
+    path = await GetHandler.farmer_exchange_handler(request).template()
+    return FileResponse(path, media_type=_XLSX, filename="farmers_template.xlsx",
+                        headers={"Content-Encoding": "identity"})
+
+
+@router.post("/farmers/export", status_code=202)
+async def export_farmers(request: Request, payload: FarmerExportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.farmer_exchange_handler(request).export(user, payload.vlcc_id)
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
+
+@router.post("/farmers/import", status_code=202)
+async def import_farmers(request: Request, payload: FarmerImportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.farmer_exchange_handler(request).import_(
+            user,
+            vlcc_id=payload.vlcc_id,
+            upload_id=payload.upload_id,
+            mode=ImportMode[payload.mode],
+            dry_run=payload.dry_run,
+        )
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
 
 
 # =========================================================

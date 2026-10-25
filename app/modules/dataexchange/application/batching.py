@@ -24,14 +24,23 @@ class WorkerMemoryLimitError(RuntimeError):
 
 
 class AdaptiveBatcher:
+    """
+    Reacts to the moving average (EWMA) of transaction times, not to single
+    samples: a SQLite WAL checkpoint makes the occasional commit slow whatever
+    the batch size, and halving on every such spike would shrink batches,
+    multiply commits and make the job slower (measured in Phase 2).
+    """
 
-    __slots__ = ("_budget_ms", "_minimum", "_maximum", "_size")
+    __slots__ = ("_budget_ms", "_minimum", "_maximum", "_size", "_average")
+
+    _WEIGHT = 0.3                                  # weight of the newest sample
 
     def __init__(self, *, budget_ms: int, start: int = 200, minimum: int = 20, maximum: int = 500) -> None:
         self._budget_ms = budget_ms
         self._minimum = minimum
         self._maximum = max(maximum, minimum)
         self._size = min(max(start, minimum), self._maximum)
+        self._average: float | None = None
 
     @property
     def size(self) -> int:
@@ -39,13 +48,23 @@ class AdaptiveBatcher:
 
     def record(self, duration_ms: float) -> None:
         """Feed the duration of the last write transaction."""
-        if duration_ms > self._budget_ms:
+        if self._average is None:
+            self._average = duration_ms
+        else:
+            self._average += self._WEIGHT * (duration_ms - self._average)
+        if self._average > self._budget_ms:
             self.shrink()
-        elif duration_ms < self._budget_ms * 0.4:
-            self._size = min(self._maximum, max(self._size + 1, int(self._size * 1.25)))
+        elif self._average < self._budget_ms * 0.4 and self._size < self._maximum:
+            grown = min(self._maximum, max(self._size + 1, int(self._size * 1.25)))
+            self._average *= grown / self._size     # expected cost of the bigger batch
+            self._size = grown
 
     def shrink(self) -> None:
-        self._size = max(self._minimum, self._size // 2)
+        if self._size > self._minimum:
+            shrunk = max(self._minimum, self._size // 2)
+            if self._average is not None:
+                self._average *= shrunk / self._size
+            self._size = shrunk
 
 
 class MemoryGuard:

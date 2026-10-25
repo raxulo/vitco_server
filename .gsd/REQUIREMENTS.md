@@ -29,7 +29,7 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | ID | Requirement | Source | Phase | Status |
 |----|-------------|--------|-------|--------|
 | REQ-06 | Farmer export / import first asks for a VLCC. VLCC login: its own VLCC, locked. MCC / Sub Admin / Admin: searchable VLCCs inside their hierarchy. Super Admin: all VLCCs | Goal 6 | 2 | Pending |
-| REQ-07 | Farmer export returns every non-deleted farmer of the selected VLCC in the farmer sheet format (21 columns: farmer, user, address, bank) | Goal 6 | 2 | Pending |
+| REQ-07 | Farmer export returns every non-deleted farmer of the selected VLCC in the farmer sheet format (18 columns: farmer 5, user 4 incl. import-only password, address 4, bank 5) | Goal 6 | 2 | Pending |
 | REQ-08 | Farmer import upserts by `farmer_code` inside the selected VLCC: a matching farmer is updated, otherwise one is inserted | Goal 6 | 2 | Pending |
 | REQ-09 | A row is discarded (and the rest continue) when: a required cell is blank; a value has the wrong format; its mobile or email belongs to another user (deleted users included); its code / mobile / email repeats earlier in the same file; or its code belongs to a soft-deleted farmer | Goal 6 | 2 | Pending |
 | REQ-10 | On update a blank cell keeps the stored value; a blank password on insert becomes `Vitco@123` | Goal 6 | 2 | Pending |

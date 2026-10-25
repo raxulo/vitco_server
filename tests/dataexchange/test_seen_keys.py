@@ -37,6 +37,17 @@ def test_same_value_in_different_kinds_does_not_collide(tmp_path):
     assert duplicates == {}
 
 
+def test_find_registers_nothing_and_add_keeps_the_first_row(tmp_path):
+    with SeenKeys(tmp_path / "seen.sqlite3") as seen:
+        assert seen.find([("code", "F1")]) == {}
+        assert seen.find([("code", "F1")]) == {}            # still nothing: find never registers
+
+        seen.add([("code", "F1", 7)])
+        seen.add([("code", "F1", 9)])                        # ignored, row 7 stays first
+
+        assert seen.find([("code", "F1"), ("code", "F2")]) == {("code", "F1"): 7}
+
+
 def test_scratch_file_is_removed_on_close(tmp_path):
     path = tmp_path / "seen.sqlite3"
     seen = SeenKeys(path)

@@ -38,6 +38,27 @@ class ExcelJobFileNotReadyException(ApplicationException):
     status_code = 409
 
 
+class ExcelTargetRequiredException(ApplicationException):
+
+    code = "EXCEL_TARGET_REQUIRED"
+    message = "Please select a VLCC first."
+    status_code = 422
+
+
+class ExcelTargetNotFoundException(ApplicationException):
+
+    code = "EXCEL_TARGET_NOT_FOUND"
+    message = "The selected VLCC was not found or is not yours."
+    status_code = 404
+
+
+class ExcelExchangeForbiddenException(ApplicationException):
+
+    code = "EXCEL_EXCHANGE_FORBIDDEN"
+    message = "You are not allowed to import / export this data."
+    status_code = 403
+
+
 class ExcelUploadNotFoundException(ApplicationException):
 
     code = "EXCEL_UPLOAD_NOT_FOUND"

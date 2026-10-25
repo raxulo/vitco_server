@@ -16,15 +16,37 @@ from app.modules.dataexchange.application.batching import (
 MB = 1024 * 1024
 
 
-def test_slow_transactions_halve_the_batch_but_never_below_minimum():
+def test_sustained_slow_transactions_shrink_to_the_minimum_and_not_below():
     batcher = AdaptiveBatcher(budget_ms=250, start=200, minimum=20, maximum=500)
 
     sizes = []
-    for _ in range(6):
+    for _ in range(40):
         batcher.record(400)
         sizes.append(batcher.size)
 
-    assert sizes == [100, 50, 25, 20, 20, 20]
+    assert sizes[0] == 100                       # first slow sample: halved at once
+    assert sizes == sorted(sizes, reverse=True)  # never grows while slow
+    assert sizes[-1] == 20
+
+
+def test_a_single_slow_commit_does_not_shrink_a_healthy_batch():
+    batcher = AdaptiveBatcher(budget_ms=250, start=300, maximum=500)
+    for _ in range(5):
+        batcher.record(150)                      # healthy: inside the budget
+    size = batcher.size
+
+    batcher.record(450)                          # one WAL-checkpoint spike
+
+    assert batcher.size == size
+
+
+def test_cost_proportional_to_size_settles_inside_the_budget():
+    batcher = AdaptiveBatcher(budget_ms=250, start=20, minimum=20, maximum=5000)
+
+    for _ in range(200):
+        batcher.record(batcher.size * 0.5)       # 0.5 ms per row -> 500 rows fit the budget
+
+    assert 200 <= batcher.size <= 500
 
 
 def test_fast_transactions_grow_the_batch_up_to_maximum():

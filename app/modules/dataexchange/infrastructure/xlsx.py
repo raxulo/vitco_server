@@ -326,7 +326,8 @@ class _SharedStrings:
 
     def _spill(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(self._path)
+        # Batches are read in a worker thread, one after another (never concurrently)
+        self._db = sqlite3.connect(self._path, check_same_thread=False)
         self._db.execute("PRAGMA journal_mode=OFF")
         self._db.execute("PRAGMA synchronous=OFF")
         self._db.execute("CREATE TABLE ss (idx INTEGER PRIMARY KEY, text TEXT NOT NULL)")

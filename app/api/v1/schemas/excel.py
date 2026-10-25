@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import IntEnum
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -40,6 +41,7 @@ class ExcelJobResponse(BaseModel):
     inserted: int
     updated: int
     discarded: int
+    unchanged: int = Field(description="Imports: matched rows whose values were already the same")
     progress: int = Field(description="0 - 100")
     rows_per_second: float | None
     eta_seconds: int | None
@@ -65,6 +67,7 @@ class ExcelJobResponse(BaseModel):
             inserted=dto.inserted,
             updated=dto.updated,
             discarded=dto.discarded,
+            unchanged=dto.unchanged,
             progress=dto.progress,
             rows_per_second=dto.rows_per_second,
             eta_seconds=dto.eta_seconds,
@@ -76,6 +79,26 @@ class ExcelJobResponse(BaseModel):
             started_at=dto.started_at,
             finished_at=dto.finished_at,
         )
+
+
+class FarmerExportRequest(BaseModel):
+
+    vlcc_id: UUID | None = Field(None, description="Ignored for a VLCC login (always its own VLCC)")
+
+
+class FarmerImportRequest(BaseModel):
+
+    upload_id: UUID = Field(description="A completed upload from /excel/uploads")
+    vlcc_id: UUID | None = Field(None, description="Ignored for a VLCC login (always its own VLCC)")
+    mode: Literal["UPSERT", "CREATE_ONLY"] = "UPSERT"
+    dry_run: bool = Field(False, description="Validate only; nothing is saved")
+
+
+class VlccOptionResponse(BaseModel):
+
+    id: UUID
+    code: str
+    name: str
 
 
 class CreateUploadRequest(BaseModel):

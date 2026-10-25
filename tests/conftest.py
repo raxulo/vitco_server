@@ -33,8 +33,8 @@ from app.core.database.manager import DatabaseManager  # noqa: E402
 from app.modules.administration.domain.enums import Role  # noqa: E402
 from app.modules.administration.infrastructure.models import UserModel  # noqa: E402
 
-# Register every table the tests touch before create_all runs
-import app.modules.dataexchange.infrastructure.models  # noqa: E402,F401
+# Register every model of the app (as the API does) before create_all runs
+import app.modules.configurator  # noqa: E402,F401
 
 
 @pytest.fixture(scope="session")

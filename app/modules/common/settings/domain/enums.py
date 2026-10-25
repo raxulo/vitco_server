@@ -15,8 +15,10 @@ class CollectionMode(IntEnum):
 
 class ReceiptSize(IntEnum):
     SMALL = 0
-    LARGE = 1
-
+    MEDIUM = 1
+    LARGE = 2
+    EXTRA_LARGE = 3
+    
 
 class CattleType(IntEnum):
     COW_AND_BUFFALO = 0

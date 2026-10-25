@@ -29,6 +29,7 @@ class ExcelJobDto:
     inserted: int
     updated: int
     discarded: int
+    unchanged: int                          # imports: matched rows whose values were already the same
     progress: int                           # 0 - 100
     rows_per_second: float | None
     eta_seconds: int | None
@@ -60,6 +61,9 @@ class ExcelJobDto:
             inserted=job.inserted,
             updated=job.updated,
             discarded=job.discarded,
+            unchanged=(
+                max(job.processed_rows - job.inserted - job.updated - job.discarded, 0) if job.kind.is_import else 0
+            ),
             progress=progress,
             rows_per_second=rate,
             eta_seconds=eta,

@@ -7,9 +7,9 @@ updated: 2026-10-25T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.1.0 — Excel Data Exchange
-**Phase:** 1 - Exchange Foundation
-**Status:** Executed — awaiting `/verify 1` (independent verifier), then the phase commit
-**Plan:** 1.1–1.6 ✅ all executed (182 tests green; live uvicorn kill + upload smoke checks); SUMMARY per plan in `.gsd/phases/1/`
+**Phase:** 2 - Farmer Excel Exchange (Phase 1 ✅ verified at runtime, commit 8d51666)
+**Status:** ✅ Executed + verified at runtime (PASS) — awaiting the phase commit approval
+**Plan:** 2.1 ✅ export, 2.2 ✅ import (EWMA batcher), 2.3 ✅ scope + endpoints; live: 20k import 2,175 rows/s, export 20k in 4.1 s
 **Branch:** `feature/excel-import-export` (from `develop`; Git Flow: main / develop / feature/* / bugfix/* / hotfix/*)
 
 ## Last Action
@@ -21,9 +21,8 @@ updated: 2026-10-25T00:00:00+05:30
 
 ## Next Steps
 
-1. `/verify 1` — fresh gsd-verifier checks the codebase (not the SUMMARYs) → `.gsd/phases/1/VERIFICATION.md`
-2. Phase 1 commit (professional Conventional Commit message, after user approval)
-3. `/plan 2` — farmer exchange plans (use `run_batch` / `checkpoint` / `SeenKeys` / xlsx reader & writer; only register keys of valid rows)
+1. Phase 2 commit (professional Conventional Commit message, after user approval) — exclude the user's own `settings/domain/enums.py` change
+2. `/plan 3` — VLCC exchange (ReceiptSize now has SMALL / MEDIUM / LARGE / EXTRA_LARGE — use it for the settings dropdown)
 
 ## Active Decisions
 

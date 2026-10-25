@@ -43,6 +43,15 @@ class SeenKeys:
     def __exit__(self, *_exc) -> None:
         self.close()
 
+    def find(self, keys: list[tuple[str, str]]) -> dict[tuple[str, str], int]:
+        """First row number of every (kind, value) already registered — registers nothing."""
+        return self._lookup([(kind, value, 0) for kind, value in keys])
+
+    def add(self, keys: list[tuple[str, str, int]]) -> None:
+        """Register (kind, value, row_no) keys; values already registered keep their first row."""
+        if keys:
+            self._db.executemany("INSERT OR IGNORE INTO seen (kind, value, row_no) VALUES (?, ?, ?)", keys)
+
     def check_and_add(self, keys: list[tuple[str, str, int]]) -> dict[tuple[str, str, int], int]:
         """
         Record a batch of (kind, value, row_no) keys, already normalised by the caller.
