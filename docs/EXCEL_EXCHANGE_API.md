@@ -193,7 +193,9 @@ Content-Type: multipart/form-data
 
 #### 3. Prodata Rate-Chart Import / Export
 - **Export:** `POST /api/v1/excel/prodata/export` (`chart_id`).
-- **Import (Atomic Replace):** `POST /api/v1/excel/prodata/import` (`upload_id`, `chart_id`, `dry_run`).
+- **Import (Replace Existing or Create New):** `POST /api/v1/excel/prodata/import`
+  - *Replace Existing:* `{ "upload_id": "...", "chart_id": "<uuid>", "dry_run": false }`
+  - *Create New from Template:* `{ "upload_id": "...", "chart_id": null, "chart_name": "Summer Chart 2026", "milk_type": 2, "effective_from": "2026-05-01", "dry_run": false }`
 
 All submission endpoints return **HTTP 202 Accepted** with:
 ```json

@@ -99,12 +99,40 @@
         document.getElementById("excel-view-summary").style.display = viewName === "summary" ? "block" : "none";
     }
 
+    function handleTargetChange(kind) {
+        const select = document.getElementById("excel-target-select");
+        const newFields = document.getElementById("excel-new-chart-fields");
+        if (!newFields) return;
+        const isImportTab = document.querySelector(".excel-modal-tab.active")?.dataset.tab === "import";
+        if (kind === "prodata" && select && select.value === "__NEW__" && isImportTab) {
+            newFields.style.display = "block";
+        } else {
+            newFields.style.display = "none";
+        }
+    }
+
     function switchTab(tabName) {
         const tabs = document.querySelectorAll(".excel-modal-tab");
         tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabName));
 
         document.getElementById("excel-tab-content-import").style.display = tabName === "import" ? "block" : "none";
         document.getElementById("excel-tab-content-export").style.display = tabName === "export" ? "block" : "none";
+
+        const select = document.getElementById("excel-target-select");
+        if (select) {
+            const newOpt = select.querySelector('option[value="__NEW__"]');
+            if (tabName === "export") {
+                if (newOpt) newOpt.disabled = true;
+                if (select.value === "__NEW__") {
+                    const firstValid = Array.from(select.options).find(o => o.value && o.value !== "__NEW__");
+                    select.value = firstValid ? firstValid.value : "";
+                }
+            } else {
+                if (newOpt) newOpt.disabled = false;
+            }
+        }
+
+        handleTargetChange(currentKind);
     }
 
     window.switchExcelTab = switchTab;
@@ -117,6 +145,17 @@
         document.getElementById("excel-import-btn").disabled = true;
         document.getElementById("excel-dry-run-checkbox").checked = false;
         document.getElementById("excel-error-alert").style.display = "none";
+
+        const newChartName = document.getElementById("excel-new-chart-name");
+        if (newChartName) newChartName.value = "";
+        const newMilkType = document.getElementById("excel-new-chart-milk-type");
+        if (newMilkType) newMilkType.value = "2";
+        const newEffFrom = document.getElementById("excel-new-chart-effective-from");
+        if (newEffFrom) {
+            newEffFrom.value = new Date().toISOString().split("T")[0];
+        }
+        const newFields = document.getElementById("excel-new-chart-fields");
+        if (newFields) newFields.style.display = "none";
     }
 
     function showError(msg) {
@@ -154,6 +193,15 @@
                 select.appendChild(opt);
             }
 
+            if (kind === "prodata") {
+                const newOpt = document.createElement("option");
+                newOpt.value = "__NEW__";
+                newOpt.text = "+ Create New Rate Chart from Excel";
+                newOpt.style.fontWeight = "bold";
+                newOpt.style.color = "#059669";
+                select.appendChild(newOpt);
+            }
+
             items.forEach(item => {
                 const opt = document.createElement("option");
                 opt.value = item.id;
@@ -165,7 +213,20 @@
                 select.appendChild(opt);
             });
 
-            if (items.length === 1 && config.targetRequired) {
+            select.onchange = function () {
+                handleTargetChange(kind);
+            };
+
+            if (kind === "prodata") {
+                select.disabled = false;
+                const isImportTab = document.querySelector(".excel-modal-tab.active")?.dataset.tab === "import";
+                if (isImportTab) {
+                    select.value = "__NEW__";
+                } else if (items.length > 0) {
+                    select.value = items[0].id;
+                }
+                handleTargetChange(kind);
+            } else if (items.length === 1 && config.targetRequired) {
                 select.value = items[0].id;
                 select.disabled = true;
                 if (lockBadge) {
@@ -203,6 +264,10 @@
 
         if (config.targetRequired && !targetId) {
             showError("Please select a target before exporting.");
+            return;
+        }
+        if (currentKind === "prodata" && targetId === "__NEW__") {
+            showError("Cannot export a new rate chart. Please select an existing rate chart to export.");
             return;
         }
 
@@ -288,6 +353,14 @@
             return;
         }
 
+        if (currentKind === "prodata" && targetId === "__NEW__") {
+            const chartName = (document.getElementById("excel-new-chart-name")?.value || "").trim();
+            if (!chartName) {
+                showError("Please enter a name for the new rate chart.");
+                return;
+            }
+        }
+
         const modeSelect = document.getElementById("excel-mode-select");
         const mode = modeSelect ? modeSelect.value : "UPSERT";
         const dryRun = document.getElementById("excel-dry-run-checkbox").checked;
@@ -328,7 +401,17 @@
 
             if (currentKind === "farmers") payload.vlcc_id = targetId;
             else if (currentKind === "vlccs") payload.owner_id = targetId;
-            else if (currentKind === "prodata") payload.chart_id = targetId;
+            else if (currentKind === "prodata") {
+                if (targetId === "__NEW__") {
+                    payload.chart_id = null;
+                    payload.chart_name = (document.getElementById("excel-new-chart-name")?.value || "").trim();
+                    payload.milk_type = parseInt(document.getElementById("excel-new-chart-milk-type")?.value || "2", 10);
+                    const effDate = document.getElementById("excel-new-chart-effective-from")?.value;
+                    if (effDate) payload.effective_from = effDate;
+                } else {
+                    payload.chart_id = targetId;
+                }
+            }
 
             const res = await fetch(`/api/v1/excel/${currentKind}/import`, {
                 method: "POST",

@@ -11,22 +11,30 @@ Python 3.13+
 
 from __future__ import annotations
 
+from datetime import date
 from dataclasses import dataclass
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.clock import now_naive_ist
 from app.core.database.manager import DatabaseManager
 from app.middleware.authentication import CurrentUser
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.hierarchy import Hierarchy
+from app.modules.common.settings.infrastructure.permissions import can_edit_rate_charts, rate_chart_limit
 from app.modules.dataexchange.domain.exceptions import (
     ExcelExchangeForbiddenException,
     ExcelTargetNotFoundException,
     ExcelTargetRequiredException,
 )
-from app.modules.ratechart.domain.enums import RateChartType
+from app.modules.ratechart.domain.enums import (
+    MilkType,
+    RateCalculationType,
+    RateChartStatus,
+    RateChartType,
+)
 from app.modules.ratechart.infrastructure.models import RateChartModel
 
 
@@ -158,3 +166,81 @@ class RateChartScope:
             raise ExcelExchangeForbiddenException("You do not have permission to modify this rate chart")
 
         return chart
+
+    async def create_chart_for_import(
+        self,
+        owner: CurrentUser,
+        *,
+        chart_name: str | None,
+        milk_type: MilkType | int | str = MilkType.MIXED,
+        effective_from: date | None = None,
+        dry_run: bool = False,
+    ) -> RateChartModel | None:
+        if owner.role_type == Role.FARMER:
+            raise ExcelExchangeForbiddenException("Farmers cannot create rate charts")
+
+        if not await can_edit_rate_charts(self._session, owner):
+            raise ExcelExchangeForbiddenException("You do not have permission to create rate charts")
+
+        clean_name = (chart_name or "").strip()
+        if not clean_name:
+            raise ExcelTargetRequiredException("Rate chart name is required to create a new chart")
+
+        parsed_milk_type = self._parse_milk_type(milk_type)
+
+        limit = await rate_chart_limit(self._session, owner)
+        if limit is not None:
+            used = int(
+                await self._session.scalar(
+                    select(func.count(RateChartModel.id)).where(RateChartModel.created_by == owner.id)
+                )
+                or 0
+            )
+            if used >= limit:
+                raise ExcelExchangeForbiddenException(
+                    f"You can create at most {limit} rate chart{'s' if limit != 1 else ''}. You already have {used}."
+                )
+
+        if dry_run:
+            return None
+
+        start_date = effective_from or now_naive_ist().date()
+        chart = RateChartModel(
+            id=uuid4(),
+            chart_name=clean_name,
+            chart_type=RateChartType.PRODATA,
+            milk_type=parsed_milk_type,
+            calculation_type=RateCalculationType.FAT_AND_SNF,
+            effective_from=start_date,
+            effective_to=None,
+            status=RateChartStatus.ACTIVE,
+            created_by=owner.id,
+            created_at=now_naive_ist(),
+            updated_at=now_naive_ist(),
+            description="Created via Excel Import",
+        )
+        self._session.add(chart)
+        await self._session.flush()
+        return chart
+
+    @staticmethod
+    def _parse_milk_type(value: MilkType | int | str | None) -> MilkType:
+        if value is None:
+            return MilkType.MIXED
+        if isinstance(value, MilkType):
+            return value
+        if isinstance(value, int):
+            try:
+                return MilkType(value)
+            except ValueError:
+                return MilkType.MIXED
+        if isinstance(value, str):
+            clean = value.strip().upper()
+            if clean in MilkType.__members__:
+                return MilkType[clean]
+            if clean.isdigit():
+                try:
+                    return MilkType(int(clean))
+                except ValueError:
+                    return MilkType.MIXED
+        return MilkType.MIXED

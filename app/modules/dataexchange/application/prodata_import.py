@@ -69,7 +69,7 @@ class ProdataImportProcessor(ExchangeProcessor):
 
     async def run(self, ctx: JobContext) -> ProcessorResult:
         chart_id = ctx.job.target_id
-        if chart_id is None:
+        if chart_id is None and not ctx.job.dry_run:
             raise ValueError("No rate chart selected for this import")
         if not ctx.job.source_file:
             raise ValueError("Import job has no file")
@@ -139,7 +139,7 @@ class ProdataImportProcessor(ExchangeProcessor):
                 snf_deduction=r.snf_deduction,
             ))
 
-        if not ctx.job.dry_run:
+        if not ctx.job.dry_run and chart_id is not None:
             async with self._database.transaction():
                 await self._repository.replace_rows(chart_id, records)
 

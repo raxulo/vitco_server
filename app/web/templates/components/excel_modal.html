@@ -43,6 +43,31 @@
                 <span id="excel-target-help" style="font-size: 12px; color: #94a3b8; display: block; margin-top: 4px;"></span>
             </div>
 
+            <!-- New Rate Chart Fields (Visible when creating a new Prodata chart from Excel) -->
+            <div id="excel-new-chart-fields" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-top: 14px;">
+                <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-plus-circle" style="color: #059669;"></i> New Prodata Rate Chart Details
+                </div>
+                <div class="excel-form-group" style="margin-bottom: 10px;">
+                    <label for="excel-new-chart-name" style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; display: block;">Chart Name *</label>
+                    <input type="text" id="excel-new-chart-name" class="excel-form-select" placeholder="e.g. Summer Prodata 2026" maxlength="150">
+                </div>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <div class="excel-form-group" style="flex: 1; min-width: 140px; margin-bottom: 0;">
+                        <label for="excel-new-chart-milk-type" style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; display: block;">Milk Type</label>
+                        <select id="excel-new-chart-milk-type" class="excel-form-select">
+                            <option value="2">Mixed Milk</option>
+                            <option value="0">Cow Milk</option>
+                            <option value="1">Buffalo Milk</option>
+                        </select>
+                    </div>
+                    <div class="excel-form-group" style="flex: 1; min-width: 140px; margin-bottom: 0;">
+                        <label for="excel-new-chart-effective-from" style="font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; display: block;">Effective Date</label>
+                        <input type="date" id="excel-new-chart-effective-from" class="excel-form-select">
+                    </div>
+                </div>
+            </div>
+
             <!-- TAB 1: Import Content -->
             <div id="excel-tab-content-import">
                 <!-- Drop Zone -->

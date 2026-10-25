@@ -10,10 +10,11 @@ import io
 import os
 import time
 from pathlib import Path
+from uuid import UUID
 
 import pytest
 from openpyxl import load_workbook
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.modules.administration.domain.enums import Role
 from app.modules.dataexchange.application.prodata_export import ProdataExportProcessor
@@ -24,7 +25,8 @@ from app.modules.dataexchange.infrastructure.prodata_repository import ProdataEx
 from app.modules.dataexchange.infrastructure.repository import ExcelJobRepository
 from app.modules.dataexchange.infrastructure.storage import ExchangeStorage
 from app.modules.dataexchange.infrastructure.xlsx import XlsxSheetWriter
-from app.modules.ratechart.infrastructure.models import ProdataRateRowModel
+from app.modules.ratechart.domain.enums import MilkType
+from app.modules.ratechart.infrastructure.models import ProdataRateRowModel, RateChartModel
 from app.worker.exchange import ExchangeWorker
 from tests.dataexchange.factories import create_prodata_chart, create_prodata_rows, create_user
 
@@ -201,3 +203,105 @@ async def test_prodata_import_forbidden_if_not_modifiable(api, database, token_f
     )
     assert resp.status_code == 403
     assert "permission to modify" in resp.json()["error"]["message"].lower()
+
+
+async def test_prodata_import_creates_new_chart_from_excel(api, database, worker, token_for):
+    admin = await create_user(database, role=Role.ADMIN)
+
+    sheet_data = _workbook([
+        {"row_number": 1, "fat_min": 3.0, "fat_max": 4.0, "snf_min": 8.0, "snf_max": 8.5, "fat_rate_per_kg": 350.0},
+        {"row_number": 2, "fat_min": 4.1, "fat_max": 5.0, "snf_min": 8.0, "snf_max": 8.5, "fat_rate_per_kg": 370.0},
+    ])
+
+    headers = token_for(admin, Role.ADMIN)
+    upload_id = await _upload(api, headers, sheet_data)
+
+    resp = await api.post(
+        "/api/v1/excel/prodata/import",
+        json={
+            "chart_id": None,
+            "chart_name": "Brand New Buffalo Chart",
+            "milk_type": 1,  # BUFFALO
+            "upload_id": upload_id,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 202
+    job_id = resp.json()["data"]["id"]
+
+    job = await _poll(api, headers, job_id)
+    assert job["status"]["name"] == "COMPLETED"
+    assert job["inserted"] == 2
+    assert job["discarded"] == 0
+
+    target_id = job["target_id"]
+    assert target_id is not None
+
+    async with database.transaction() as session:
+        chart = await session.scalar(select(RateChartModel).where(RateChartModel.id == UUID(target_id)))
+        assert chart is not None
+        assert chart.chart_name == "Brand New Buffalo Chart"
+        assert chart.milk_type == MilkType.BUFFALO
+
+        rows = (await session.scalars(
+            select(ProdataRateRowModel).where(ProdataRateRowModel.rate_chart_id == UUID(target_id))
+        )).all()
+        assert len(rows) == 2
+
+
+async def test_prodata_import_new_chart_missing_name_fails(api, database, token_for):
+    admin = await create_user(database, role=Role.ADMIN)
+    headers = token_for(admin, Role.ADMIN)
+
+    sheet_data = _workbook([
+        {"row_number": 1, "fat_min": 3.0, "fat_max": 4.0, "fat_rate_per_kg": 350.0},
+    ])
+    upload_id = await _upload(api, headers, sheet_data)
+
+    resp = await api.post(
+        "/api/v1/excel/prodata/import",
+        json={
+            "chart_id": None,
+            "chart_name": "   ",
+            "upload_id": upload_id,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "rate chart name is required" in resp.json()["error"]["message"].lower()
+
+
+async def test_prodata_import_new_chart_dry_run_creates_nothing(api, database, worker, token_for):
+    admin = await create_user(database, role=Role.ADMIN)
+    headers = token_for(admin, Role.ADMIN)
+
+    sheet_data = _workbook([
+        {"row_number": 1, "fat_min": 3.0, "fat_max": 4.0, "fat_rate_per_kg": 350.0},
+        {"row_number": 2, "fat_min": 4.1, "fat_max": 5.0, "fat_rate_per_kg": 370.0},
+    ])
+    upload_id = await _upload(api, headers, sheet_data)
+
+    resp = await api.post(
+        "/api/v1/excel/prodata/import",
+        json={
+            "chart_id": None,
+            "chart_name": "Dry Run Phantom Chart",
+            "dry_run": True,
+            "upload_id": upload_id,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 202
+    job_id = resp.json()["data"]["id"]
+
+    job = await _poll(api, headers, job_id)
+    assert job["status"]["name"] == "COMPLETED"
+    assert job["inserted"] == 2
+
+    # Verify no chart was created in the DB
+    async with database.transaction() as session:
+        chart = await session.scalar(
+            select(RateChartModel).where(RateChartModel.chart_name == "Dry Run Phantom Chart")
+        )
+        assert chart is None
+

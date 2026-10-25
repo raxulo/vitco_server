@@ -291,6 +291,9 @@ async def import_prodata(request: Request, payload: ProdataImportRequest):
             user,
             upload_id=payload.upload_id,
             chart_id=payload.chart_id,
+            chart_name=payload.chart_name,
+            milk_type=payload.milk_type,
+            effective_from=payload.effective_from,
             dry_run=payload.dry_run,
         )
     except (ExcelJobConflictException, ExcelJobCapacityException) as busy:

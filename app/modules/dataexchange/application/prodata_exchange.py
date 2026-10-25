@@ -7,6 +7,7 @@ Checks scope permissions and delegates job submission to ExcelJobHandler.
 Python 3.13+
 """
 
+from datetime import date
 from pathlib import Path
 from uuid import UUID
 
@@ -25,6 +26,7 @@ from app.modules.dataexchange.infrastructure.ratechart_scope import (
     RateChartScope,
 )
 from app.modules.dataexchange.infrastructure.storage import ExchangeStorage
+from app.modules.ratechart.domain.enums import MilkType
 
 
 class ProdataExchangeHandler:
@@ -77,20 +79,35 @@ class ProdataExchangeHandler:
         self,
         owner: CurrentUser,
         *,
-        chart_id: UUID | None,
         upload_id: UUID,
+        chart_id: UUID | None = None,
+        chart_name: str | None = None,
+        milk_type: MilkType | int | str = MilkType.MIXED,
+        effective_from: date | None = None,
         mode: ImportMode = ImportMode.UPSERT,
         dry_run: bool = False,
     ) -> ExcelJobDto:
         async with self._database.transaction():
-            chart = await self._scope.resolve_for_import(owner, chart_id)
+            if chart_id is not None:
+                chart = await self._scope.resolve_for_import(owner, chart_id)
+                target_id = chart.id
+            else:
+                chart = await self._scope.create_chart_for_import(
+                    owner,
+                    chart_name=chart_name,
+                    milk_type=milk_type,
+                    effective_from=effective_from,
+                    dry_run=dry_run,
+                )
+                target_id = chart.id if chart is not None else None
+
         source = self._uploads.take(owner, upload_id)
         dto = await self._jobs.submit_import(
             SubmitImportCommand(
                 kind=ExcelJobKind.PRODATA_IMPORT,
                 owner=owner,
                 source=source,
-                target_id=chart.id,
+                target_id=target_id,
                 mode=mode,
                 dry_run=dry_run,
             )
