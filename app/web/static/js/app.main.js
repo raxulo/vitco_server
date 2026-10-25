@@ -63,18 +63,20 @@ function toggleSidebarCollapse() {
     syncSidebarCollapseButton();
 }
 
-// Hamburger in the topbar (phones): slide the sidebar in / out
+// Hamburger in the topbar (phones & tablets): slide the sidebar in / out
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     if (!sidebar) return;
     const open = sidebar.classList.toggle('open');
-    overlay?.classList.toggle('show', open);
+    if (overlay) overlay.classList.toggle('show', open);
+    document.body.classList.toggle('sidebar-open', open);
 }
 
 function closeSidebar() {
     document.getElementById('sidebar')?.classList.remove('open');
     document.getElementById('sidebar-overlay')?.classList.remove('show');
+    document.body.classList.remove('sidebar-open');
 }
 
 // Collapsed icon rail: instant label tooltip next to the hovered item
@@ -87,7 +89,7 @@ function closeSidebar() {
 
     document.addEventListener('mouseover', (e) => {
         const item = e.target.closest?.('.sidebar .menu-item[data-tooltip]');
-        if (!item || !isSidebarCollapsed() || window.matchMedia('(max-width: 768px)').matches) {
+        if (!item || !isSidebarCollapsed() || window.matchMedia('(max-width: 992px)').matches) {
             if (!item) hideTip();
             return;
         }
@@ -106,6 +108,21 @@ function closeSidebar() {
 
     document.addEventListener('scroll', hideTip, true);
     window.addEventListener('blur', hideTip);
+
+    // Auto-close drawer on mobile / tablet when navigation item is clicked
+    document.addEventListener('click', (e) => {
+        const item = e.target.closest?.('.sidebar .menu-item');
+        if (item && window.matchMedia('(max-width: 992px)').matches) {
+            closeSidebar();
+        }
+    });
+
+    // Auto-reset mobile open state if resized to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 992) {
+            closeSidebar();
+        }
+    });
 })();
 
 window.toggleSidebarCollapse = toggleSidebarCollapse;
@@ -117,7 +134,7 @@ document.addEventListener('keydown', (e) => {
     const typing = e.target.closest?.('input, textarea, select, [contenteditable="true"]');
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'b' && !typing) {
         e.preventDefault();
-        if (window.matchMedia('(max-width: 768px)').matches) {
+        if (window.matchMedia('(max-width: 992px)').matches) {
             toggleSidebar();
         } else {
             toggleSidebarCollapse();
