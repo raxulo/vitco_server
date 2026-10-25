@@ -1,0 +1,427 @@
+<!-- =========================================================
+     EXCEL DATA EXCHANGE MODAL (REQ-19)
+========================================================== -->
+<div id="excel-exchange-modal" class="excel-modal-backdrop">
+    <div class="excel-modal-box animate-scaleUp">
+        
+        <!-- Modal Header -->
+        <div class="excel-modal-header">
+            <div>
+                <h3 id="excel-modal-title" style="margin: 0; font-size: 18px; font-weight: 700; color: #0f172a;">Excel Exchange</h3>
+                <p id="excel-modal-subtitle" style="margin: 4px 0 0 0; font-size: 13px; color: #64748b;">Manage data import and export</p>
+            </div>
+            <button type="button" class="excel-modal-close" onclick="closeExcelExchangeModal()" title="Close">&times;</button>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="excel-error-alert" class="excel-alert-danger" style="display: none;"></div>
+
+        <!-- VIEW 1: Form View -->
+        <div id="excel-view-form">
+            <!-- Tabs -->
+            <div class="excel-modal-tabs">
+                <button type="button" class="excel-modal-tab active" data-tab="import" onclick="switchExcelTab('import')">
+                    <i class="fa-solid fa-file-arrow-up"></i> Import Data
+                </button>
+                <button type="button" class="excel-modal-tab" data-tab="export" onclick="switchExcelTab('export')">
+                    <i class="fa-solid fa-file-arrow-down"></i> Export Data
+                </button>
+                <button type="button" class="excel-modal-tab-action" onclick="downloadExcelTemplate()" title="Download Official Excel Template">
+                    <i class="fa-solid fa-download"></i> Template
+                </button>
+            </div>
+
+            <!-- Target Scope Selection (Common to Import & Export) -->
+            <div class="excel-form-group" style="margin-top: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label id="excel-target-label" for="excel-target-select" style="font-size: 13px; font-weight: 600; color: #334155;">Target Scope</label>
+                    <span id="excel-target-lock-badge" class="excel-badge-locked" style="display: none;">Locked</span>
+                </div>
+                <select id="excel-target-select" class="excel-form-select">
+                    <option value="">Loading choices...</option>
+                </select>
+                <span id="excel-target-help" style="font-size: 12px; color: #94a3b8; display: block; margin-top: 4px;"></span>
+            </div>
+
+            <!-- TAB 1: Import Content -->
+            <div id="excel-tab-content-import">
+                <!-- Drop Zone -->
+                <div id="excel-drop-zone" class="excel-drop-zone" onclick="document.getElementById('excel-file-input').click()">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 36px; color: #059669; margin-bottom: 10px;"></i>
+                    <p style="margin: 0; font-size: 14px; font-weight: 600; color: #1e293b;">Click to browse or drag and drop your spreadsheet</p>
+                    <span style="font-size: 12px; color: #64748b; margin-top: 4px;">Supports .xlsx files (up to 500 MB)</span>
+                    <input type="file" id="excel-file-input" accept=".xlsx" style="display: none;" onchange="handleExcelFileSelect(this)">
+                </div>
+
+                <!-- Selected File Display -->
+                <div id="excel-file-display" class="excel-file-card" style="display: none;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i class="fa-solid fa-file-excel" style="color: #059669; font-size: 28px;"></i>
+                        <div>
+                            <div id="excel-file-name" style="font-size: 14px; font-weight: 600; color: #0f172a;"></div>
+                            <div id="excel-file-size" style="font-size: 12px; color: #64748b;"></div>
+                        </div>
+                    </div>
+                    <button type="button" class="excel-btn-icon-danger" onclick="removeChosenExcelFile()" title="Remove file">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+
+                <!-- Mode & Options -->
+                <div style="display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;">
+                    <div id="excel-mode-group" class="excel-form-group" style="flex: 1; min-width: 180px;">
+                        <label for="excel-mode-select" style="font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block;">Import Mode</label>
+                        <select id="excel-mode-select" class="excel-form-select">
+                            <option value="UPSERT">Upsert (Add new & update existing)</option>
+                            <option value="ADD_ONLY">Add Only (Skip existing codes)</option>
+                            <option value="UPDATE_ONLY">Update Only (Ignore new codes)</option>
+                        </select>
+                    </div>
+
+                    <div class="excel-form-group" style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer;">
+                            <input type="checkbox" id="excel-dry-run-checkbox" style="width: 16px; height: 16px; accent-color: #059669;">
+                            <span>Dry Run <small style="color: #64748b; font-weight: 400;">(validate only, write nothing)</small></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Import Actions -->
+                <div class="excel-modal-actions">
+                    <button type="button" class="excel-btn-secondary" onclick="closeExcelExchangeModal()">Cancel</button>
+                    <button type="button" id="excel-import-btn" class="excel-btn-primary" onclick="submitExcelImport()" disabled>
+                        <i class="fa-solid fa-upload"></i> Start Import
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: Export Content -->
+            <div id="excel-tab-content-export" style="display: none;">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; margin-top: 12px;">
+                    <i class="fa-solid fa-file-excel" style="font-size: 44px; color: #059669; margin-bottom: 12px;"></i>
+                    <h4 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 700; color: #0f172a;">Export to Excel Spreadsheet</h4>
+                    <p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">
+                        A background worker job will assemble all records into a standardized formatted Excel workbook.
+                        Your download will start automatically once ready.
+                    </p>
+                </div>
+
+                <div class="excel-modal-actions">
+                    <button type="button" class="excel-btn-secondary" onclick="closeExcelExchangeModal()">Cancel</button>
+                    <button type="button" class="excel-btn-primary" onclick="submitExcelExport()">
+                        <i class="fa-solid fa-download"></i> Generate & Export
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW 2: Progress View -->
+        <div id="excel-view-progress" style="display: none; padding: 24px 0; text-align: center;">
+            <div class="excel-spinner-box">
+                <i class="fa-solid fa-gear fa-spin" style="font-size: 40px; color: #059669;"></i>
+            </div>
+            <h4 id="excel-progress-title" style="margin: 16px 0 4px 0; font-size: 16px; font-weight: 700; color: #0f172a;">Processing...</h4>
+            <p id="excel-progress-subtitle" style="margin: 0 0 20px 0; font-size: 13px; color: #64748b;">Please wait while the worker runs your job</p>
+
+            <!-- Progress Bar -->
+            <div class="excel-progress-track">
+                <div id="excel-progress-fill" class="excel-progress-fill" style="width: 15%;"></div>
+            </div>
+            <span id="excel-progress-text" style="font-size: 12px; color: #475569; font-weight: 600; display: block; margin-top: 8px;">Queued...</span>
+        </div>
+
+        <!-- VIEW 3: Summary View -->
+        <div id="excel-view-summary" style="display: none; padding: 16px 0; text-align: center;">
+            <div id="excel-summary-icon" style="margin-bottom: 12px;"></div>
+            <h4 id="excel-summary-title" style="margin: 0 0 6px 0; font-size: 17px; font-weight: 700; color: #0f172a;">Operation Finished</h4>
+            <p id="excel-summary-msg" style="margin: 0 0 20px 0; font-size: 13px; color: #64748b;"></p>
+
+            <!-- 4-Stat Grid -->
+            <div class="excel-stat-grid">
+                <div class="excel-stat-card">
+                    <span class="excel-stat-num" id="excel-stat-total">0</span>
+                    <span class="excel-stat-lbl">Total Rows</span>
+                </div>
+                <div class="excel-stat-card">
+                    <span class="excel-stat-num" id="excel-stat-inserted" style="color: #10b981;">0</span>
+                    <span class="excel-stat-lbl">Inserted</span>
+                </div>
+                <div class="excel-stat-card">
+                    <span class="excel-stat-num" id="excel-stat-updated" style="color: #3b82f6;">0</span>
+                    <span class="excel-stat-lbl">Updated</span>
+                </div>
+                <div class="excel-stat-card">
+                    <span class="excel-stat-num" id="excel-stat-discarded" style="color: #ef4444;">0</span>
+                    <span class="excel-stat-lbl">Discarded</span>
+                </div>
+            </div>
+
+            <!-- Summary Action Buttons -->
+            <div style="display: flex; justify-content: center; gap: 12px; margin-top: 24px; flex-wrap: wrap;">
+                <button type="button" id="excel-download-report-btn" class="excel-btn-danger" style="display: none;">
+                    <i class="fa-solid fa-file-circle-xmark"></i> Download Discarded Rows Report
+                </button>
+                <button type="button" id="excel-download-export-btn" class="excel-btn-primary" style="display: none;">
+                    <i class="fa-solid fa-file-arrow-down"></i> Download Excel File
+                </button>
+                <button type="button" class="excel-btn-secondary" onclick="closeExcelExchangeModal()">Close</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+/* =========================================================
+   EXCEL EXCHANGE MODAL STYLES (Rich Aesthetics & Tokens)
+========================================================== */
+.excel-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.excel-modal-backdrop.active {
+    display: flex;
+}
+.excel-modal-box {
+    background: #ffffff;
+    width: 100%;
+    max-width: 580px;
+    border-radius: 14px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    padding: 24px;
+    box-sizing: border-box;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+.excel-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+.excel-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #94a3b8;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color 0.15s ease;
+}
+.excel-modal-close:hover {
+    color: #0f172a;
+}
+.excel-modal-tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-top: 14px;
+    padding-bottom: 2px;
+}
+.excel-modal-tab {
+    background: none;
+    border: none;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+}
+.excel-modal-tab.active {
+    color: #059669;
+    border-bottom-color: #059669;
+}
+.excel-modal-tab-action {
+    margin-left: auto;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.excel-modal-tab-action:hover {
+    background: #e2e8f0;
+}
+.excel-drop-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 28px 16px;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+.excel-drop-zone:hover, .excel-drop-zone.dragover {
+    border-color: #059669;
+    background: #ecfdf5;
+}
+.excel-file-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+}
+.excel-form-select {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    color: #1e293b;
+    background-color: #ffffff;
+    outline: none;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+}
+.excel-form-select:focus {
+    border-color: #059669;
+}
+.excel-badge-locked {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+.excel-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #f1f5f9;
+}
+.excel-btn-primary {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: #ffffff;
+    border: none;
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.15s ease;
+}
+.excel-btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.excel-btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.excel-btn-danger {
+    background: #ef4444;
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.excel-btn-icon-danger {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 6px;
+}
+.excel-alert-danger {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-top: 12px;
+}
+.excel-progress-track {
+    width: 100%;
+    height: 10px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+.excel-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #059669 0%, #34d399 100%);
+    transition: width 0.3s ease;
+}
+.excel-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+}
+.excel-stat-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 6px;
+    text-align: center;
+}
+.excel-stat-num {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+}
+.excel-stat-lbl {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+}
+@media (max-width: 500px) {
+    .excel-stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+</style>

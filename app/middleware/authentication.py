@@ -73,7 +73,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         # Try Decoding Token if Present (For both Public & Protected)
         # -----------------------------------------
         authorization = None
-        if WebHelper.is_web(request):
+        if WebHelper.is_web(request) or path.startswith("/api/v1/excel/"):
             authorization = request.cookies.get('access_token')
             if not authorization:
                 authorization = request.headers.get("Authorization")
@@ -87,7 +87,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 token = auth_str[7:].strip()
             elif auth_str.startswith("Bearer"):
                 token = auth_str[6:].strip()
-            elif WebHelper.is_web(request):
+            elif WebHelper.is_web(request) or path.startswith("/api/v1/excel/"):
                 token = auth_str
             else:
                 token = None

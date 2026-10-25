@@ -116,6 +116,7 @@ def _accepted(dto) -> JSONResponse:
 # =========================================================
 
 @router.get("/options/vlccs")
+@router.get("/farmers/options")
 async def vlcc_options(
     request: Request,
     search: str | None = Query(None, max_length=100),

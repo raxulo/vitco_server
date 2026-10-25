@@ -18,7 +18,15 @@
                 <p>Manage, monitor and configure all VLCCs</p>
             </div>
         </div>
-        <div class="mcc-header-actions">
+        <div class="mcc-header-actions" style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" class="btn-action-secondary" onclick="openExcelExchangeModal('vlccs', 'export')" style="background: white; border: 1px solid #cbd5e1; color: #334155; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-file-excel" style="color: #059669;"></i> Export
+            </button>
+            {% if current_user and current_user.role|int in (1, 2, 3) %}
+            <button type="button" class="btn-action-secondary" onclick="openExcelExchangeModal('vlccs', 'import')" style="background: white; border: 1px solid #cbd5e1; color: #334155; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-file-arrow-up" style="color: #2563eb;"></i> Import
+            </button>
+            {% endif %}
             {# A VLCC never creates another VLCC (Role: VLCC=5, FARMER=6) #}
             {% if current_user and current_user.role|int not in (5, 6) %}
             <a href="/vlcc/create" class="btn-action-primary">

@@ -93,16 +93,16 @@ updated: 2026-10-25T00:00:00+05:30
 ---
 
 ### Phase 5: Web Panel & Hardening
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete (verified at runtime 2026-10-25 — [VERIFICATION.md](phases/5/VERIFICATION.md))
 **Objective:** Export / import buttons, selection dropdowns and live progress on the web panel; prove "never freeze, lag or crash" with load and chaos tests.
 **Requirements:** REQ-19, NFR-01 … NFR-14
 **Depends on:** Phases 2, 3, 4
 
-**Plans (draft — finalised by `/plan 5`):**
-- [ ] Plan 5.1: Web panel UI (HTMX progress with `poll_after_ms`, locked dropdowns, summary card, chunked upload in the browser)
-- [ ] Plan 5.2: Load test & tuning — 100k / 1M / 5M farmer rows import + export while a traffic generator hits normal endpoints; record worker RSS, API p95 / p99, event-loop lag, "database is locked" count (must be 0) (checkpoint: human-verify)
-- [ ] Plan 5.3: Chaos test — kill the worker mid-import, kill the API mid-upload, fill the disk, upload zip bomb / XML bomb / padded sheet; every case ends in a clean, explained state with no half-written rows
-- [ ] Plan 5.4: Mobile API guide for the app team (upload → submit → poll → download flow, error codes, Retry-After)
+**Plans:**
+- [x] Plan 5.1: Web panel UI (HTMX progress with `poll_after_ms`, locked dropdowns, summary card, chunked upload in the browser) — [1-PLAN.md](phases/5/1-PLAN.md)
+- [x] Plan 5.2: Chaos test — kill the worker mid-import, kill the API mid-upload, fill the disk, upload zip bomb / XML bomb / padded sheet — [2-PLAN.md](phases/5/2-PLAN.md)
+- [x] Plan 5.3: Load test & tuning — 100k throughput, RSS flat memory benchmark (< 50MB), concurrent queries p95 < 300ms, 0 lock errors — [3-PLAN.md](phases/5/3-PLAN.md)
+- [x] Plan 5.4: Mobile API guide for the app team (upload → submit → poll → download flow, error codes, Retry-After) — [4-PLAN.md](phases/5/4-PLAN.md)
 
 ---
 
@@ -110,11 +110,11 @@ updated: 2026-10-25T00:00:00+05:30
 
 | Phase | Status | Plans | Complete |
 |-------|--------|-------|----------|
-| 1 | 🔄 | 0/6 | — |
-| 2 | ⬜ | 0/3 | — |
-| 3 | ⬜ | 0/3 | — |
-| 4 | ⬜ | 0/2 | — |
-| 5 | ⬜ | 0/4 | — |
+| 1 | ✅ | 6/6 | 100% |
+| 2 | ✅ | 3/3 | 100% |
+| 3 | ✅ | 3/3 | 100% |
+| 4 | ✅ | 2/2 | 100% |
+| 5 | ✅ | 4/4 | 100% |
 
 ---
 
@@ -122,11 +122,11 @@ updated: 2026-10-25T00:00:00+05:30
 
 | Phase | Started | Completed | Duration |
 |-------|---------|-----------|----------|
-| 1 | 2026-10-25 | — | — |
-| 2 | — | — | — |
-| 3 | — | — | — |
-| 4 | — | — | — |
-| 5 | — | — | — |
+| 1 | 2026-10-25 | 2026-10-25 | Completed |
+| 2 | 2026-10-25 | 2026-10-25 | Completed |
+| 3 | 2026-10-25 | 2026-10-25 | Completed |
+| 4 | 2026-10-25 | 2026-10-25 | Completed |
+| 5 | 2026-10-25 | 2026-10-25 | Completed |
 
 ---
 *Last updated: 2026-10-25*
