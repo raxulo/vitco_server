@@ -8,20 +8,19 @@ updated: 2026-10-25T00:00:00+05:30
 
 **Milestone:** v1.1.0 — Excel Data Exchange
 **Phase:** 6 - Formula Rate-Chart Excel Exchange
-**Status:** ⬜ Planning
-**Plan:** TBD (run /plan 6 to create)
+**Status:** 📋 Ready for Execution (Planning Complete)
+**Plan:** 6.1 (Formula sheet spec, repository & export), 6.2 (Formula import, endpoints, UI modal & tests)
 **Branch:** `feature/excel-import-export` (from `develop`; Git Flow: main / develop / feature/* / bugfix/* / hotfix/*)
 
 ## Last Action
 
-- Added Phase 6: Formula Rate-Chart Excel Exchange to `ROADMAP.md` per user request.
-- Phase 1–5 completed, verified, and committed.
-- Prodata new rate chart creation from Excel verified with 261 passing tests.
+- Phase 6 planning complete: 2 execution plans created across 2 waves.
+- `RESEARCH.md`, `1-PLAN.md`, `2-PLAN.md` generated with XML tasks and verification steps.
+- `ROADMAP.md` and `REQUIREMENTS.md` updated with REQ-20 and REQ-21.
 
 ## Next Steps
 
-1. Run `/plan 6` to research and decompose requirements into executable plans for Formula Rate Chart Excel Exchange.
-2. Build formula template, export processor (config + pricing preview grid), and import processor (config replace + new chart creation).
+1. `/execute 6` — Execute Plan 6.1 (Formula sheet spec, repository & export engine).
 
 ## Active Decisions
 

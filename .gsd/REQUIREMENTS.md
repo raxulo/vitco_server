@@ -49,14 +49,22 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 
 | ID | Requirement | Source | Phase | Status |
 |----|-------------|--------|-------|--------|
-| REQ-17 | Prodata export returns the rows of one chart the user can see, in row order | Goal 6 | 4 | Pending |
-| REQ-18 | Prodata import replaces all rows of one chart the user may modify, in one transaction. Any invalid row (e.g. `fat_min > fat_max`, overlapping FAT/SNF ranges) rejects the whole file and saves nothing, with a report | Goal 6 | 4 | Pending |
+| REQ-17 | Prodata export returns the rows of one chart the user can see, in row order | Goal 6 | 4 | Complete |
+| REQ-18 | Prodata import replaces all rows of one chart the user may modify, in one transaction. Any invalid row (e.g. `fat_min > fat_max`, overlapping FAT/SNF ranges) rejects the whole file and saves nothing, with a report | Goal 6 | 4 | Complete |
 
 ### Web panel (Phase 5)
 
 | ID | Requirement | Source | Phase | Status |
 |----|-------------|--------|-------|--------|
-| REQ-19 | The Farmer, VLCC and Rate Chart list pages have Export / Import / Template actions, a VLCC or owner dropdown (disabled when locked), live progress and a result summary card | Goal 6 | 5 | Pending |
+| REQ-19 | The Farmer, VLCC and Rate Chart list pages have Export / Import / Template actions, a VLCC or owner dropdown (disabled when locked), live progress and a result summary card | Goal 6 | 5 | Complete |
+
+### Formula rate chart (Phase 6)
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-20 | Formula export returns the formula configuration (Cow/Buffalo std FAT, SNF, Rate, FAT% / SNF%) plus an expanded calculated pricing matrix preview sheet (FAT x SNF grid) of one chart the user can see | Goal 6 | 6 | Pending |
+| REQ-21 | Formula import validates and atomically updates the formula configuration of an existing chart, or creates a new Formula rate chart from the uploaded Excel file. Invalid formulas (non-positive standards, FAT% + SNF% != 100%) reject with a clear report | Goal 6 | 6 | Pending |
+
 
 ---
 
@@ -113,8 +121,9 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | REQ-05 | 1.2 | `tests/dataexchange/test_xlsx.py` | — |
 | REQ-06 … REQ-11 | 2.1–2.3 | planned in `/plan 2` | — |
 | REQ-12 … REQ-16 | 3.1–3.3 | planned in `/plan 3` | — |
-| REQ-17, REQ-18 | 4.1–4.2 | planned in `/plan 4` | — |
-| REQ-19 | 5.1 | planned in `/plan 5` | — |
+| REQ-17, REQ-18 | 4.1–4.2 | `tests/dataexchange/test_prodata_api.py` | Complete |
+| REQ-19 | 5.1 | `tests/dataexchange/test_web_ui.py` | Complete |
+| REQ-20, REQ-21 | 6.1–6.2 | planned in `/plan 6` | — |
 | NFR-01 | 1.2, 1.3, 1.4, 5.2 | `test_xlsx.py` (tracemalloc), `scripts/loadtest_excel.py` | — |
 | NFR-02 | 1.4, 5.2 | `scripts/loadtest_excel.py` | — |
 | NFR-03 | 1.4, 2.2, 3.2, 5.2 | `test_worker.py` (kill mid-batch), chaos run in 5.2 | — |

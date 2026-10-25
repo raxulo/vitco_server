@@ -110,14 +110,12 @@ updated: 2026-10-25T00:00:00+05:30
 ### Phase 6: Formula Rate-Chart Excel Exchange
 **Status:** ⬜ Not Started
 **Objective:** Export and import Formula-based rate charts (`RateChartType.FORMULA`) to and from Excel professionally — official template with validation rules, formula parameters export with expanded pricing preview grid, atomic validation/import of formula parameters, and brand-new Formula rate chart creation from Excel, integrated with the worker engine, API, and web panel modal.
-**Requirements:** REQ-20 (Formula Rate Chart Export/Import)
+**Requirements:** REQ-20, REQ-21
 **Depends on:** Phase 1, Phase 4, Phase 5
 
-**Tasks:**
-- [ ] TBD (run /plan 6 to create)
-
-**Verification:**
-- TBD
+**Plans:**
+- [ ] Plan 6.1: Formula sheet spec, repository & export engine — [1-PLAN.md](phases/6/1-PLAN.md)
+- [ ] Plan 6.2: Formula import engine, endpoints, UI modal & tests — [2-PLAN.md](phases/6/2-PLAN.md)
 
 ---
 
@@ -130,7 +128,7 @@ updated: 2026-10-25T00:00:00+05:30
 | 3 | ✅ | 3/3 | 100% |
 | 4 | ✅ | 2/2 | 100% |
 | 5 | ✅ | 4/4 | 100% |
-| 6 | ⬜ | 0/TBD | 0% |
+| 6 | ⬜ | 0/2 | 0% |
 
 ---
 
