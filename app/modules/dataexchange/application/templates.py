@@ -44,3 +44,14 @@ def template_path(root: Path, sheet: SheetSpec, name: str) -> Path:
     writer.close()
     os.replace(partial, path)                                # concurrent builders: last one wins, same bytes
     return path
+
+
+def vlcc_template_path(root: Path) -> Path:
+    from app.modules.dataexchange.domain.sheets import VLCC_SHEET
+    return template_path(root, VLCC_SHEET, "vlccs")
+
+
+def farmer_template_path(root: Path) -> Path:
+    from app.modules.dataexchange.domain.sheets import FARMER_SHEET
+    return template_path(root, FARMER_SHEET, "farmers")
+

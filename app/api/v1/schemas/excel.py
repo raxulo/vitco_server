@@ -101,6 +101,35 @@ class VlccOptionResponse(BaseModel):
     name: str
 
 
+class VlccExportRequest(BaseModel):
+
+    owner_id: UUID | None = Field(None, description="Admin / Sub Admin ID. Ignored for locked Sub Admin / MCC.")
+
+
+class VlccImportRequest(BaseModel):
+
+    upload_id: UUID = Field(description="A completed upload from /excel/uploads")
+    owner_id: UUID | None = Field(None, description="Admin / Sub Admin ID. Ignored for locked Sub Admin / MCC.")
+    mode: Literal["UPSERT", "CREATE_ONLY"] = "UPSERT"
+    dry_run: bool = Field(False, description="Validate only; nothing is saved")
+
+
+class OwnerOptionResponse(BaseModel):
+
+    id: UUID
+    name: str
+    role: str
+
+
+class OwnerOptionsResponse(BaseModel):
+
+    items: list[OwnerOptionResponse]
+    total: int
+    locked: bool
+    default_id: UUID | None
+
+
+
 class CreateUploadRequest(BaseModel):
 
     file_name: str = Field(min_length=6, max_length=200, examples=["farmers.xlsx"])

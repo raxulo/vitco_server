@@ -7,22 +7,23 @@ updated: 2026-10-25T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.1.0 — Excel Data Exchange
-**Phase:** 2 - Farmer Excel Exchange (Phase 1 ✅ verified at runtime, commit 8d51666)
-**Status:** ✅ Executed + verified at runtime (PASS) — awaiting the phase commit approval
-**Plan:** 2.1 ✅ export, 2.2 ✅ import (EWMA batcher), 2.3 ✅ scope + endpoints; live: 20k import 2,175 rows/s, export 20k in 4.1 s
+**Phase:** 3 - VLCC Excel Exchange
+**Status:** ✅ Complete (verified at runtime, 17/17 tests PASS) — awaiting phase commit approval
+**Plan:** 3.1 ✅ spec + export, 3.2 ✅ import + worker, 3.3 ✅ endpoints + e2e
 **Branch:** `feature/excel-import-export` (from `develop`; Git Flow: main / develop / feature/* / bugfix/* / hotfix/*)
 
 ## Last Action
 
-- Archived milestone v1.0.0 roadmap to `.gsd/milestones/v1.0.0/ROADMAP.md`.
-- Created milestone v1.1.0: SPEC Goal 6, `ROADMAP.md` (5 phases), `REQUIREMENTS.md` (REQ-01…19, NFR-01…06, CON-01…07), `DECISIONS.md` (DECISION-001…007).
-- Phase 1 researched (`phases/1/RESEARCH.md`, level 2) and planned.
-- Hardened for the user rule "kitna bhi bada data ho, kabhi freeze, lag ya server crash na ho": DECISION-008…011 (separate supervised worker process, resumable uploads outside the request transaction, ≤ 250 ms write budget with adaptive batches, bounded memory / disk / queue, hostile-file guard), NFR-01…14 made measurable, Phase 1 re-planned into 6 plans over 5 waves, Phase 5 extended with 1M-row load and chaos tests.
+- Phase 3 planned and executed across all 3 plans:
+  - Plan 3.1: 44-column `VLCC_SHEET`, `VlccExchangeRepository`, `VlccExportProcessor`, `vlcc_template_path`.
+  - Plan 3.2: `VlccImportProcessor` with multi-table upsert, hierarchy code conflict check, seen-keys dedupe, Argon2 caching, registered in `ExchangeWorker`.
+  - Plan 3.3: `OwnerScope`, IoC container wiring, `/api/v1/excel/vlccs/*` endpoints, end-to-end integration verified.
+- 17/17 automated tests passing in `tests/dataexchange`.
 
 ## Next Steps
 
-1. Phase 2 commit (professional Conventional Commit message, after user approval) — exclude the user's own `settings/domain/enums.py` change
-2. `/plan 3` — VLCC exchange (ReceiptSize now has SMALL / MEDIUM / LARGE / EXTRA_LARGE — use it for the settings dropdown)
+1. Phase 3 commit (after user approval).
+2. Proceed to Phase 4: Prodata Rate-Chart Excel Exchange (all-or-nothing replace, range & overlap validation).
 
 ## Active Decisions
 

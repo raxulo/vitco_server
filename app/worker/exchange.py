@@ -311,11 +311,24 @@ def register_processors(container: Any, worker: ExchangeWorker) -> None:
     from app.modules.dataexchange.infrastructure.farmer_repository import FarmerExchangeRepository
 
     database = container.database
+    passwords = container.resolve(PasswordService)
+
     farmers = FarmerExchangeRepository(database)
     worker.register(FarmerExportProcessor(database=database, repository=farmers))
     worker.register(FarmerImportProcessor(
-        database=database, repository=farmers, password_service=container.resolve(PasswordService),
+        database=database, repository=farmers, password_service=passwords,
     ))
+
+    from app.modules.dataexchange.application.vlcc_export import VlccExportProcessor
+    from app.modules.dataexchange.application.vlcc_import import VlccImportProcessor
+    from app.modules.dataexchange.infrastructure.vlcc_repository import VlccExchangeRepository
+
+    vlccs = VlccExchangeRepository(database)
+    worker.register(VlccExportProcessor(database=database, repository=vlccs))
+    worker.register(VlccImportProcessor(
+        database=database, repository=vlccs, password_service=passwords,
+    ))
+
 
 
 def _configure_logging() -> None:

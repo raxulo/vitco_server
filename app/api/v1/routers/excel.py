@@ -28,7 +28,10 @@ from app.api.v1.schemas.excel import (
     ExcelJobResponse,
     FarmerExportRequest,
     FarmerImportRequest,
+    OwnerOptionResponse,
     UploadResponse,
+    VlccExportRequest,
+    VlccImportRequest,
     VlccOptionResponse,
 )
 from app.core.exceptions.base import ApplicationException
@@ -161,6 +164,67 @@ async def import_farmers(request: Request, payload: FarmerImportRequest):
     except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
         return excel_busy_response(busy)
     return _accepted(dto)
+
+
+# =========================================================
+# VLCCS
+# =========================================================
+
+@router.get("/options/owners")
+@router.get("/vlccs/options")
+async def owner_options(
+    request: Request,
+    search: str | None = Query(None, max_length=100),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Owners (Admin, Sub Admin, MCC) this user may export / import VLCCs for."""
+    user = _user(request)
+    options = await GetHandler.vlcc_exchange_handler(request).owner_options(user, search=search, limit=limit, offset=offset)
+    return JSONResponse(content=jsonable_encoder({
+        "status": True,
+        "code": 200,
+        "message": "Records fetched successfully",
+        "items": [OwnerOptionResponse(id=item.id, name=item.name, role=item.role) for item in options.items],
+        "locked": options.locked,
+        "default_id": options.default_id,
+        **_compute_pagination(options.total, limit, offset),
+    }))
+
+
+@router.get("/vlccs/template")
+async def vlcc_template(request: Request):
+    _user(request)
+    path = await GetHandler.vlcc_exchange_handler(request).template()
+    return FileResponse(path, media_type=_XLSX, filename="vlccs_template.xlsx",
+                        headers={"Content-Encoding": "identity"})
+
+
+@router.post("/vlccs/export", status_code=202)
+async def export_vlccs(request: Request, payload: VlccExportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.vlcc_exchange_handler(request).export(user, payload.owner_id)
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
+
+@router.post("/vlccs/import", status_code=202)
+async def import_vlccs(request: Request, payload: VlccImportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.vlcc_exchange_handler(request).import_(
+            user,
+            owner_id=payload.owner_id,
+            upload_id=payload.upload_id,
+            mode=ImportMode[payload.mode],
+            dry_run=payload.dry_run,
+        )
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
 
 
 # =========================================================

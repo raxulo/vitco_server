@@ -22,8 +22,11 @@ from app.modules.dataexchange.domain.entities import ExcelJob
 from app.modules.dataexchange.domain.enums import ExcelJobKind, ExcelJobStatus, ImportMode
 from app.modules.dataexchange.infrastructure.repository import ExcelJobRepository
 from app.modules.dataexchange.infrastructure.storage import ExchangeStorage
+from app.modules.common.milk_quality.infrastructure.models import MilkQualityConfigModel
+from app.modules.common.settings.infrastructure.models import SettingsModel
 from app.modules.farmer.domain.enums import MilkType
 from app.modules.farmer.infrastructure.models import FarmerModel
+from app.modules.vlcc.domain.enums import CollectionMode
 from app.modules.vlcc.infrastructure.models import VlccModel
 
 _sequence = itertools.count(1)
@@ -139,3 +142,141 @@ async def make_context(
         job=job, job_dir=job_dir, database=database, repository=repository, disk=storage,
         batcher=AdaptiveBatcher(budget_ms=250, maximum=500), memory=MemoryGuard(hard_mb=4096), pause_ms=0,
     )
+
+
+async def create_user(
+    database: DatabaseManager,
+    *,
+    role: Role = Role.ADMIN,
+    name: str = "Test User",
+    created_by: UUID | None = None,
+) -> UUID:
+    user_id = uuid4()
+    now = now_naive_ist()
+    mobile = unique_mobile()
+    async with database.transaction() as session:
+        await session.execute(UserModel.__table__.insert(), [dict(
+            id=user_id, name=name, email=f"user-{user_id.hex[:6]}@test.local",
+            mobile=mobile, password_hash="x", role=role, is_active=True, is_locked=False,
+            created_by=created_by, created_at=now, updated_at=now, is_deleted=False,
+        )])
+    return user_id
+
+
+async def create_full_vlccs(
+    database: DatabaseManager,
+    owner_id: UUID,
+    count: int,
+    *,
+    prefix: str = "V",
+    with_relations: bool = True,
+    deleted: bool = False,
+) -> list[dict]:
+    """Insert `count` VLCCs owned by owner_id with full joined relations."""
+    now = now_naive_ist()
+    created = []
+    users, addresses, banks, settings, milk_configs, vlccs = [], [], [], [], [], []
+    for i in range(count):
+        user_id = uuid4()
+        vlcc_id = uuid4()
+        address_id = uuid4() if with_relations else None
+        bank_id = uuid4() if with_relations else None
+        settings_id = uuid4() if with_relations else None
+        milk_id = uuid4() if with_relations else None
+        code = f"{prefix}{i:06d}"
+        mobile = unique_mobile()
+
+        vlcc_values = dict(
+            vlcc_code=code, uic_code=f"UIC-{code}", vlcc_name=f"Center {code}",
+            contact_person=f"Manager {code}", entry_mode=CollectionMode.MANUAL,
+            route_code=100 + i, soc_percentage=1.5, farmer_enabled=True,
+            is_active=True, assigned_chart_rank=1,
+            user_name=f"Operator {code}", mobile=mobile,
+            email=f"{code.lower()}-{user_id.hex[:6]}@vlcc.test",
+            address_line="Station Road" if with_relations else None,
+            city="Ujjain" if with_relations else None,
+            state="MP" if with_relations else None,
+            pincode="456001" if with_relations else None,
+            account_holder=f"Center {code}" if with_relations else None,
+            bank_name="HDFC" if with_relations else None,
+            account_number=f"501{i:013d}" if with_relations else None,
+            ifsc_code="HDFC0001234" if with_relations else None,
+            upi_id=f"vlcc{code}@hdfc" if with_relations else None,
+            analyzer_type=0, analyzer_collection_mode=0, weight_unit=0,
+            weight_collection_mode=0, auto_tare_enabled=False,
+            morning_collection_start="06:00" if with_relations else None,
+            morning_collection_end="10:00" if with_relations else None,
+            evening_collection_start="12:00" if with_relations else None,
+            evening_collection_end="22:00" if with_relations else None,
+            receipt_size=0, printer_type=0, printer_enabled=False,
+            cattle_type=0, cow_min_fat=2.5 if with_relations else None,
+            cow_max_fat=10.0 if with_relations else None,
+            cow_min_snf=6.0 if with_relations else None,
+            cow_max_snf=12.0 if with_relations else None,
+            buffalo_min_fat=4.0 if with_relations else None,
+            buffalo_max_fat=14.0 if with_relations else None,
+            buffalo_min_snf=7.0 if with_relations else None,
+            buffalo_max_snf=15.0 if with_relations else None,
+            vlcc_id=vlcc_id, user_id=user_id,
+        )
+        created.append(vlcc_values)
+
+        users.append(dict(
+            id=user_id, name=vlcc_values["user_name"], email=vlcc_values["email"],
+            mobile=mobile, password_hash="x", role=Role.VLCC, is_active=True,
+            is_locked=False, created_by=owner_id, created_at=now, updated_at=now, is_deleted=False,
+        ))
+
+        if with_relations:
+            addresses.append(dict(
+                id=address_id, user_id=user_id, line="Station Road", city="Ujjain",
+                state="MP", pincode="456001", created_at=now, updated_at=now,
+            ))
+            banks.append(dict(
+                id=bank_id, user_id=user_id, account_holder=vlcc_values["account_holder"],
+                bank_name="HDFC", account_number=vlcc_values["account_number"],
+                ifsc_code="HDFC0001234", upi_id=vlcc_values["upi_id"],
+                created_at=now, updated_at=now,
+            ))
+            settings.append(dict(
+                id=settings_id, user_id=user_id, analyzer_type=0, analyzer_collection_mode=0,
+                weight_unit=0, weight_collection_mode=0, auto_tare_enabled=False,
+                morning_collection_start="06:00", morning_collection_end="10:00",
+                evening_collection_start="12:00", evening_collection_end="22:00",
+                receipt_size=0, printer_type=0, printer_enabled=False,
+                supported_cattle_type=0, max_rate_chart_count=5, settings_edit_enabled=False,
+                rate_chart_edit_enabled=False, master_enabled=False,
+                created_at=now, updated_at=now,
+            ))
+            milk_configs.append(dict(
+                id=milk_id, user_id=user_id, cow_min_fat=2.5, cow_max_fat=10.0,
+                cow_min_snf=6.0, cow_max_snf=12.0, buffalo_min_fat=4.0, buffalo_max_fat=14.0,
+                buffalo_min_snf=7.0, buffalo_max_snf=15.0,
+            ))
+
+        vlccs.append(dict(
+            id=vlcc_id, user_id=user_id, uic_code=vlcc_values["uic_code"],
+            vlcc_code=code, name=vlcc_values["vlcc_name"],
+            contact_person=vlcc_values["contact_person"],
+            entry_mode=CollectionMode.MANUAL, route_code=vlcc_values["route_code"],
+            soc_percentage=vlcc_values["soc_percentage"], farmer_enabled=True,
+            is_active=True, assigned_chart_rank=1, created_by=owner_id,
+            created_at=now, updated_at=now, is_deleted=deleted,
+            address_id=address_id, bank_account_id=bank_id,
+            settings_id=settings_id, milk_quality_config_id=milk_id,
+        ))
+
+    async with database.transaction() as session:
+        await session.execute(UserModel.__table__.insert(), users)
+        if addresses:
+            await session.execute(AddressModel.__table__.insert(), addresses)
+        if banks:
+            await session.execute(BankAccountModel.__table__.insert(), banks)
+        if settings:
+            await session.execute(SettingsModel.__table__.insert(), settings)
+        if milk_configs:
+            await session.execute(MilkQualityConfigModel.__table__.insert(), milk_configs)
+        await session.execute(VlccModel.__table__.insert(), vlccs)
+
+    return created
+

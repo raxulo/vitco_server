@@ -65,7 +65,9 @@ from app.modules.dataexchange.infrastructure.file_guard import FileGuard
 from app.modules.dataexchange.application.handler import ExcelJobHandler
 from app.modules.dataexchange.application.uploads import ExcelUploadService
 from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeHandler
+from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandler
 from app.modules.dataexchange.infrastructure.vlcc_scope import VlccScope
+from app.modules.dataexchange.infrastructure.owner_scope import OwnerScope
 from app.worker.supervisor import WorkerSupervisor
 
 from app.modules.payments.application.service import PaymentPostingService
@@ -272,6 +274,17 @@ class ModuleConfigurator:
             uploads=uploads,
             storage=container.resolve(ExchangeStorage),
         ))
+
+        owner_scope = OwnerScope(container.database)
+        container.register(OwnerScope, owner_scope)
+        container.register(VlccExchangeHandler, VlccExchangeHandler(
+            database=container.database,
+            jobs=handler,
+            scope=owner_scope,
+            uploads=uploads,
+            storage=container.resolve(ExchangeStorage),
+        ))
+
 
         supervisor = WorkerSupervisor(
             database=container.database,
