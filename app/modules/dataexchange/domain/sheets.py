@@ -326,3 +326,61 @@ VLCC_MILK_QUALITY_KEYS = (
     "buffalo_min_fat", "buffalo_max_fat", "buffalo_min_snf", "buffalo_max_snf",
 )
 
+
+PRODATA_SHEET = SheetSpec(
+    name="Prodata Rate Chart",
+    key_column="row_number",
+    columns=(
+        ColumnSpec(
+            key="row_number", header="Row No", section=Section.RATE, kind=ColumnKind.INT,
+            min_value=1, example="1",
+            help="Row sequence number. If left blank on import, auto-assigned from row order.",
+        ),
+        ColumnSpec(
+            key="fat_min", header="FAT Min", section=Section.RATE, kind=ColumnKind.FLOAT,
+            required=True, min_value=0.0, max_value=20.0, example="3.0",
+            help="Minimum FAT percentage.",
+        ),
+        ColumnSpec(
+            key="fat_max", header="FAT Max", section=Section.RATE, kind=ColumnKind.FLOAT,
+            required=True, min_value=0.0, max_value=20.0, example="4.5",
+            help="Maximum FAT percentage.",
+        ),
+        ColumnSpec(
+            key="snf_min", header="SNF Min", section=Section.RATE, kind=ColumnKind.FLOAT,
+            min_value=0.0, max_value=20.0, example="7.0",
+            help="Minimum SNF percentage (optional).",
+        ),
+        ColumnSpec(
+            key="snf_max", header="SNF Max", section=Section.RATE, kind=ColumnKind.FLOAT,
+            min_value=0.0, max_value=20.0, example="9.0",
+            help="Maximum SNF percentage (optional).",
+        ),
+        ColumnSpec(
+            key="fat_rate_per_kg", header="FAT Rate / KG", section=Section.RATE, kind=ColumnKind.FLOAT,
+            min_value=0.0, example="350.0",
+            help="Rate per kg FAT (in rupees).",
+        ),
+        ColumnSpec(
+            key="snf_rate_per_kg", header="SNF Rate / KG", section=Section.RATE, kind=ColumnKind.FLOAT,
+            min_value=0.0, example="250.0",
+            help="Rate per kg SNF (in rupees).",
+        ),
+        ColumnSpec(
+            key="snf_cutoff", header="SNF Cut-off", section=Section.RATE, kind=ColumnKind.FLOAT,
+            min_value=0.0, max_value=20.0, example="8.0",
+            help="SNF threshold below which deduction applies.",
+        ),
+        ColumnSpec(
+            key="snf_deduction", header="SNF Deduction", section=Section.RATE, kind=ColumnKind.FLOAT,
+            min_value=0.0, example="2.0",
+            help="Deduction rate per unit below cutoff.",
+        ),
+    ),
+)
+
+PRODATA_KEYS = (
+    "row_number", "fat_min", "fat_max", "snf_min", "snf_max",
+    "fat_rate_per_kg", "snf_rate_per_kg", "snf_cutoff", "snf_deduction",
+)
+

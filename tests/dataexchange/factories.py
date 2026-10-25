@@ -280,3 +280,65 @@ async def create_full_vlccs(
 
     return created
 
+
+async def create_prodata_chart(
+    database: DatabaseManager,
+    *,
+    name: str = "Test Prodata Chart",
+    created_by: UUID | None = None,
+    milk_type: int = 2,
+    calculation_type: int = 0,
+) -> UUID:
+    from datetime import date
+    from app.modules.ratechart.domain.enums import RateChartStatus, RateChartType
+    from app.modules.ratechart.infrastructure.models import RateChartModel
+
+    now = now_naive_ist()
+    chart_id = uuid4()
+    async with database.transaction() as session:
+        await session.execute(
+            RateChartModel.__table__.insert(),
+            [dict(
+                id=chart_id,
+                chart_name=name,
+                chart_type=RateChartType.PRODATA,
+                milk_type=milk_type,
+                calculation_type=calculation_type,
+                effective_from=date(2026, 1, 1),
+                effective_to=None,
+                status=RateChartStatus.ACTIVE,
+                created_by=created_by,
+                description=None,
+                created_at=now,
+                updated_at=now,
+            )],
+        )
+    return chart_id
+
+
+async def create_prodata_rows(
+    database: DatabaseManager,
+    chart_id: UUID,
+    rows: list[dict[str, Any]],
+) -> None:
+    from app.modules.ratechart.infrastructure.models import ProdataRateRowModel
+
+    records = []
+    for idx, r in enumerate(rows, start=1):
+        records.append(dict(
+            id=uuid4(),
+            rate_chart_id=chart_id,
+            row_number=r.get("row_number", idx),
+            fat_min=float(r["fat_min"]),
+            fat_max=float(r["fat_max"]),
+            snf_min=float(r["snf_min"]) if r.get("snf_min") is not None else None,
+            snf_max=float(r["snf_max"]) if r.get("snf_max") is not None else None,
+            fat_rate_per_kg=float(r["fat_rate_per_kg"]) if r.get("fat_rate_per_kg") is not None else None,
+            snf_rate_per_kg=float(r["snf_rate_per_kg"]) if r.get("snf_rate_per_kg") is not None else None,
+            snf_cutoff=float(r["snf_cutoff"]) if r.get("snf_cutoff") is not None else None,
+            snf_deduction=float(r["snf_deduction"]) if r.get("snf_deduction") is not None else None,
+        ))
+    if records:
+        async with database.transaction() as session:
+            await session.execute(ProdataRateRowModel.__table__.insert(), records)
+

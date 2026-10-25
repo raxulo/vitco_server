@@ -7,23 +7,24 @@ updated: 2026-10-25T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.1.0 — Excel Data Exchange
-**Phase:** 3 - VLCC Excel Exchange
-**Status:** ✅ Complete (verified at runtime, 17/17 tests PASS) — awaiting phase commit approval
-**Plan:** 3.1 ✅ spec + export, 3.2 ✅ import + worker, 3.3 ✅ endpoints + e2e
+**Phase:** 4 - Prodata Rate-Chart Excel Exchange
+**Status:** ✅ Completed
+**Plan:** 4.1 ✅ spec + export, 4.2 ✅ import + endpoints
 **Branch:** `feature/excel-import-export` (from `develop`; Git Flow: main / develop / feature/* / bugfix/* / hotfix/*)
 
 ## Last Action
 
-- Phase 3 planned and executed across all 3 plans:
-  - Plan 3.1: 44-column `VLCC_SHEET`, `VlccExchangeRepository`, `VlccExportProcessor`, `vlcc_template_path`.
-  - Plan 3.2: `VlccImportProcessor` with multi-table upsert, hierarchy code conflict check, seen-keys dedupe, Argon2 caching, registered in `ExchangeWorker`.
-  - Plan 3.3: `OwnerScope`, IoC container wiring, `/api/v1/excel/vlccs/*` endpoints, end-to-end integration verified.
-- 17/17 automated tests passing in `tests/dataexchange`.
+- Phase 4 executed, tested, and verified.
+- `PRODATA_SHEET`, `ProdataExchangeRepository`, `ProdataExportProcessor`, `ProdataImportProcessor` implemented.
+- Validation: FAT/SNF bounds & interval overlap detection, atomic replace within a single transaction (DECISION-005).
+- Scoping & Security: `RateChartScope` enforcing role-based permissions (`SUPER_ADMIN`, `SUB_ADMIN`, `MCC`, `VLCC`).
+- REST Endpoints: `/options`, `/template`, `/export`, `/import`.
+- Tests: 15/15 Phase 4 tests pass; 249/249 full suite pass.
 
 ## Next Steps
 
-1. Phase 3 commit (after user approval).
-2. Proceed to Phase 4: Prodata Rate-Chart Excel Exchange (all-or-nothing replace, range & overlap validation).
+1. Commit Phase 4 changes with conventional commit upon user confirmation.
+2. Advance to Phase 5: Resumable Uploads & Operations UX.
 
 ## Active Decisions
 

@@ -66,8 +66,10 @@ from app.modules.dataexchange.application.handler import ExcelJobHandler
 from app.modules.dataexchange.application.uploads import ExcelUploadService
 from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeHandler
 from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandler
+from app.modules.dataexchange.application.prodata_exchange import ProdataExchangeHandler
 from app.modules.dataexchange.infrastructure.vlcc_scope import VlccScope
 from app.modules.dataexchange.infrastructure.owner_scope import OwnerScope
+from app.modules.dataexchange.infrastructure.ratechart_scope import RateChartScope
 from app.worker.supervisor import WorkerSupervisor
 
 from app.modules.payments.application.service import PaymentPostingService
@@ -281,6 +283,16 @@ class ModuleConfigurator:
             database=container.database,
             jobs=handler,
             scope=owner_scope,
+            uploads=uploads,
+            storage=container.resolve(ExchangeStorage),
+        ))
+
+        ratechart_scope = RateChartScope(container.database)
+        container.register(RateChartScope, ratechart_scope)
+        container.register(ProdataExchangeHandler, ProdataExchangeHandler(
+            database=container.database,
+            jobs=handler,
+            scope=ratechart_scope,
             uploads=uploads,
             storage=container.resolve(ExchangeStorage),
         ))

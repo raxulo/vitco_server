@@ -55,3 +55,8 @@ def farmer_template_path(root: Path) -> Path:
     from app.modules.dataexchange.domain.sheets import FARMER_SHEET
     return template_path(root, FARMER_SHEET, "farmers")
 
+
+def prodata_template_path(root: Path) -> Path:
+    from app.modules.dataexchange.domain.sheets import PRODATA_SHEET
+    return template_path(root, PRODATA_SHEET, "prodata")
+

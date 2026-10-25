@@ -29,6 +29,10 @@ from app.api.v1.schemas.excel import (
     FarmerExportRequest,
     FarmerImportRequest,
     OwnerOptionResponse,
+    ProdataExportRequest,
+    ProdataImportRequest,
+    RateChartOptionResponse,
+    RateChartOptionsResponse,
     UploadResponse,
     VlccExportRequest,
     VlccImportRequest,
@@ -219,6 +223,73 @@ async def import_vlccs(request: Request, payload: VlccImportRequest):
             owner_id=payload.owner_id,
             upload_id=payload.upload_id,
             mode=ImportMode[payload.mode],
+            dry_run=payload.dry_run,
+        )
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
+
+# =========================================================
+# PRODATA RATE CHARTS
+# =========================================================
+
+@router.get("/prodata/options")
+async def prodata_options(
+    request: Request,
+    search: str | None = Query(None, max_length=100),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    """Prodata rate charts this user may export / import for."""
+    user = _user(request)
+    options = await GetHandler.prodata_exchange_handler(request).chart_options(
+        user, search=search, limit=limit, offset=offset
+    )
+    return JSONResponse(content=jsonable_encoder({
+        "status": True,
+        "code": 200,
+        "message": "Records fetched successfully",
+        "items": [
+            RateChartOptionResponse(
+                id=item.id,
+                name=item.name,
+                milk_type=item.milk_type,
+                calculation_type=item.calculation_type,
+                can_modify=item.can_modify,
+            )
+            for item in options.items
+        ],
+        **_compute_pagination(options.total, limit, offset),
+    }))
+
+
+@router.get("/prodata/template")
+async def prodata_template(request: Request):
+    _user(request)
+    path = await GetHandler.prodata_exchange_handler(request).template()
+    return FileResponse(path, media_type=_XLSX, filename="prodata_template.xlsx",
+                        headers={"Content-Encoding": "identity"})
+
+
+@router.post("/prodata/export", status_code=202)
+async def export_prodata(request: Request, payload: ProdataExportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.prodata_exchange_handler(request).export(user, payload.chart_id)
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
+
+@router.post("/prodata/import", status_code=202)
+async def import_prodata(request: Request, payload: ProdataImportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.prodata_exchange_handler(request).import_(
+            user,
+            upload_id=payload.upload_id,
+            chart_id=payload.chart_id,
             dry_run=payload.dry_run,
         )
     except (ExcelJobConflictException, ExcelJobCapacityException) as busy:

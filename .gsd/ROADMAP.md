@@ -81,14 +81,14 @@ updated: 2026-10-25T00:00:00+05:30
 ---
 
 ### Phase 4: Prodata Rate-Chart Excel Exchange
-**Status:** ⬜ Not Started
+**Status:** ✅ Complete (verified at runtime 2026-10-25 — [VERIFICATION.md](phases/4/VERIFICATION.md))
 **Objective:** Export the rows of a Prodata chart and replace them from Excel in one all-or-nothing transaction.
 **Requirements:** REQ-17, REQ-18
 **Depends on:** Phase 1
 
-**Plans (draft — finalised by `/plan 4`):**
-- [ ] Plan 4.1: Prodata column spec, template & export
-- [ ] Plan 4.2: Prodata import (range / overlap validation, atomic replace) & endpoints
+**Plans:**
+- [x] Plan 4.1: Prodata column spec, template & export — [1-PLAN.md](phases/4/1-PLAN.md)
+- [x] Plan 4.2: Prodata import (range / overlap validation, atomic replace) & endpoints — [2-PLAN.md](phases/4/2-PLAN.md)
 
 ---
 

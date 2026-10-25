@@ -329,6 +329,14 @@ def register_processors(container: Any, worker: ExchangeWorker) -> None:
         database=database, repository=vlccs, password_service=passwords,
     ))
 
+    from app.modules.dataexchange.application.prodata_export import ProdataExportProcessor
+    from app.modules.dataexchange.application.prodata_import import ProdataImportProcessor
+    from app.modules.dataexchange.infrastructure.prodata_repository import ProdataExchangeRepository
+
+    prodata_repo = ProdataExchangeRepository(database)
+    worker.register(ProdataExportProcessor(database=database, repository=prodata_repo))
+    worker.register(ProdataImportProcessor(database=database, repository=prodata_repo))
+
 
 
 def _configure_logging() -> None:

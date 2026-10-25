@@ -129,6 +129,33 @@ class OwnerOptionsResponse(BaseModel):
     default_id: UUID | None
 
 
+class RateChartOptionResponse(BaseModel):
+
+    id: UUID
+    name: str
+    milk_type: int
+    calculation_type: int
+    can_modify: bool
+
+
+class RateChartOptionsResponse(BaseModel):
+
+    items: list[RateChartOptionResponse]
+    total: int
+
+
+class ProdataExportRequest(BaseModel):
+
+    chart_id: UUID = Field(description="ID of the Prodata rate chart to export")
+
+
+class ProdataImportRequest(BaseModel):
+
+    upload_id: UUID = Field(description="A completed upload from /excel/uploads")
+    chart_id: UUID = Field(description="ID of the Prodata rate chart to replace")
+    dry_run: bool = Field(False, description="Validate only; nothing is saved")
+
+
 
 class CreateUploadRequest(BaseModel):
 

@@ -16,6 +16,7 @@ from app.modules.dataexchange.application.handler import ExcelJobHandler
 from app.modules.dataexchange.application.uploads import ExcelUploadService
 from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeHandler
 from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandler
+from app.modules.dataexchange.application.prodata_exchange import ProdataExchangeHandler
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -96,6 +97,10 @@ class GetHandler:
     @staticmethod
     def vlcc_exchange_handler(request: Request) -> VlccExchangeHandler:
         return request.app.state.application.container.resolve(VlccExchangeHandler)
+
+    @staticmethod
+    def prodata_exchange_handler(request: Request) -> ProdataExchangeHandler:
+        return request.app.state.application.container.resolve(ProdataExchangeHandler)
 
 
     @staticmethod
