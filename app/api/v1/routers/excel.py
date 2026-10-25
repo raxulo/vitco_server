@@ -28,6 +28,8 @@ from app.api.v1.schemas.excel import (
     ExcelJobResponse,
     FarmerExportRequest,
     FarmerImportRequest,
+    FormulaExportRequest,
+    FormulaImportRequest,
     OwnerOptionResponse,
     ProdataExportRequest,
     ProdataImportRequest,
@@ -299,6 +301,76 @@ async def import_prodata(request: Request, payload: ProdataImportRequest):
     except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
         return excel_busy_response(busy)
     return _accepted(dto)
+
+
+# =========================================================
+# FORMULA RATE CHARTS (REQ-20, REQ-21)
+# =========================================================
+
+@router.get("/formula/options")
+async def formula_options(
+    request: Request,
+    search: str | None = Query(None, description="Filter charts by name"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    user = _user(request)
+    options = await GetHandler.formula_exchange_handler(request).chart_options(
+        user, search=search, limit=limit, offset=offset
+    )
+    return JSONResponse(content=jsonable_encoder({
+        "status": True,
+        "code": 200,
+        "message": "Records fetched successfully",
+        "items": [
+            RateChartOptionResponse(
+                id=item.id,
+                name=item.name,
+                milk_type=item.milk_type,
+                calculation_type=item.calculation_type,
+                can_modify=item.can_modify,
+            )
+            for item in options.items
+        ],
+        **_compute_pagination(options.total, limit, offset),
+    }))
+
+
+@router.get("/formula/template")
+async def formula_template(request: Request):
+    _user(request)
+    path = await GetHandler.formula_exchange_handler(request).template()
+    return FileResponse(path, media_type=_XLSX, filename="formula_template.xlsx",
+                        headers={"Content-Encoding": "identity"})
+
+
+@router.post("/formula/export", status_code=202)
+async def export_formula(request: Request, payload: FormulaExportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.formula_exchange_handler(request).export(user, payload.chart_id)
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
+
+@router.post("/formula/import", status_code=202)
+async def import_formula(request: Request, payload: FormulaImportRequest):
+    user = _user(request)
+    try:
+        dto = await GetHandler.formula_exchange_handler(request).import_(
+            user,
+            upload_id=payload.upload_id,
+            chart_id=payload.chart_id,
+            chart_name=payload.chart_name,
+            milk_type=payload.milk_type,
+            effective_from=payload.effective_from,
+            dry_run=payload.dry_run,
+        )
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
 
 
 

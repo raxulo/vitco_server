@@ -66,4 +66,6 @@ async def test_ratechart_list_contains_prodata_buttons(api, database):
     html = resp.text
     assert "openExcelExchangeModal('prodata', 'export')" in html
     assert "openExcelExchangeModal('prodata', 'import')" in html
+    assert "openExcelExchangeModal('formula', 'export')" in html
+    assert "openExcelExchangeModal('formula', 'import')" in html
     assert "excel-exchange-modal" in html

@@ -422,11 +422,18 @@ def format_cell(spec: ColumnSpec, value: Any) -> Any:
     if spec.kind is ColumnKind.BOOL:
         return "YES" if value else "NO"
     if spec.kind is ColumnKind.ENUM:
-        number = int(value)
-        for label, choice in spec.choices:
-            if choice == number:
-                return label
-        return str(number)
+        if isinstance(value, str):
+            for label, choice in spec.choices:
+                if label.upper() == value.upper():
+                    return label
+        try:
+            number = int(value)
+            for label, choice in spec.choices:
+                if choice == number:
+                    return label
+            return str(number)
+        except (ValueError, TypeError):
+            return str(value)
     if spec.is_text_format or spec.kind in (ColumnKind.TEXT, ColumnKind.EMAIL):
         return str(value)
     return value

@@ -68,6 +68,7 @@ class RateChartScope:
         self,
         owner: CurrentUser,
         *,
+        chart_type: RateChartType = RateChartType.PRODATA,
         search: str | None = None,
         limit: int = 50,
         offset: int = 0,
@@ -77,7 +78,7 @@ class RateChartScope:
 
         visible_cond = Hierarchy.shared_visible(owner, RateChartModel.created_by)
         conditions = [
-            RateChartModel.chart_type == RateChartType.PRODATA,
+            RateChartModel.chart_type == chart_type,
             visible_cond,
         ]
 
@@ -123,15 +124,21 @@ class RateChartScope:
 
         return RateChartOptions(items=items, total=total)
 
-    async def resolve_for_export(self, owner: CurrentUser, chart_id: UUID | None) -> RateChartModel:
+    async def resolve_for_export(
+        self,
+        owner: CurrentUser,
+        chart_id: UUID | None,
+        *,
+        chart_type: RateChartType = RateChartType.PRODATA,
+    ) -> RateChartModel:
         if chart_id is None:
             raise ExcelTargetRequiredException("Rate chart ID is required for export")
 
         chart = await self._session.scalar(
             select(RateChartModel).where(RateChartModel.id == chart_id)
         )
-        if chart is None or chart.chart_type != RateChartType.PRODATA:
-            raise ExcelTargetNotFoundException("The selected Prodata rate chart was not found")
+        if chart is None or chart.chart_type != chart_type:
+            raise ExcelTargetNotFoundException("The selected rate chart was not found")
 
         # Check visibility
         is_visible = await self._session.scalar(
@@ -145,15 +152,21 @@ class RateChartScope:
 
         return chart
 
-    async def resolve_for_import(self, owner: CurrentUser, chart_id: UUID | None) -> RateChartModel:
+    async def resolve_for_import(
+        self,
+        owner: CurrentUser,
+        chart_id: UUID | None,
+        *,
+        chart_type: RateChartType = RateChartType.PRODATA,
+    ) -> RateChartModel:
         if chart_id is None:
             raise ExcelTargetRequiredException("Rate chart ID is required for import")
 
         chart = await self._session.scalar(
             select(RateChartModel).where(RateChartModel.id == chart_id)
         )
-        if chart is None or chart.chart_type != RateChartType.PRODATA:
-            raise ExcelTargetNotFoundException("The selected Prodata rate chart was not found")
+        if chart is None or chart.chart_type != chart_type:
+            raise ExcelTargetNotFoundException("The selected rate chart was not found")
 
         # Check modifiability
         is_modifiable = await self._session.scalar(
@@ -172,6 +185,7 @@ class RateChartScope:
         owner: CurrentUser,
         *,
         chart_name: str | None,
+        chart_type: RateChartType = RateChartType.PRODATA,
         milk_type: MilkType | int | str = MilkType.MIXED,
         effective_from: date | None = None,
         dry_run: bool = False,
@@ -205,10 +219,11 @@ class RateChartScope:
             return None
 
         start_date = effective_from or now_naive_ist().date()
+        desc = "Created via Formula Excel Import" if chart_type == RateChartType.FORMULA else "Created via Excel Import"
         chart = RateChartModel(
             id=uuid4(),
             chart_name=clean_name,
-            chart_type=RateChartType.PRODATA,
+            chart_type=chart_type,
             milk_type=parsed_milk_type,
             calculation_type=RateCalculationType.FAT_AND_SNF,
             effective_from=start_date,
@@ -217,7 +232,7 @@ class RateChartScope:
             created_by=owner.id,
             created_at=now_naive_ist(),
             updated_at=now_naive_ist(),
-            description="Created via Excel Import",
+            description=desc,
         )
         self._session.add(chart)
         await self._session.flush()

@@ -38,6 +38,15 @@
             targetRequired: true,
             hasMode: false,
             defaultMode: "UPSERT"
+        },
+        formula: {
+            title: "Formula Rate-Chart Excel Exchange",
+            subtitle: "Export formula parameters & preview grid, or import formula configuration",
+            targetLabel: "Target Rate Chart",
+            targetHelp: "Select the formula rate chart to export or update",
+            targetRequired: true,
+            hasMode: false,
+            defaultMode: "UPSERT"
         }
     };
 
@@ -99,12 +108,14 @@
         document.getElementById("excel-view-summary").style.display = viewName === "summary" ? "block" : "none";
     }
 
+    const isRateChartKind = (k) => (k === "prodata" || k === "formula");
+
     function handleTargetChange(kind) {
         const select = document.getElementById("excel-target-select");
         const newFields = document.getElementById("excel-new-chart-fields");
         if (!newFields) return;
         const isImportTab = document.querySelector(".excel-modal-tab.active")?.dataset.tab === "import";
-        if (kind === "prodata" && select && select.value === "__NEW__" && isImportTab) {
+        if (isRateChartKind(kind) && select && select.value === "__NEW__" && isImportTab) {
             newFields.style.display = "block";
         } else {
             newFields.style.display = "none";
@@ -193,7 +204,7 @@
                 select.appendChild(opt);
             }
 
-            if (kind === "prodata") {
+            if (isRateChartKind(kind)) {
                 const newOpt = document.createElement("option");
                 newOpt.value = "__NEW__";
                 newOpt.text = "+ Create New Rate Chart from Excel";
@@ -206,7 +217,7 @@
                 const opt = document.createElement("option");
                 opt.value = item.id;
                 opt.text = item.name + (item.code ? ` (${item.code})` : "");
-                if (item.can_modify === false && kind === "prodata") {
+                if (item.can_modify === false && isRateChartKind(kind)) {
                     opt.dataset.readonly = "true";
                     opt.text += " [View Only]";
                 }
@@ -217,7 +228,7 @@
                 handleTargetChange(kind);
             };
 
-            if (kind === "prodata") {
+            if (isRateChartKind(kind)) {
                 select.disabled = false;
                 const isImportTab = document.querySelector(".excel-modal-tab.active")?.dataset.tab === "import";
                 if (isImportTab) {
@@ -266,7 +277,7 @@
             showError("Please select a target before exporting.");
             return;
         }
-        if (currentKind === "prodata" && targetId === "__NEW__") {
+        if (isRateChartKind(currentKind) && targetId === "__NEW__") {
             showError("Cannot export a new rate chart. Please select an existing rate chart to export.");
             return;
         }
@@ -274,7 +285,7 @@
         let payload = {};
         if (currentKind === "farmers") payload.vlcc_id = targetId;
         else if (currentKind === "vlccs") payload.owner_id = targetId;
-        else if (currentKind === "prodata") payload.chart_id = targetId;
+        else if (isRateChartKind(currentKind)) payload.chart_id = targetId;
 
         try {
             showView("progress");
@@ -353,7 +364,7 @@
             return;
         }
 
-        if (currentKind === "prodata" && targetId === "__NEW__") {
+        if (isRateChartKind(currentKind) && targetId === "__NEW__") {
             const chartName = (document.getElementById("excel-new-chart-name")?.value || "").trim();
             if (!chartName) {
                 showError("Please enter a name for the new rate chart.");
@@ -401,7 +412,7 @@
 
             if (currentKind === "farmers") payload.vlcc_id = targetId;
             else if (currentKind === "vlccs") payload.owner_id = targetId;
-            else if (currentKind === "prodata") {
+            else if (isRateChartKind(currentKind)) {
                 if (targetId === "__NEW__") {
                     payload.chart_id = null;
                     payload.chart_name = (document.getElementById("excel-new-chart-name")?.value || "").trim();

@@ -384,3 +384,56 @@ PRODATA_KEYS = (
     "fat_rate_per_kg", "snf_rate_per_kg", "snf_cutoff", "snf_deduction",
 )
 
+
+FORMULA_ANIMAL_TYPES = (
+    ("COW", 0),
+    ("BUFFALO", 1),
+)
+
+FORMULA_SHEET = SheetSpec(
+    name="Formula Rate Chart",
+    key_column="animal_type",
+    columns=(
+        ColumnSpec(
+            key="animal_type", header="Animal / Milk Type", section=Section.RATE, kind=ColumnKind.ENUM,
+            required=True, choices=FORMULA_ANIMAL_TYPES, example="COW",
+            help="Animal type: COW or BUFFALO.",
+        ),
+        ColumnSpec(
+            key="standard_fat", header="Standard FAT (%)", section=Section.RATE, kind=ColumnKind.FLOAT,
+            required=True, min_value=0.1, max_value=20.0, example="4.0",
+            help="Standard reference FAT percentage.",
+        ),
+        ColumnSpec(
+            key="standard_snf", header="Standard SNF (%)", section=Section.RATE, kind=ColumnKind.FLOAT,
+            required=True, min_value=0.1, max_value=20.0, example="8.5",
+            help="Standard reference SNF percentage.",
+        ),
+        ColumnSpec(
+            key="standard_rate", header="Standard Rate (₹/L)", section=Section.RATE, kind=ColumnKind.FLOAT,
+            required=True, min_value=0.1, example="35.0",
+            help="Standard base market rate in ₹ per liter.",
+        ),
+        ColumnSpec(
+            key="fat_percentage", header="FAT Contribution (%)", section=Section.RATE, kind=ColumnKind.FLOAT,
+            required=True, min_value=0.0, max_value=100.0, example="60.0",
+            help="FAT value contribution percentage (FAT% + SNF% must equal 100%).",
+        ),
+        ColumnSpec(
+            key="snf_percentage", header="SNF Contribution (%)", section=Section.RATE, kind=ColumnKind.FLOAT,
+            required=True, min_value=0.0, max_value=100.0, example="40.0",
+            help="SNF value contribution percentage (FAT% + SNF% must equal 100%).",
+        ),
+    ),
+)
+
+FORMULA_KEYS = (
+    "animal_type",
+    "standard_fat",
+    "standard_snf",
+    "standard_rate",
+    "fat_percentage",
+    "snf_percentage",
+)
+
+

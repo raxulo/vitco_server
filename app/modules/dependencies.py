@@ -17,6 +17,7 @@ from app.modules.dataexchange.application.uploads import ExcelUploadService
 from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeHandler
 from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandler
 from app.modules.dataexchange.application.prodata_exchange import ProdataExchangeHandler
+from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -101,6 +102,10 @@ class GetHandler:
     @staticmethod
     def prodata_exchange_handler(request: Request) -> ProdataExchangeHandler:
         return request.app.state.application.container.resolve(ProdataExchangeHandler)
+
+    @staticmethod
+    def formula_exchange_handler(request: Request) -> FormulaExchangeHandler:
+        return request.app.state.application.container.resolve(FormulaExchangeHandler)
 
 
     @staticmethod

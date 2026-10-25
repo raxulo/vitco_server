@@ -60,3 +60,8 @@ def prodata_template_path(root: Path) -> Path:
     from app.modules.dataexchange.domain.sheets import PRODATA_SHEET
     return template_path(root, PRODATA_SHEET, "prodata")
 
+
+def formula_template_path(root: Path) -> Path:
+    from app.modules.dataexchange.domain.sheets import FORMULA_SHEET
+    return template_path(root, FORMULA_SHEET, "formula")
+

@@ -17,6 +17,8 @@ class ExcelJobKind(IntEnum):
     VLCC_IMPORT = 4
     PRODATA_EXPORT = 5
     PRODATA_IMPORT = 6
+    FORMULA_EXPORT = 7
+    FORMULA_IMPORT = 8
 
     @property
     def is_import(self) -> bool:
@@ -24,6 +26,7 @@ class ExcelJobKind(IntEnum):
             ExcelJobKind.FARMER_IMPORT,
             ExcelJobKind.VLCC_IMPORT,
             ExcelJobKind.PRODATA_IMPORT,
+            ExcelJobKind.FORMULA_IMPORT,
         )
 
 

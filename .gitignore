@@ -19,6 +19,7 @@ logs/
 storage/media/
 # Excel import / export job files (contain personal and bank data)
 storage/exchange/
+exchange_data/
 # SQLite WAL side files
 *.db-wal
 *.db-shm

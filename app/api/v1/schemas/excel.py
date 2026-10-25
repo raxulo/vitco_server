@@ -159,6 +159,22 @@ class ProdataImportRequest(BaseModel):
     dry_run: bool = Field(False, description="Validate only; nothing is saved")
 
 
+class FormulaExportRequest(BaseModel):
+
+    chart_id: UUID = Field(description="ID of the Formula rate chart to export")
+
+
+class FormulaImportRequest(BaseModel):
+
+    upload_id: UUID = Field(description="A completed upload from /excel/uploads")
+    chart_id: UUID | None = Field(None, description="ID of the Formula rate chart to update. If omitted, a new chart is created.")
+    chart_name: str | None = Field(None, max_length=150, description="Name for the new rate chart (required if chart_id is null)")
+    milk_type: int | str = Field(2, description="0=COW, 1=BUFFALO, 2=MIXED")
+    effective_from: date | None = Field(None, description="Start date for new rate chart (defaults to today)")
+    dry_run: bool = Field(False, description="Validate only; nothing is saved")
+
+
+
 
 class CreateUploadRequest(BaseModel):
 

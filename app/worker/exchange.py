@@ -337,6 +337,14 @@ def register_processors(container: Any, worker: ExchangeWorker) -> None:
     worker.register(ProdataExportProcessor(database=database, repository=prodata_repo))
     worker.register(ProdataImportProcessor(database=database, repository=prodata_repo))
 
+    from app.modules.dataexchange.application.formula_export import FormulaExportProcessor
+    from app.modules.dataexchange.application.formula_import import FormulaImportProcessor
+    from app.modules.dataexchange.infrastructure.formula_repository import FormulaExchangeRepository
+
+    formula_repo = FormulaExchangeRepository(database)
+    worker.register(FormulaExportProcessor(database=database, repository=formula_repo))
+    worker.register(FormulaImportProcessor(database=database, repository=formula_repo))
+
 
 
 def _configure_logging() -> None:

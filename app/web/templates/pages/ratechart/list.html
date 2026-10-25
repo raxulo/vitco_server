@@ -28,6 +28,12 @@
             <button type="button" class="btn btn-secondary" onclick="openExcelExchangeModal('prodata', 'import')" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                 <i class="fa-solid fa-file-arrow-up" style="color: #2563eb;"></i> Prodata Import
             </button>
+            <button type="button" class="btn btn-secondary" onclick="openExcelExchangeModal('formula', 'export')" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-calculator" style="color: #059669;"></i> Formula Export
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="openExcelExchangeModal('formula', 'import')" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-file-arrow-up" style="color: #7c3aed;"></i> Formula Import
+            </button>
             {% endif %}
             {# MCC / VLCC: no rate chart permission -> view only; otherwise capped by their maximum charts #}
             {% if not can_edit|default(true) %}

@@ -3,8 +3,7 @@ Test data factories: real VLCC / farmer / user / address / bank rows (bulk Core 
 and a real JobContext for running processors outside the worker loop.
 """
 
-from __future__ import annotations
-
+from typing import Any
 import itertools
 from dataclasses import dataclass
 from pathlib import Path
@@ -341,4 +340,83 @@ async def create_prodata_rows(
     if records:
         async with database.transaction() as session:
             await session.execute(ProdataRateRowModel.__table__.insert(), records)
+
+
+async def create_formula_chart(
+    database: DatabaseManager,
+    *,
+    name: str = "Test Formula Chart",
+    created_by: UUID | None = None,
+    milk_type: int = 2,
+    calculation_type: int = 0,
+) -> UUID:
+    from datetime import date
+    from app.modules.ratechart.domain.enums import RateChartStatus, RateChartType
+    from app.modules.ratechart.infrastructure.models import RateChartModel
+
+    now = now_naive_ist()
+    chart_id = uuid4()
+    async with database.transaction() as session:
+        await session.execute(
+            RateChartModel.__table__.insert(),
+            [dict(
+                id=chart_id,
+                chart_name=name,
+                chart_type=RateChartType.FORMULA,
+                milk_type=milk_type,
+                calculation_type=calculation_type,
+                effective_from=date(2026, 1, 1),
+                effective_to=None,
+                status=RateChartStatus.ACTIVE,
+                created_by=created_by,
+                description=None,
+                created_at=now,
+                updated_at=now,
+            )],
+        )
+    return chart_id
+
+
+async def create_formula_config(
+    database: DatabaseManager,
+    chart_id: UUID,
+    *,
+    milk_type: int = 2,
+    cow_standard_fat: float | None = 4.0,
+    cow_standard_snf: float | None = 8.5,
+    cow_standard_rate: float | None = 40.0,
+    cow_fat_percentage: float | None = 60.0,
+    cow_snf_percentage: float | None = 40.0,
+    buffalo_standard_fat: float | None = 6.5,
+    buffalo_standard_snf: float | None = 9.0,
+    buffalo_standard_rate: float | None = 65.0,
+    buffalo_fat_percentage: float | None = 60.0,
+    buffalo_snf_percentage: float | None = 40.0,
+) -> None:
+    from app.modules.ratechart.domain.enums import MilkType
+    from app.modules.ratechart.infrastructure.models import RateFormulaConfigModel
+
+    now = now_naive_ist()
+    async with database.transaction() as session:
+        await session.execute(
+            RateFormulaConfigModel.__table__.insert(),
+            [dict(
+                id=uuid4(),
+                rate_chart_id=chart_id,
+                milk_type=MilkType(milk_type),
+                cow_standard_fat=cow_standard_fat,
+                cow_standard_snf=cow_standard_snf,
+                cow_standard_rate=cow_standard_rate,
+                cow_fat_percentage=cow_fat_percentage,
+                cow_snf_percentage=cow_snf_percentage,
+                buffalo_standard_fat=buffalo_standard_fat,
+                buffalo_standard_snf=buffalo_standard_snf,
+                buffalo_standard_rate=buffalo_standard_rate,
+                buffalo_fat_percentage=buffalo_fat_percentage,
+                buffalo_snf_percentage=buffalo_snf_percentage,
+                created_at=now,
+                updated_at=now,
+            )],
+        )
+
 

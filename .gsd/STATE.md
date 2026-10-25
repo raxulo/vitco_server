@@ -8,19 +8,20 @@ updated: 2026-10-25T00:00:00+05:30
 
 **Milestone:** v1.1.0 — Excel Data Exchange
 **Phase:** 6 - Formula Rate-Chart Excel Exchange
-**Status:** 📋 Ready for Execution (Planning Complete)
+**Status:** ✅ Complete (Verified 2026-10-25)
 **Plan:** 6.1 (Formula sheet spec, repository & export), 6.2 (Formula import, endpoints, UI modal & tests)
 **Branch:** `feature/excel-import-export` (from `develop`; Git Flow: main / develop / feature/* / bugfix/* / hotfix/*)
 
 ## Last Action
 
-- Phase 6 planning complete: 2 execution plans created across 2 waves.
-- `RESEARCH.md`, `1-PLAN.md`, `2-PLAN.md` generated with XML tasks and verification steps.
-- `ROADMAP.md` and `REQUIREMENTS.md` updated with REQ-20 and REQ-21.
+- Phase 6 implemented and verified with comprehensive automated test suite (`tests/dataexchange/test_formula_api.py` 8/8 passed, 269 full suite passed).
+- Formula rate chart Excel template, async export processor, all-or-nothing import processor, and dynamic modal integration in `ratecharts/list.html` and `excel_exchange.js` completed.
+- Support for creating brand-new Formula rate charts directly from Excel via `__NEW__` target selection.
 
 ## Next Steps
 
-1. `/execute 6` — Execute Plan 6.1 (Formula sheet spec, repository & export engine).
+1. Milestone review / audit for v1.1.0 — Excel Data Exchange.
+2. Commit Phase 6 changes upon user confirmation.
 
 ## Active Decisions
 
