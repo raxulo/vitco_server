@@ -79,6 +79,7 @@ class RateChartController:
                 "id": item.id,
                 "chart_name": item.chart_name,
                 "chart_type": item.chart_type,
+                "milk_type": item.milk_type,
                 "effective_date": item.effective_from.strftime("%Y-%m-%d") if item.effective_from else "Immediate",
                 "status": item.status,
                 "is_default": False,
