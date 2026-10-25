@@ -7,9 +7,9 @@ updated: 2026-10-25T00:00:00+05:30
 # Roadmap
 
 > **Current Milestone:** v1.1.0 — Excel Data Exchange
-> **Goal:** Farmers, VLCCs and Prodata rate-chart rows can be exported to and imported from Excel
+> **Goal:** Farmers, VLCCs, Prodata rate-charts, and Formula rate-charts can be exported to and imported from Excel
 > (web panel + mobile API), streamed so that very large data sets never crash the server or lose data.
-> **Current Phase:** 1 - Exchange Foundation
+> **Current Phase:** 6 - Formula Rate-Chart Excel Exchange
 > **Status:** Planning
 > **Branch:** `feature/excel-import-export` (from `develop`)
 > **Previous milestone:** [v1.0.0 — Core Dairy ERP & APIs](milestones/v1.0.0/ROADMAP.md)
@@ -19,6 +19,7 @@ updated: 2026-10-25T00:00:00+05:30
 - [ ] Farmers of one selected VLCC export to / import from Excel (upsert by farmer code)
 - [ ] VLCCs of one selected Admin / Sub Admin export to / import from Excel (upsert by VLCC code), including user, address, bank, settings and milk quality columns
 - [ ] Prodata rate-chart rows export to / import into an existing chart (all-or-nothing replace)
+- [ ] Formula rate-chart export (configuration + pricing preview matrix) and import (update config or create new chart) from Excel
 - [ ] One job-based REST API serves both the web panel and the mobile app
 - [ ] Selection rules follow the login role (locked when the role has only one choice) and are enforced on the server
 - [ ] Every import reports total / inserted / updated / discarded and offers a discarded-rows file
@@ -105,6 +106,20 @@ updated: 2026-10-25T00:00:00+05:30
 - [x] Plan 5.4: Mobile API guide for the app team (upload → submit → poll → download flow, error codes, Retry-After) — [4-PLAN.md](phases/5/4-PLAN.md)
 
 ---
+ 
+### Phase 6: Formula Rate-Chart Excel Exchange
+**Status:** ⬜ Not Started
+**Objective:** Export and import Formula-based rate charts (`RateChartType.FORMULA`) to and from Excel professionally — official template with validation rules, formula parameters export with expanded pricing preview grid, atomic validation/import of formula parameters, and brand-new Formula rate chart creation from Excel, integrated with the worker engine, API, and web panel modal.
+**Requirements:** REQ-20 (Formula Rate Chart Export/Import)
+**Depends on:** Phase 1, Phase 4, Phase 5
+
+**Tasks:**
+- [ ] TBD (run /plan 6 to create)
+
+**Verification:**
+- TBD
+
+---
 
 ## Progress Summary
 
@@ -115,6 +130,7 @@ updated: 2026-10-25T00:00:00+05:30
 | 3 | ✅ | 3/3 | 100% |
 | 4 | ✅ | 2/2 | 100% |
 | 5 | ✅ | 4/4 | 100% |
+| 6 | ⬜ | 0/TBD | 0% |
 
 ---
 
@@ -127,6 +143,7 @@ updated: 2026-10-25T00:00:00+05:30
 | 3 | 2026-10-25 | 2026-10-25 | Completed |
 | 4 | 2026-10-25 | 2026-10-25 | Completed |
 | 5 | 2026-10-25 | 2026-10-25 | Completed |
+| 6 | 2026-10-25 | - | In Progress |
 
 ---
 *Last updated: 2026-10-25*

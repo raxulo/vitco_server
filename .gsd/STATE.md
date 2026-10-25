@@ -7,24 +7,21 @@ updated: 2026-10-25T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.1.0 — Excel Data Exchange
-**Phase:** 5 - Web Panel & Hardening
-**Status:** ✅ Completed (Milestone v1.1.0 Finished)
-**Plan:** 5.1 ✅ Web Panel UI, 5.2 ✅ Chaos Tests, 5.3 ✅ Load & Benchmark, 5.4 ✅ API Guide & Audit
+**Phase:** 6 - Formula Rate-Chart Excel Exchange
+**Status:** ⬜ Planning
+**Plan:** TBD (run /plan 6 to create)
 **Branch:** `feature/excel-import-export` (from `develop`; Git Flow: main / develop / feature/* / bugfix/* / hotfix/*)
 
 ## Last Action
 
-- Phase 5 fully executed, tested, and verified.
-- Web panel UI integrated: modal dialog, live polling, drag-and-drop, options locking on Farmer, VLCC, and Rate Chart pages.
-- Chaos tests: crash rollback, hostile file rejection, upload discard, and disk guard verified (5/5 PASS).
-- Concurrency & Load benchmark: verified 3,139 rows/s throughput, +11.3 MB RSS growth, p95 65.8ms latency, and 0 lock errors.
-- Mobile developer documentation published: `docs/EXCEL_EXCHANGE_API.md`.
-- Milestone regression suite: 258 tests passing with 0 failures.
+- Added Phase 6: Formula Rate-Chart Excel Exchange to `ROADMAP.md` per user request.
+- Phase 1–5 completed, verified, and committed.
+- Prodata new rate chart creation from Excel verified with 261 passing tests.
 
 ## Next Steps
 
-1. Commit Phase 5 changes with conventional commit upon user confirmation.
-2. Present milestone completion summary to user.
+1. Run `/plan 6` to research and decompose requirements into executable plans for Formula Rate Chart Excel Exchange.
+2. Build formula template, export processor (config + pricing preview grid), and import processor (config replace + new chart creation).
 
 ## Active Decisions
 
