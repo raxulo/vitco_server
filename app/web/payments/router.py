@@ -19,6 +19,12 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/api/centers",
+    PaymentsController.search_centers_api,
+    methods=["GET"],
+)
+
+router.add_api_route(
     "/user-to",
     PaymentsController.give_receive_page,
     methods=["GET"],

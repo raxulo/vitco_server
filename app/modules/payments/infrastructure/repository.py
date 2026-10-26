@@ -882,6 +882,14 @@ class PaymentLedgerRepository:
                 PaymentLedgerEntryModel.balance_before,
                 PaymentLedgerEntryModel.balance_after,
                 PaymentLedgerEntryModel.created_at,
+                PaymentTransferModel.source_type,
+                PaymentTransferModel.payment_method,
+                PaymentTransferModel.reference,
+                PaymentTransferModel.description,
+            )
+            .outerjoin(
+                PaymentTransferModel,
+                PaymentTransferModel.id == PaymentLedgerEntryModel.transfer_id,
             )
             .where(
                 PaymentLedgerEntryModel.user_id == user_id,

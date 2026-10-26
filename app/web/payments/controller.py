@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from fastapi import Request
 from app.modules.dependencies import GetHandler
 from app.web.framework.renderer import Renderer
@@ -397,15 +398,169 @@ class PaymentsController:
         return JSONResponse(content={"users": users})
 
     @staticmethod
+    async def search_centers_api(request: Request, q: str = ""):
+        user = request.state.user
+        db_manager = request.app.state.application.container.database
+
+        from app.modules.administration.domain.enums import Role
+        from app.modules.administration.infrastructure.hierarchy import Hierarchy
+        from app.modules.mcc.infrastructure.models import MccModel
+        from app.modules.vlcc.infrastructure.models import VlccModel
+        from sqlalchemy import select, or_
+        from fastapi.responses import JSONResponse
+
+        # Only Admin, SubAdmin, SuperAdmin have access to search centers
+        if user.role_type not in (Role.ADMIN, Role.SUB_ADMIN, Role.SUPER_ADMIN):
+            return JSONResponse(content={"centers": []})
+
+        mcc_scope = Hierarchy.mcc_ids(user)
+        vlcc_scope = Hierarchy.vlcc_ids(user)
+
+        mcc_stmt = select(MccModel.user_id, MccModel.name, MccModel.code).where(MccModel.is_deleted == False)
+        if mcc_scope is not None:
+            mcc_stmt = mcc_stmt.where(MccModel.id.in_(mcc_scope))
+
+        vlcc_stmt = select(VlccModel.user_id, VlccModel.name, VlccModel.vlcc_code).where(VlccModel.is_deleted == False)
+        if vlcc_scope is not None:
+            vlcc_stmt = vlcc_stmt.where(VlccModel.id.in_(vlcc_scope))
+
+        query = q.strip() or request.query_params.get("q", "").strip()
+        if query:
+            kw = f"%{query.lower()}%"
+            mcc_stmt = mcc_stmt.where(or_(MccModel.name.ilike(kw), MccModel.code.ilike(kw)))
+            vlcc_stmt = vlcc_stmt.where(or_(VlccModel.name.ilike(kw), VlccModel.vlcc_code.ilike(kw)))
+            mcc_stmt = mcc_stmt.order_by(MccModel.name.asc()).limit(20)
+            vlcc_stmt = vlcc_stmt.order_by(VlccModel.name.asc()).limit(20)
+        else:
+            # Default before search: limit to 5
+            mcc_stmt = mcc_stmt.order_by(MccModel.name.asc()).limit(5)
+            vlcc_stmt = vlcc_stmt.order_by(VlccModel.name.asc()).limit(5)
+
+        mcc_res = await db_manager.session.execute(mcc_stmt)
+        vlcc_res = await db_manager.session.execute(vlcc_stmt)
+
+        centers = []
+        for r in mcc_res.all():
+            centers.append({
+                "user_id": str(r.user_id),
+                "name": r.name,
+                "code": r.code or "",
+                "type": "MCC",
+            })
+        for r in vlcc_res.all():
+            centers.append({
+                "user_id": str(r.user_id),
+                "name": r.name,
+                "code": r.vlcc_code or "",
+                "type": "VLCC",
+            })
+
+        # By default (without search), return only 5 centers
+        if not query:
+            centers = centers[:5]
+
+        return JSONResponse(content={"centers": centers})
+
+    @staticmethod
     async def outstanding_page(request: Request):
         user = request.state.user
         service = GetHandler.payment_posting_service(request)
-        
-        outstanding_records = await service.get_user_outstanding(user_id=user.id)
-        
+        db_manager = request.app.state.application.container.database
+
+        from uuid import UUID
+        from sqlalchemy import select
+        from app.modules.administration.domain.enums import Role
+        from app.modules.administration.infrastructure.hierarchy import Hierarchy
+        from app.modules.mcc.infrastructure.models import MccModel
+        from app.modules.vlcc.infrastructure.models import VlccModel
+
+        # Only Admin and Subadmin (and Super Admin) can see and use this filter
+        can_filter = user.role_type in (Role.ADMIN, Role.SUB_ADMIN, Role.SUPER_ADMIN)
+        selected_user_id = request.query_params.get("user_id", "").strip() if can_filter else ""
+
+        target_user_id = user.id
+        selected_entity = None
+        mccs = []
+        vlccs = []
+
+        if can_filter:
+            mcc_scope = Hierarchy.mcc_ids(user)
+            vlcc_scope = Hierarchy.vlcc_ids(user)
+
+            # Pre-load initial centers for quick initial dropdown display (strictly 5 by default)
+            mcc_stmt = select(MccModel.user_id, MccModel.name, MccModel.code).where(MccModel.is_deleted == False)
+            if mcc_scope is not None:
+                mcc_stmt = mcc_stmt.where(MccModel.id.in_(mcc_scope))
+            mcc_stmt = mcc_stmt.order_by(MccModel.name.asc()).limit(5)
+            mcc_res = await db_manager.session.execute(mcc_stmt)
+            mccs = [{"user_id": str(r.user_id), "name": r.name, "code": r.code, "type": "MCC"} for r in mcc_res.all()]
+
+            vlcc_stmt = select(VlccModel.user_id, VlccModel.name, VlccModel.vlcc_code).where(VlccModel.is_deleted == False)
+            if vlcc_scope is not None:
+                vlcc_stmt = vlcc_stmt.where(VlccModel.id.in_(vlcc_scope))
+            vlcc_stmt = vlcc_stmt.order_by(VlccModel.name.asc()).limit(5)
+            vlcc_res = await db_manager.session.execute(vlcc_stmt)
+            vlccs = [{"user_id": str(r.user_id), "name": r.name, "code": r.vlcc_code, "type": "VLCC"} for r in vlcc_res.all()]
+
+            if selected_user_id:
+                try:
+                    cand_uuid = UUID(selected_user_id)
+                    # Check in initial mccs/vlccs first
+                    all_initial = {item["user_id"]: item for item in (mccs + vlccs)}
+                    if selected_user_id in all_initial:
+                        target_user_id = cand_uuid
+                        selected_entity = all_initial[selected_user_id]
+                    else:
+                        # Direct DB check in case there are 1,000+ centers and it wasn't in top 30
+                        check_mcc_stmt = select(MccModel.user_id, MccModel.name, MccModel.code).where(
+                            MccModel.user_id == cand_uuid,
+                            MccModel.is_deleted == False
+                        )
+                        if mcc_scope is not None:
+                            check_mcc_stmt = check_mcc_stmt.where(MccModel.id.in_(mcc_scope))
+                        check_mcc_res = await db_manager.session.execute(check_mcc_stmt)
+                        mcc_row = check_mcc_res.one_or_none()
+
+                        if mcc_row:
+                            target_user_id = cand_uuid
+                            selected_entity = {
+                                "user_id": str(mcc_row.user_id),
+                                "name": mcc_row.name,
+                                "code": mcc_row.code or "",
+                                "type": "MCC",
+                            }
+                        else:
+                            check_vlcc_stmt = select(VlccModel.user_id, VlccModel.name, VlccModel.vlcc_code).where(
+                                VlccModel.user_id == cand_uuid,
+                                VlccModel.is_deleted == False
+                            )
+                            if vlcc_scope is not None:
+                                check_vlcc_stmt = check_vlcc_stmt.where(VlccModel.id.in_(vlcc_scope))
+                            check_vlcc_res = await db_manager.session.execute(check_vlcc_stmt)
+                            vlcc_row = check_vlcc_res.one_or_none()
+
+                            if vlcc_row:
+                                target_user_id = cand_uuid
+                                selected_entity = {
+                                    "user_id": str(vlcc_row.user_id),
+                                    "name": vlcc_row.name,
+                                    "code": vlcc_row.vlcc_code or "",
+                                    "type": "VLCC",
+                                }
+                            else:
+                                selected_user_id = ""
+                                target_user_id = user.id
+                except ValueError:
+                    selected_user_id = ""
+                    target_user_id = user.id
+            else:
+                selected_user_id = ""
+
+        outstanding_records = await service.get_user_outstanding(user_id=target_user_id)
+
         to_collect = sum(r.balance for r in outstanding_records if r.balance > 0)
         to_pay = sum(abs(r.balance) for r in outstanding_records if r.balance < 0)
-        
+
         return Renderer.page(
             request=request,
             template="pages/payments/outstanding.html",
@@ -413,6 +568,12 @@ class PaymentsController:
                 "outstanding": outstanding_records,
                 "to_collect": to_collect,
                 "to_pay": to_pay,
+                "can_filter": can_filter,
+                "mccs": mccs,
+                "vlccs": vlccs,
+                "selected_user_id": selected_user_id,
+                "selected_entity": selected_entity,
+                "target_user_id": str(target_user_id),
             }
         )
 
@@ -468,6 +629,7 @@ class PaymentsController:
 
         selected_counterparty = None
         pair_history = []
+        summary = None
         
         if counterparty_id_param.strip():
             try:
@@ -497,11 +659,77 @@ class PaymentsController:
                     
                     counterparty_map = {e.transfer_id: e for e in counterparty_entries}
                     
+                    total_to_user_credit = Decimal("0.00")
+                    total_to_user_debit = Decimal("0.00")
+
                     for ue in user_entries:
                         ce = counterparty_map.get(ue.transfer_id)
                         if ce:
+                            source_type_val = getattr(ue, "source_type", None) or getattr(ce, "source_type", None)
+                            method_val = getattr(ue, "payment_method", None) or getattr(ce, "payment_method", None)
+                            reference_val = getattr(ue, "reference", None) or getattr(ce, "reference", None)
+                            description_val = getattr(ue, "description", None) or getattr(ce, "description", None)
+
+                            s_type = int(source_type_val) if source_type_val is not None else 0
+                            p_method = int(method_val) if method_val is not None else 0
+
+                            if s_type == 2:
+                                payment_type_label = "Milk Collection"
+                                badge_bg = "#eff6ff"
+                                badge_border = "#bfdbfe"
+                                badge_color = "#1d4ed8"
+                                icon_class = "fa-cow"
+                            elif s_type == 4:
+                                payment_type_label = "Advance"
+                                badge_bg = "#fff7ed"
+                                badge_border = "#fed7aa"
+                                badge_color = "#c2410c"
+                                icon_class = "fa-hand-holding-dollar"
+                            elif s_type == 3:
+                                payment_type_label = "Adjustment"
+                                badge_bg = "#f5f3ff"
+                                badge_border = "#ddd6fe"
+                                badge_color = "#6d28d9"
+                                icon_class = "fa-sliders"
+                            elif p_method == 1:
+                                payment_type_label = "Cash Payment"
+                                badge_bg = "#fefce8"
+                                badge_border = "#fef08a"
+                                badge_color = "#854d0e"
+                                icon_class = "fa-money-bill-wave"
+                            elif p_method == 2:
+                                payment_type_label = "UPI Transfer"
+                                badge_bg = "#ecfdf5"
+                                badge_border = "#a7f3d0"
+                                badge_color = "#047857"
+                                icon_class = "fa-mobile-screen-button"
+                            elif p_method == 3:
+                                payment_type_label = "Bank Transfer"
+                                badge_bg = "#f0f9ff"
+                                badge_border = "#bae6fd"
+                                badge_color = "#0369a1"
+                                icon_class = "fa-building-columns"
+                            elif p_method == 4:
+                                payment_type_label = "Online"
+                                badge_bg = "#faf5ff"
+                                badge_border = "#e9d5ff"
+                                badge_color = "#7e22ce"
+                                icon_class = "fa-globe"
+                            else:
+                                payment_type_label = "Manual Transfer"
+                                badge_bg = "#f8fafc"
+                                badge_border = "#e2e8f0"
+                                badge_color = "#475569"
+                                icon_class = "fa-receipt"
+
+                            to_user_is_credit = (ce.entry_type == 2)
+                            if to_user_is_credit:
+                                total_to_user_credit += ue.amount
+                            else:
+                                total_to_user_debit += ue.amount
+
                             pair_history.append({
-                                "transfer_id": ue.transfer_id,
+                                "transfer_id": str(ue.transfer_id),
                                 "amount": ue.amount,
                                 "created_at": ue.created_at,
                                 "user_entry_type": ue.entry_type,
@@ -509,7 +737,28 @@ class PaymentsController:
                                 "user_after": ue.balance_after,
                                 "counterparty_before": ce.balance_before,
                                 "counterparty_after": ce.balance_after,
+                                "to_user_before": ce.balance_before,
+                                "to_user_after": ce.balance_after,
+                                "to_user_is_credit": to_user_is_credit,
+                                "to_user_entry_label": "Credit" if to_user_is_credit else "Debit",
+                                "source_type": s_type,
+                                "payment_method": p_method,
+                                "payment_type_label": payment_type_label,
+                                "badge_bg": badge_bg,
+                                "badge_border": badge_border,
+                                "badge_color": badge_color,
+                                "icon_class": icon_class,
+                                "reference": reference_val,
+                                "description": description_val,
                             })
+
+                    summary = {
+                        "total_count": len(pair_history),
+                        "total_to_user_credit": total_to_user_credit,
+                        "total_to_user_debit": total_to_user_debit,
+                        "latest_to_user_balance": pair_history[0]["to_user_after"] if pair_history else Decimal("0.00"),
+                        "latest_from_user_balance": pair_history[0]["user_after"] if pair_history else Decimal("0.00"),
+                    }
             except Exception as e:
                 print(f"Error loading pair statement: {e}")
                 pass
@@ -521,6 +770,7 @@ class PaymentsController:
                 "from_user": from_user,
                 "selected_counterparty": selected_counterparty,
                 "pair_history": pair_history,
+                "summary": summary,
                 "start_date": start_date,
                 "end_date": end_date,
             }
