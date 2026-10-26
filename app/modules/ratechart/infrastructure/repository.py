@@ -99,52 +99,108 @@ class RateChartAccessScope:
             select(1)
             .select_from(RateChartAssignmentModel)
             .where(
-                RateChartAssignmentModel.rate_chart_id
-                == RateChartModel.id,
+                RateChartAssignmentModel.rate_chart_id == RateChartModel.id,
                 RateChartAssignmentModel.owner_id == owner_id,
                 RateChartAssignmentModel.is_active.is_(True),
             )
         )
 
     # =========================================================
-    # READ ACCESS
+    # READ ACCESS (Login Access Scoped)
     # =========================================================
 
-    @staticmethod
-    def get_condition(owner: CurrentUser):
+    @classmethod
+    def get_condition(cls, owner: CurrentUser):
         """
-        View / use / assign (map).
-
-        - Super Admin charts      -> everyone
-        - Charts made by the user or anyone below it (see `Hierarchy`)
-        - Charts made by anyone above it (its Admin, Sub Admin, MCC creator...)
-        Charts from another Admin's tree stay invisible, even if assigned earlier.
+        Role-based read / view / use scope for rate charts:
+        - SuperAdmin: All access (every rate chart in the system)
+        - Admin: Own charts + SubAdmins' + MCCs' + VLCCs' charts (below) + SuperAdmin's charts + assigned charts
+        - SubAdmin: Own charts + MCCs' + VLCCs' charts (below) + parent Admin's charts + SuperAdmin's charts + assigned charts
+        - MCC / VLCC: ONLY own charts and assigned charts
+        - Farmer: Assigned charts only
         """
-        return Hierarchy.shared_visible(owner, RateChartModel.created_by)
+        role = owner.role_type
+        if role == Role.SUPER_ADMIN:
+            return true()
+
+        super_admin_ids = select(UserModel.id).where(UserModel.role == Role.SUPER_ADMIN)
+
+        if role == Role.ADMIN:
+            below = Hierarchy.controlled_users(owner)
+            conditions = [
+                RateChartModel.created_by == owner.id,
+                RateChartModel.created_by.in_(super_admin_ids),
+                cls.assigned(owner.id),
+            ]
+            if below is not None:
+                conditions.append(RateChartModel.created_by.in_(below))
+            return or_(*conditions)
+
+        if role == Role.SUB_ADMIN:
+            below = Hierarchy.controlled_users(owner)
+            ancestors = Hierarchy.ancestor_users(owner)
+            conditions = [
+                RateChartModel.created_by == owner.id,
+                RateChartModel.created_by.in_(ancestors),
+                RateChartModel.created_by.in_(super_admin_ids),
+                cls.assigned(owner.id),
+            ]
+            if below is not None:
+                conditions.append(RateChartModel.created_by.in_(below))
+            return or_(*conditions)
+
+        if role in (Role.MCC, Role.VLCC):
+            return or_(
+                RateChartModel.created_by == owner.id,
+                cls.assigned(owner.id),
+            )
+
+        return cls.assigned(owner.id)
 
     # =========================================================
-    # WRITE ACCESS
-    #
-    # Only writable RateCharts are returned by this condition.
-    # Parent/assigned RateCharts are intentionally excluded.
+    # WRITE / MODIFY ACCESS
     # =========================================================
 
-    @staticmethod
-    def write_condition(owner: CurrentUser):
-        """Modify / delete: charts made by the user or anyone below it. Charts from above are read-only."""
-        return RateChartAccessScope.can_modify(owner, RateChartModel.created_by)
+    @classmethod
+    def can_modify(cls, owner: CurrentUser | None, item_created_by):
+        """
+        Role-based write / modify / import scope:
+        - SuperAdmin: All rate charts can be modified
+        - Admin: Can modify own charts + SubAdmins' + MCCs' + VLCCs' charts. SuperAdmin charts are READ-ONLY
+        - SubAdmin: Can modify own charts + MCCs' + VLCCs' charts. Admin & SuperAdmin charts are READ-ONLY
+        - MCC / VLCC: Can ONLY modify own charts. Other / assigned charts are strictly READ-ONLY
+        - Farmer: Cannot modify any charts
+        """
+        if owner is None or owner.role_type == Role.FARMER:
+            return false()
 
-    @staticmethod
-    def can_modify(owner: CurrentUser | None, item_created_by):
-        return Hierarchy.shared_modifiable(owner, item_created_by)
+        role = owner.role_type
+        if role == Role.SUPER_ADMIN:
+            return true()
+
+        if role in (Role.ADMIN, Role.SUB_ADMIN):
+            below = Hierarchy.controlled_users(owner)
+            if below is not None:
+                return item_created_by.in_(below)
+            return item_created_by == owner.id
+
+        if role in (Role.MCC, Role.VLCC):
+            return item_created_by == owner.id
+
+        return false()
 
     # =========================================================
-    # GET INCLUDING ASSIGNED
+    # WRITE CONDITION & ASSIGNED HELPERS
     # =========================================================
 
-    @staticmethod
-    def get_with_assignment_condition(owner: CurrentUser):
-        return RateChartAccessScope.get_condition(owner)
+    @classmethod
+    def write_condition(cls, owner: CurrentUser):
+        """Modify / delete: charts made by the user or anyone below it. Charts from above or assigned are read-only."""
+        return cls.can_modify(owner, RateChartModel.created_by)
+
+    @classmethod
+    def get_with_assignment_condition(cls, owner: CurrentUser):
+        return cls.get_condition(owner)
 
 class RateChartRepository(IRateChartRepository):
 

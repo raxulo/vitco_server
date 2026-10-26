@@ -255,9 +255,15 @@
                                 <a href="/ratecharts/view/{{ chart.id }}" class="action-btn view" title="View Rate Chart" style="width: 34px; height: 34px; border-radius: 6px; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #e2e8f0; background: white; color: var(--primary);">
                                     <i class="fa-solid fa-eye"></i>
                                 </a>
-                                <a href="/ratecharts/export/{{ chart.id }}" class="action-btn" title="Export to Excel" style="width: 34px; height: 34px; border-radius: 6px; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #e2e8f0; background: white; color: #059669;">
+                                {% if chart.chart_type|int == 2 %}
+                                <button type="button" class="action-btn" title="Export Prodata to Excel" onclick="openExcelExchangeModal('prodata', 'export', '{{ chart.id }}')" style="width: 34px; height: 34px; border-radius: 6px; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; background: white; color: #059669; cursor: pointer;">
                                     <i class="fa-solid fa-file-excel"></i>
-                                </a>
+                                </button>
+                                {% elif chart.chart_type|int == 0 %}
+                                <button type="button" class="action-btn" title="Export Formula to Excel" onclick="openExcelExchangeModal('formula', 'export', '{{ chart.id }}')" style="width: 34px; height: 34px; border-radius: 6px; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; background: white; color: #059669; cursor: pointer;">
+                                    <i class="fa-solid fa-file-excel"></i>
+                                </button>
+                                {% endif %}
                                 {% if chart.can_modify %}
                                 <a href="/ratecharts/edit/{{ chart.id }}" class="action-btn edit" title="Edit Configuration" style="width: 34px; height: 34px; border-radius: 6px; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #e2e8f0; background: white; color: #475569;">
                                     <i class="fa-solid fa-pen-to-square"></i>

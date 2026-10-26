@@ -101,19 +101,22 @@ class ExcelJobRepository(IExcelJobRepository):
     # =========================================================
 
     async def claim_next(self, worker_pid: int, now: datetime) -> ExcelJob | None:
-        # One atomic statement: the second `status == QUEUED` guard makes a
-        # caller that lost the race update nothing, so a job never runs twice.
-        oldest_queued = (
+        # Atomic claim: select candidate job, then conditional update with status == QUEUED guard.
+        # Avoids SQL RETURNING clause which is unsupported on SQLite < 3.35 (e.g. Linux default sqlite 3.26).
+        stmt_select = (
             select(ExcelJobModel.id)
             .where(ExcelJobModel.status == ExcelJobStatus.QUEUED)
             .order_by(ExcelJobModel.created_at, ExcelJobModel.id)
             .limit(1)
-            .scalar_subquery()
         )
-        stmt = (
+        job_id = (await self._session.execute(stmt_select)).scalar_one_or_none()
+        if not job_id:
+            return None
+
+        stmt_update = (
             update(ExcelJobModel)
             .where(
-                ExcelJobModel.id == oldest_queued,
+                ExcelJobModel.id == job_id,
                 ExcelJobModel.status == ExcelJobStatus.QUEUED,
             )
             .values(
@@ -123,10 +126,14 @@ class ExcelJobRepository(IExcelJobRepository):
                 heartbeat_at=now,
                 updated_at=now,
             )
-            .returning(ExcelJobModel)
             .execution_options(synchronize_session=False)
         )
-        model = (await self._session.execute(stmt)).scalar_one_or_none()
+        result = await self._session.execute(stmt_update)
+        if (result.rowcount or 0) == 0:
+            return None
+
+        stmt_fetch = select(ExcelJobModel).where(ExcelJobModel.id == job_id)
+        model = (await self._session.execute(stmt_fetch)).scalar_one_or_none()
         return ExcelJobMapper.to_entity(model) if model else None
 
     async def heartbeat(self, job_id: UUID, now: datetime) -> None:

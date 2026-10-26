@@ -36,6 +36,7 @@ from app.modules.ratechart.domain.enums import (
     RateChartType,
 )
 from app.modules.ratechart.infrastructure.models import RateChartModel
+from app.modules.ratechart.infrastructure.repository import RateChartAccessScope
 
 
 @dataclass(slots=True, frozen=True)
@@ -76,7 +77,7 @@ class RateChartScope:
         if owner.role_type == Role.FARMER:
             raise ExcelExchangeForbiddenException("Farmers cannot access rate chart exchange")
 
-        visible_cond = Hierarchy.shared_visible(owner, RateChartModel.created_by)
+        visible_cond = RateChartAccessScope.get_condition(owner)
         conditions = [
             RateChartModel.chart_type == chart_type,
             visible_cond,
@@ -94,7 +95,8 @@ class RateChartScope:
             or 0
         )
 
-        can_modify_expr = Hierarchy.shared_modifiable(owner, RateChartModel.created_by)
+        can_modify_expr = RateChartAccessScope.can_modify(owner, RateChartModel.created_by)
+        can_edit = await can_edit_rate_charts(self._session, owner)
 
         stmt = (
             select(
@@ -144,7 +146,7 @@ class RateChartScope:
         is_visible = await self._session.scalar(
             select(RateChartModel.id).where(
                 RateChartModel.id == chart_id,
-                Hierarchy.shared_visible(owner, RateChartModel.created_by),
+                RateChartAccessScope.get_condition(owner),
             )
         )
         if not is_visible:
@@ -162,6 +164,9 @@ class RateChartScope:
         if chart_id is None:
             raise ExcelTargetRequiredException("Rate chart ID is required for import")
 
+        if not await can_edit_rate_charts(self._session, owner):
+            raise ExcelExchangeForbiddenException("You do not have permission to modify rate charts")
+
         chart = await self._session.scalar(
             select(RateChartModel).where(RateChartModel.id == chart_id)
         )
@@ -172,7 +177,7 @@ class RateChartScope:
         is_modifiable = await self._session.scalar(
             select(RateChartModel.id).where(
                 RateChartModel.id == chart_id,
-                Hierarchy.shared_modifiable(owner, RateChartModel.created_by),
+                RateChartAccessScope.can_modify(owner, RateChartModel.created_by),
             )
         )
         if not is_modifiable:
