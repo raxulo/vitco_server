@@ -5,6 +5,8 @@ from uuid import UUID, uuid4
 from app.core.database.manager import DatabaseManager
 from app.core.exceptions.base import ForbiddenException
 from app.middleware.authentication import CurrentUser
+from app.modules.collections.vlcc_collection.domain.dispatch_entities import Dispatch
+from app.modules.collections.vlcc_collection.domain.dispatch_exceptions import DispatchNotFoundException
 from app.modules.collections.vlcc_collection.domain.dispatch_dto import (
     DispatchDto,
     DispatchListDto,

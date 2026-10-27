@@ -180,8 +180,29 @@ async def test_vlcc_dispatch_collection_comparison(database):
     assert summary.total_cans == 2
     assert summary.dispatch_ratio == 95.0
 
+    # Test creating dispatch note via handler.create (verifies Dispatch entity construction)
+    from app.modules.collections.vlcc_collection.application.dispatch_command import CreateDispatchCommand
+    create_cmd = CreateDispatchCommand(
+        vlcc_id=vlcc_id,
+        collected_at=today_dt,
+        shift=CollectionShift.EVENING,
+        fat_percent=Decimal("4.5"),
+        snf_percent=Decimal("8.8"),
+        quantity=Decimal("50.00"),
+        can_count=1,
+        quantity_collection_mode=QuantityCollectionMode.MANUAL,
+        measurement_mode=MeasurementMode.MANUAL,
+        owner=current_admin,
+    )
+    async with database.transaction():
+        created_dispatch = await handler.create(create_cmd)
+    assert created_dispatch.id is not None
+    assert created_dispatch.quantity == Decimal("50.00")
+
+
 
 @pytest.mark.asyncio
+
 async def test_dispatch_controller_list_page_tabs(database):
     admin_id = uuid4()
     current_admin = CurrentUser(
