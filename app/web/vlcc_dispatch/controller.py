@@ -33,10 +33,20 @@ class DispatchController:
         shift: str | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
+        tab: str = "dispatches",
     ):
+        tab_param = request.query_params.get("tab", tab)
+        active_tab = "comparison" if tab_param == "comparison" else "dispatches"
+
         handler = GetHandler.dispatch_handler(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=request.state.user))
+
+        today_str = now_naive_ist().strftime("%Y-%m-%d")
+        if start_date is None or start_date.strip() == "":
+            start_date = today_str
+        if end_date is None or end_date.strip() == "":
+            end_date = today_str
 
         v_id = UUID(vlcc_id) if vlcc_id else None
         s_date = None
@@ -53,6 +63,7 @@ class DispatchController:
             except Exception:
                 pass
 
+
         shift_enum = None
         if shift is not None and str(shift).strip() != "":
             try:
@@ -61,37 +72,63 @@ class DispatchController:
                 if str(shift).upper() in CollectionShift.__members__:
                     shift_enum = CollectionShift[str(shift).upper()]
 
-        dispatches = await handler.list(
-            ListDispatchesQuery(
+        dispatches = []
+        paginated_comparison_items = []
+        comparison_summary = None
+        total_comparison_items = 0
+        total_pages = 1
+
+        if active_tab == "comparison":
+            comparison_items, comparison_summary = await handler.get_comparison(
+                owner=request.state.user,
                 vlcc_id=v_id,
                 shift=shift_enum,
                 start_date=s_date,
                 end_date=e_date,
-                page=page,
-                size=limit,
-                owner=request.state.user,
             )
-        )
-        total_pages = 1
-        if len(dispatches) >= limit:
-            total_pages = page + 1
+            total_comparison_items = len(comparison_items)
+            c_limit = 20
+            total_pages = max(1, (total_comparison_items + c_limit - 1) // c_limit) if total_comparison_items > 0 else 1
+            paginated_comparison_items = comparison_items[(page - 1) * c_limit : page * c_limit]
+            effective_limit = c_limit
+        else:
+            dispatches = await handler.list(
+                ListDispatchesQuery(
+                    vlcc_id=v_id,
+                    shift=shift_enum,
+                    start_date=s_date,
+                    end_date=e_date,
+                    page=page,
+                    size=limit,
+                    owner=request.state.user,
+                )
+            )
+            if len(dispatches) >= limit:
+                total_pages = page + 1
+            effective_limit = limit
 
         return Renderer.page(
             request=request,
             template="pages/vlcc_dispatch/list.html",
             model={
+                "active_tab": active_tab,
                 "items": dispatches,
+                "comparison_items": paginated_comparison_items,
+                "comparison_summary": comparison_summary,
+                "total_comparison_count": total_comparison_items,
                 "vlccs": vlccs,
                 "selected_vlcc_id": vlcc_id,
                 "selected_shift": shift,
                 "shifts": CollectionShift,
+                "today": today_str,
                 "start_date": start_date,
                 "end_date": end_date,
                 "page": page,
-                "limit": limit,
+                "limit": effective_limit,
                 "total_pages": total_pages,
             },
         )
+
 
     @staticmethod
     async def get_create_page(request: Request):

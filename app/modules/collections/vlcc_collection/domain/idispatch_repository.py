@@ -52,3 +52,15 @@ class IDispatchRepository(ABC):
         end_date: datetime | None = None,
     ) -> int:
         pass
+
+    @abstractmethod
+    async def get_comparison(
+        self,
+        owner: CurrentUser,
+        vlcc_id: UUID | None = None,
+        shift: CollectionShift | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> tuple[list, object]:
+        pass
+

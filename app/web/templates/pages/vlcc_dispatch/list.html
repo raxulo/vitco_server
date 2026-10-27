@@ -1,31 +1,300 @@
 {% extends "layouts/dashboard.html" %}
 
-{% block title %}Dispatches - VITCO{% endblock %}
+{% block title %}{% if active_tab == 'comparison' %}Collection vs Dispatch Comparison{% else %}Dispatches{% endif %} - VITCO{% endblock %}
 
 {% block content %}
 <div class="mcc-container animate-fadeIn">
 
+    <style>
+        /* Responsive Page Header */
+        .dispatch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .dispatch-header-text {
+            flex: 1;
+        }
+        .dispatch-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            line-height: 1.3;
+        }
+        .dispatch-subtitle {
+            color: #64748b;
+            font-size: 14px;
+            margin: 4px 0 0 0;
+            line-height: 1.4;
+        }
+        .dispatch-header-action {
+            flex-shrink: 0;
+        }
+        .dispatch-create-btn {
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        /* Responsive Tabs Bar */
+        .tabs-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .tabs-bar::-webkit-scrollbar {
+            display: none;
+        }
+        .tab-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 18px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            border-bottom: 3px solid transparent;
+            color: #64748b;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab-item.active {
+            border-bottom-color: #2563eb;
+            color: #2563eb;
+        }
+        .tab-count-badge {
+            background: #eff6ff;
+            color: #2563eb;
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 999px;
+            font-weight: 700;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* Responsive Filter Card */
+        .filter-card {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .filter-form {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            min-width: 140px;
+        }
+        .filter-group-vlcc {
+            flex: 1;
+            min-width: 200px;
+        }
+        .filter-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 4px;
+        }
+        .filter-dates-wrap {
+            display: flex;
+            gap: 12px;
+        }
+        .filter-actions-wrap {
+            display: flex;
+            gap: 8px;
+        }
+        .filter-btn-apply {
+            height: 38px;
+            padding: 0 16px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .filter-btn-clear {
+            border: 1px solid #cbd5e1;
+            background: white;
+            color: #475569;
+            height: 38px;
+            padding: 0 16px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 6px;
+            text-decoration: none;
+            box-sizing: border-box;
+            white-space: nowrap;
+        }
+
+        /* Mobile View Rules */
+        @media (max-width: 768px) {
+            .dispatch-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                margin-bottom: 16px;
+            }
+            .dispatch-title {
+                font-size: 20px;
+            }
+            .dispatch-subtitle {
+                font-size: 13px;
+            }
+            .dispatch-header-action {
+                width: 100%;
+            }
+            .dispatch-create-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 10px 16px;
+            }
+            .tabs-bar {
+                gap: 6px;
+                margin-bottom: 16px;
+            }
+            .tab-item {
+                flex: 1;
+                justify-content: center;
+                padding: 10px 8px;
+                font-size: 13px;
+                text-align: center;
+            }
+            .filter-card {
+                padding: 14px;
+                margin-bottom: 16px;
+            }
+            .filter-form {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .filter-group,
+            .filter-group-vlcc {
+                width: 100%;
+                min-width: 100%;
+            }
+            .filter-group select,
+            .filter-group input {
+                width: 100%;
+            }
+            .filter-dates-wrap {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                width: 100%;
+            }
+            .filter-dates-wrap .filter-group {
+                min-width: 0;
+            }
+            .filter-actions-wrap {
+                width: 100%;
+                margin-top: 2px;
+            }
+            .filter-actions-wrap .filter-btn-apply,
+            .filter-actions-wrap .filter-btn-clear {
+                flex: 1;
+                justify-content: center;
+            }
+            .summary-cards {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 10px !important;
+                margin-bottom: 16px !important;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .dispatch-title {
+                font-size: 18px;
+            }
+            .filter-dates-wrap {
+                grid-template-columns: 1fr;
+            }
+            .summary-cards {
+                grid-template-columns: 1fr !important;
+            }
+            .tab-item {
+                font-size: 12px;
+                padding: 9px 6px;
+                gap: 5px;
+            }
+        }
+    </style>
+
     <!-- =========================================================
          PAGE HEADER
     ========================================================== -->
-    <div class="mcc-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <div class="mcc-header-title">
-            <h2 style="font-size: 22px; font-weight: 700; color: #1e293b; margin: 0;">VLCC Dispatches</h2>
-            <p style="color: #64748b; font-size: 14px; margin: 4px 0 0 0;">View and manage milk dispatches from VLCC centers</p>
+    <div class="dispatch-header">
+        <div class="dispatch-header-text">
+            <h2 class="dispatch-title">VLCC Dispatches & Shift Comparison</h2>
+            <p class="dispatch-subtitle">Track VLCC milk dispatches and compare shift-wise farmer collections against dispatched volumes</p>
         </div>
-        <a href="/vlcc-dispatches/create" class="btn btn-primary" style="text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; height: auto; padding: 10px 18px; border-radius: 6px;">
-            <i class="fa-solid fa-plus"></i> New Dispatch Note
+        <div class="dispatch-header-action">
+            <a href="/vlcc-dispatches/create" class="btn btn-primary dispatch-create-btn">
+                <i class="fa-solid fa-plus"></i> New Dispatch Note
+            </a>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         NAVIGATION TABS
+    ========================================================== -->
+    <div class="tabs-bar">
+        {% set query_params = [] %}
+        {% if selected_vlcc_id %}{% set _ = query_params.append('vlcc_id=' ~ selected_vlcc_id) %}{% endif %}
+        {% if selected_shift is not none and selected_shift != '' %}{% set _ = query_params.append('shift=' ~ selected_shift) %}{% endif %}
+        {% if start_date %}{% set _ = query_params.append('start_date=' ~ start_date) %}{% endif %}
+        {% if end_date %}{% set _ = query_params.append('end_date=' ~ end_date) %}{% endif %}
+        {% set base_qs = ('&' ~ query_params|join('&')) if query_params else '' %}
+
+        <a href="/vlcc-dispatches?tab=dispatches{{ base_qs }}" 
+           class="tab-item {{ 'active' if active_tab == 'dispatches' else '' }}">
+            <i class="fa-solid fa-truck" style="font-size: 15px;"></i> Dispatches
+        </a>
+        <a href="/vlcc-dispatches?tab=comparison{{ base_qs }}" 
+           class="tab-item {{ 'active' if active_tab == 'comparison' else '' }}">
+            <i class="fa-solid fa-scale-balanced" style="font-size: 15px;"></i> Collection Comparison
+            {% if total_comparison_count is defined and total_comparison_count > 0 %}
+            <span class="tab-count-badge">{{ total_comparison_count }}</span>
+            {% endif %}
         </a>
     </div>
 
     <!-- =========================================================
          SEARCH & FILTER BAR
     ========================================================== -->
-    <div class="filter-card" style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid #e2e8f0;">
-        <form method="GET" action="/vlcc-dispatches" class="filter-form" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+    <div class="filter-card">
+        <form method="GET" action="/vlcc-dispatches" class="filter-form">
+            <input type="hidden" name="tab" value="{{ active_tab }}">
+
             <!-- Select VLCC -->
-            <div style="flex: 1; min-width: 200px;">
-                <label for="vlcc_id" style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">VLCC Shop</label>
+            <div class="filter-group filter-group-vlcc">
+                <label for="vlcc_id">VLCC Shop</label>
                 {# VLCC login: its own VLCC comes pre-selected and cannot be changed #}
                 {% set lock_vlcc = current_user and current_user.role|int == 5 %}
                 <select name="vlcc_id" id="vlcc_id" class="form-control" {% if lock_vlcc %}tabindex="-1" aria-disabled="true"{% endif %}
@@ -40,8 +309,8 @@
             </div>
 
             <!-- Select Shift -->
-            <div style="min-width: 140px;">
-                <label for="shift" style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Shift</label>
+            <div class="filter-group">
+                <label for="shift">Shift</label>
                 <select name="shift" id="shift" class="form-control" style="padding: 8px 12px; height: 38px;">
                     <option value="">All Shifts</option>
                     <option value="0" {{ 'selected' if selected_shift|string == '0' else '' }}>Morning</option>
@@ -49,25 +318,28 @@
                 </select>
             </div>
 
-            <!-- Start Date -->
-            <div style="min-width: 150px;">
-                <label for="start_date" style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">Start Date</label>
-                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date or '' }}" style="padding: 6px 12px; height: 38px;">
-            </div>
+            <!-- Dates Wrapper -->
+            <div class="filter-dates-wrap">
+                <!-- Start Date -->
+                <div class="filter-group" style="flex: 1;">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date or today or '' }}" style="padding: 6px 12px; height: 38px;">
+                </div>
 
-            <!-- End Date -->
-            <div style="min-width: 150px;">
-                <label for="end_date" style="display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 4px;">End Date</label>
-                <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date or '' }}" style="padding: 6px 12px; height: 38px;">
+                <!-- End Date -->
+                <div class="filter-group" style="flex: 1;">
+                    <label for="end_date">End Date</label>
+                    <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date or today or '' }}" style="padding: 6px 12px; height: 38px;">
+                </div>
             </div>
 
             <!-- Action Buttons -->
-            <div style="display: flex; gap: 8px;">
-                <button type="submit" class="btn btn-primary" style="height: 38px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px;">
+            <div class="filter-actions-wrap">
+                <button type="submit" class="btn btn-primary filter-btn-apply">
                     <i class="fa-solid fa-filter"></i> Apply
                 </button>
-                {% if selected_vlcc_id or (selected_shift is not none and selected_shift != '') or start_date or end_date %}
-                <a href="/vlcc-dispatches" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; height: 38px; padding: 0 16px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; text-decoration: none; box-sizing: border-box;">
+                {% if selected_vlcc_id or (selected_shift is not none and selected_shift != '') or (start_date and today and start_date != today) or (end_date and today and end_date != today) %}
+                <a href="/vlcc-dispatches?tab={{ active_tab }}" class="btn btn-ghost filter-btn-clear" title="Reset filters to today">
                     <i class="fa-solid fa-circle-xmark"></i> Clear
                 </a>
                 {% endif %}
@@ -75,84 +347,314 @@
         </form>
     </div>
 
-    <!-- =========================================================
-         DATATABLE CARD
-    ========================================================== -->
-    <div class="table-card" style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e2e8f0;">
-        <div class="table-responsive">
-            <table class="mcc-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-                <thead>
-                    <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">
-                        <th style="padding: 14px 20px;">Date & Time</th>
-                        <th style="padding: 14px 20px;">Shift</th>
-                        <th style="padding: 14px 20px;">VLCC Shop</th>
-                        <th style="padding: 14px 20px; text-align: right;">FAT</th>
-                        <th style="padding: 14px 20px; text-align: right;">SNF</th>
-                        <th style="padding: 14px 20px; text-align: right;">Quantity (LTR)</th>
-                        <th style="padding: 14px 20px; text-align: right;">Total CAN</th>
-                        <th style="width: 120px; padding: 14px 20px; text-align: center;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if items %}
-                        {% for item in items %}
-                            <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle;">
-                                <td style="padding: 16px 20px; font-weight: 600;">
-                                    {{ item.collected_at.strftime('%d %b %Y %I:%M %p') }}
-                                </td>
-                                <td style="padding: 16px 20px;">
-                                    {% if item.shift.value == 0 or item.shift == 0 or item.shift|string == 'MORNING' or item.shift|string == '0' %}
-                                    <span style="background: #fef3c7; color: #b45309; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #fde68a;">
-                                        <i class="fa-solid fa-sun" style="font-size: 10px; color: #d97706;"></i> Morning
-                                    </span>
-                                    {% else %}
-                                    <span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #c7d2fe;">
-                                        <i class="fa-solid fa-moon" style="font-size: 10px; color: #4f46e5;"></i> Evening
-                                    </span>
-                                    {% endif %}
-                                </td>
-                                <td style="padding: 16px 20px; font-weight: 700; color: #1e293b;">
-                                    <a style="color: #2563eb; text-decoration: none; font-weight: 600;" href="/vlcc/view/{{ item.vlcc_id }}">{{ item.vlcc_name }}</a>
-                                </td>
-                                <td style="padding: 16px 20px; text-align: right; font-weight: 700; color: #0f766e;">
-                                    {{ "%.1f"|format(item.fat_percent) }}%
-                                </td>
-                                <td style="padding: 16px 20px; text-align: right; font-weight: 700; color: #b45309;">
-                                    {{ "%.1f"|format(item.snf_percent) }}%
-                                </td>
-                                <td style="padding: 16px 20px; text-align: right; font-weight: 700; color: #2563eb;">
-                                    {{ "%.2f"|format(item.quantity) }} Ltr
-                                </td>
-                                <td style="padding: 16px 20px; text-align: right; font-weight: 600;">
-                                    {{ item.can_count }}
-                                </td>
-                                <td style="padding: 16px 20px; text-align: center;">
-                                    <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-                                        <a href="/vlcc-dispatches/edit/{{ item.id }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 10px; border-radius: 6px; font-size: 13px; display: inline-flex; align-items: center; transition: all 0.2s;">
-                                            <i class="fa-solid fa-pen-to-square"></i>
-                                        </a>
-                                        <form action="/vlcc-dispatches/delete/{{ item.id }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this dispatch note?')" style="margin: 0; display: inline-block;">
-                                            <button type="submit" class="btn btn-ghost" style="border: 1px solid #fecaca; background: white; color: #ef4444; padding: 6px 10px; border-radius: 6px; font-size: 13px; display: inline-flex; align-items: center; cursor: pointer; transition: all 0.2s;">
-                                                <i class="fa-solid fa-trash-can"></i>
-                                            </button>
-                                        </form>
-                                    </div>
+
+
+    {% if active_tab == 'comparison' %}
+        <!-- =========================================================
+             COMPARISON VIEW: SUMMARY KPI CARDS
+        ========================================================== -->
+        {% if comparison_summary %}
+        <div class="summary-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px;">
+            <!-- Card 1: Total Collected -->
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <div style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Total Collected</div>
+                    <div style="font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 4px;">{{ "%.2f"|format(comparison_summary.total_collected_qty) }} <span style="font-size: 14px; font-weight: 500; color: #64748b;">Ltr</span></div>
+                    <div style="font-size: 12px; color: #0284c7; margin-top: 4px; font-weight: 500;">
+                        Avg FAT: <strong>{{ "%.1f"|format(comparison_summary.avg_collection_fat) }}%</strong> | SNF: <strong>{{ "%.1f"|format(comparison_summary.avg_collection_snf) }}%</strong>
+                    </div>
+                </div>
+                <div style="width: 48px; height: 48px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fa-solid fa-jug-detergent"></i>
+                </div>
+            </div>
+
+            <!-- Card 2: Total Dispatched -->
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <div style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Total Dispatched</div>
+                    <div style="font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 4px;">{{ "%.2f"|format(comparison_summary.total_dispatched_qty) }} <span style="font-size: 14px; font-weight: 500; color: #64748b;">Ltr</span></div>
+                    <div style="font-size: 12px; color: #4f46e5; margin-top: 4px; font-weight: 500;">
+                        Avg FAT: <strong>{{ "%.1f"|format(comparison_summary.avg_dispatch_fat) }}%</strong> | SNF: <strong>{{ "%.1f"|format(comparison_summary.avg_dispatch_snf) }}%</strong>
+                    </div>
+                </div>
+                <div style="width: 48px; height: 48px; border-radius: 10px; background: #ede9fe; color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fa-solid fa-truck-fast"></i>
+                </div>
+            </div>
+
+            <!-- Card 3: Net Variance -->
+            {% set is_balanced = comparison_summary.net_variance_qty >= -0.05 and comparison_summary.net_variance_qty <= 0.05 %}
+            {% set is_short = comparison_summary.net_variance_qty < -0.05 %}
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <div style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Net Variance</div>
+                    <div style="font-size: 22px; font-weight: 700; margin-top: 4px; color: {{ '#16a34a' if is_balanced else ('#dc2626' if is_short else '#7c3aed') }};">
+                        {% if comparison_summary.net_variance_qty > 0.05 %}+{% endif %}{{ "%.2f"|format(comparison_summary.net_variance_qty) }} <span style="font-size: 14px; font-weight: 500; color: #64748b;">Ltr</span>
+                    </div>
+                    <div style="font-size: 12px; margin-top: 4px; font-weight: 600; color: {{ '#16a34a' if is_balanced else ('#b91c1c' if is_short else '#6d28d9') }};">
+                        {% if is_balanced %}
+                            <i class="fa-solid fa-circle-check"></i> Balanced (100% Accounted)
+                        {% elif is_short %}
+                            <i class="fa-solid fa-circle-arrow-down"></i> Shortage / Retained in Stock
+                        {% else %}
+                            <i class="fa-solid fa-circle-arrow-up"></i> Excess Dispatched
+                        {% endif %}
+                    </div>
+                </div>
+                <div style="width: 48px; height: 48px; border-radius: 10px; background: {{ '#dcfce7' if is_balanced else ('#fee2e2' if is_short else '#f3e8ff') }}; color: {{ '#16a34a' if is_balanced else ('#dc2626' if is_short else '#7c3aed') }}; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fa-solid {{ 'fa-scale-balanced' if is_balanced else ('fa-arrow-trend-down' if is_short else 'fa-arrow-trend-up') }}"></i>
+                </div>
+            </div>
+
+            <!-- Card 4: Total Cans & Efficiency -->
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <div style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Cans & Efficiency</div>
+                    <div style="font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 4px;">{{ comparison_summary.total_cans }} <span style="font-size: 14px; font-weight: 500; color: #64748b;">Cans</span></div>
+                    <div style="font-size: 12px; color: #0d9488; margin-top: 4px; font-weight: 500;">
+                        Dispatch Ratio: <strong>{{ "%.1f"|format(comparison_summary.dispatch_ratio) }}%</strong>
+                    </div>
+                </div>
+                <div style="width: 48px; height: 48px; border-radius: 10px; background: #ccfbf1; color: #0d9488; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- =========================================================
+             COMPARISON VIEW: DATA TABLE
+        ========================================================== -->
+        <div class="table-card" style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e2e8f0;">
+            <div class="table-responsive">
+                <table class="mcc-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px;">
+                            <th style="padding: 14px 16px;">Date & Shift</th>
+                            <th style="padding: 14px 16px;">VLCC Center</th>
+                            <th style="padding: 14px 16px; text-align: right; background: #f0fdf4; border-left: 1px solid #e2e8f0; color: #166534;">Collection Qty</th>
+                            <th style="padding: 14px 16px; text-align: right; background: #f0fdf4; color: #166534;">Col. Quality</th>
+                            <th style="padding: 14px 16px; text-align: right; background: #eef2ff; border-left: 1px solid #e2e8f0; color: #3730a3;">Dispatch Qty</th>
+                            <th style="padding: 14px 16px; text-align: right; background: #eef2ff; color: #3730a3;">Disp. Quality</th>
+                            <th style="padding: 14px 16px; text-align: center; background: #eef2ff; color: #3730a3;">Cans</th>
+                            <th style="padding: 14px 16px; text-align: right; border-left: 1px solid #e2e8f0;">Variance (Diff)</th>
+                            <th style="padding: 14px 16px; text-align: center;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if comparison_items %}
+                            {% for item in comparison_items %}
+                                <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle;">
+                                    <!-- Date & Shift -->
+                                    <td style="padding: 14px 16px;">
+                                        <div style="font-weight: 700; color: #1e293b;">
+                                            {{ item.date.strftime('%d %b %Y') }}
+                                        </div>
+                                        <div style="margin-top: 4px;">
+                                            {% if item.shift.value == 0 or item.shift == 0 or item.shift|string == 'MORNING' or item.shift|string == '0' %}
+                                            <span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fde68a;">
+                                                <i class="fa-solid fa-sun" style="font-size: 10px; color: #d97706;"></i> Morning
+                                            </span>
+                                            {% else %}
+                                            <span style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #c7d2fe;">
+                                                <i class="fa-solid fa-moon" style="font-size: 10px; color: #4f46e5;"></i> Evening
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+
+                                    <!-- VLCC Center -->
+                                    <td style="padding: 14px 16px; font-weight: 700;">
+                                        <a style="color: #2563eb; text-decoration: none;" href="/vlcc/view/{{ item.vlcc_id }}">{{ item.vlcc_name }}</a>
+                                        {% if item.farmer_count > 0 %}
+                                        <div style="font-size: 11px; color: #64748b; font-weight: 500; margin-top: 2px;">
+                                            <i class="fa-solid fa-users" style="font-size: 10px;"></i> {{ item.farmer_count }} Farmers
+                                        </div>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Collection Quantity -->
+                                    <td style="padding: 14px 16px; text-align: right; background: #fcfdfc; border-left: 1px solid #f1f5f9; font-weight: 700; font-size: 14px; color: #166534;">
+                                        {% if item.collection_quantity > 0 %}
+                                            {{ "%.2f"|format(item.collection_quantity) }} <span style="font-size: 11px; font-weight: 500; color: #4ade80;">Ltr</span>
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-weight: 500;">0.00 Ltr</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Collection Quality (FAT / SNF) -->
+                                    <td style="padding: 14px 16px; text-align: right; background: #fcfdfc; font-size: 12px;">
+                                        {% if item.collection_quantity > 0 %}
+                                            <div style="color: #0f766e; font-weight: 600;">FAT: <strong>{{ "%.1f"|format(item.collection_fat) }}%</strong></div>
+                                            <div style="color: #b45309; font-weight: 600;">SNF: <strong>{{ "%.1f"|format(item.collection_snf) }}%</strong></div>
+                                        {% else %}
+                                            <span style="color: #94a3b8;">-</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Dispatch Quantity -->
+                                    <td style="padding: 14px 16px; text-align: right; background: #fafbff; border-left: 1px solid #f1f5f9; font-weight: 700; font-size: 14px; color: #3730a3;">
+                                        {% if item.dispatch_quantity > 0 %}
+                                            {{ "%.2f"|format(item.dispatch_quantity) }} <span style="font-size: 11px; font-weight: 500; color: #818cf8;">Ltr</span>
+                                        {% else %}
+                                            <span style="color: #94a3b8; font-weight: 500;">0.00 Ltr</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Dispatch Quality (FAT / SNF) -->
+                                    <td style="padding: 14px 16px; text-align: right; background: #fafbff; font-size: 12px;">
+                                        {% if item.dispatch_quantity > 0 %}
+                                            <div style="color: #0f766e; font-weight: 600;">FAT: <strong>{{ "%.1f"|format(item.dispatch_fat) }}%</strong></div>
+                                            <div style="color: #b45309; font-weight: 600;">SNF: <strong>{{ "%.1f"|format(item.dispatch_snf) }}%</strong></div>
+                                        {% else %}
+                                            <span style="color: #94a3b8;">-</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Cans -->
+                                    <td style="padding: 14px 16px; text-align: center; background: #fafbff; font-weight: 600;">
+                                        {% if item.dispatch_can_count > 0 %}
+                                            <span style="background: #e2e8f0; color: #334155; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700;">
+                                                {{ item.dispatch_can_count }}
+                                            </span>
+                                        {% else %}
+                                            <span style="color: #94a3b8;">-</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Variance (Diff) -->
+                                    <td style="padding: 14px 16px; text-align: right; border-left: 1px solid #f1f5f9;">
+                                        <div style="font-size: 14px; font-weight: 700; color: {{ '#16a34a' if item.status == 'BALANCED' else ('#dc2626' if item.quantity_diff < -0.05 else ('#7c3aed' if item.quantity_diff > 0.05 else '#64748b')) }};">
+                                            {% if item.quantity_diff > 0.05 %}+{% endif %}{{ "%.2f"|format(item.quantity_diff) }} Ltr
+                                        </div>
+                                        {% if item.fat_diff is not none and (item.fat_diff != 0 or item.snf_diff != 0) %}
+                                        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">
+                                            Δ FAT: {{ "+%.1f"|format(item.fat_diff) if item.fat_diff > 0 else "%.1f"|format(item.fat_diff) }}%
+                                        </div>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Status -->
+                                    <td style="padding: 14px 16px; text-align: center;">
+                                        {% if item.status == 'BALANCED' %}
+                                            <span style="background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                                <i class="fa-solid fa-circle-check"></i> Balanced
+                                            </span>
+                                        {% elif item.status == 'PENDING_DISPATCH' %}
+                                            <span style="background: #fef3c7; color: #b45309; border: 1px solid #fde68a; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                                <i class="fa-solid fa-clock"></i> Pending Dispatch
+                                            </span>
+                                        {% elif item.status == 'SHORTAGE' %}
+                                            <span style="background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                                <i class="fa-solid fa-circle-arrow-down"></i> In Stock / Short
+                                            </span>
+                                        {% elif item.status == 'EXCESS' %}
+                                            <span style="background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                                <i class="fa-solid fa-circle-arrow-up"></i> Excess Dispatch
+                                            </span>
+                                        {% else %}
+                                            <span style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                                                <i class="fa-solid fa-truck-ramp-box"></i> Direct Dispatch
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" style="padding: 48px; text-align: center; color: #64748b;">
+                                    <i class="fa-solid fa-scale-balanced" style="font-size: 40px; color: #94a3b8; margin-bottom: 12px;"></i>
+                                    <div style="font-weight: 600; font-size: 15px;">No Shift Comparison Records Found</div>
+                                    <p style="margin: 4px 0 0 0; font-size: 13px;">Ensure collections or dispatches have been recorded for the selected filter criteria.</p>
                                 </td>
                             </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="8" style="padding: 48px; text-align: center; color: #64748b;">
-                                <i class="fa-solid fa-truck" style="font-size: 40px; color: #94a3b8; margin-bottom: 12px;"></i>
-                                <div style="font-weight: 600; font-size: 15px;">No Dispatches Found</div>
-                                <p style="margin: 4px 0 0 0; font-size: 13px;">Create a new dispatch note to record milk transport.</p>
-                            </td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
+
+    {% else %}
+        <!-- =========================================================
+             DISPATCHES LIST VIEW: DATATABLE CARD
+        ========================================================== -->
+        <div class="table-card" style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e2e8f0;">
+            <div class="table-responsive">
+                <table class="mcc-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 11px;">
+                            <th style="padding: 14px 20px;">Date & Time</th>
+                            <th style="padding: 14px 20px;">Shift</th>
+                            <th style="padding: 14px 20px;">VLCC Shop</th>
+                            <th style="padding: 14px 20px; text-align: right;">FAT</th>
+                            <th style="padding: 14px 20px; text-align: right;">SNF</th>
+                            <th style="padding: 14px 20px; text-align: right;">Quantity (LTR)</th>
+                            <th style="padding: 14px 20px; text-align: right;">Total CAN</th>
+                            <th style="width: 120px; padding: 14px 20px; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                            {% for item in items %}
+                                <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle;">
+                                    <td style="padding: 16px 20px; font-weight: 600;">
+                                        {{ item.collected_at.strftime('%d %b %Y %I:%M %p') }}
+                                    </td>
+                                    <td style="padding: 16px 20px;">
+                                        {% if item.shift.value == 0 or item.shift == 0 or item.shift|string == 'MORNING' or item.shift|string == '0' %}
+                                        <span style="background: #fef3c7; color: #b45309; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #fde68a;">
+                                            <i class="fa-solid fa-sun" style="font-size: 10px; color: #d97706;"></i> Morning
+                                        </span>
+                                        {% else %}
+                                        <span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #c7d2fe;">
+                                            <i class="fa-solid fa-moon" style="font-size: 10px; color: #4f46e5;"></i> Evening
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="padding: 16px 20px; font-weight: 700; color: #1e293b;">
+                                        <a style="color: #2563eb; text-decoration: none; font-weight: 600;" href="/vlcc/view/{{ item.vlcc_id }}">{{ item.vlcc_name }}</a>
+                                    </td>
+                                    <td style="padding: 16px 20px; text-align: right; font-weight: 700; color: #0f766e;">
+                                        {{ "%.1f"|format(item.fat_percent) }}%
+                                    </td>
+                                    <td style="padding: 16px 20px; text-align: right; font-weight: 700; color: #b45309;">
+                                        {{ "%.1f"|format(item.snf_percent) }}%
+                                    </td>
+                                    <td style="padding: 16px 20px; text-align: right; font-weight: 700; color: #2563eb;">
+                                        {{ "%.2f"|format(item.quantity) }} Ltr
+                                    </td>
+                                    <td style="padding: 16px 20px; text-align: right; font-weight: 600;">
+                                        {{ item.can_count }}
+                                    </td>
+                                    <td style="padding: 16px 20px; text-align: center;">
+                                        <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                            <a href="/vlcc-dispatches/edit/{{ item.id }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 10px; border-radius: 6px; font-size: 13px; display: inline-flex; align-items: center; transition: all 0.2s;">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </a>
+                                            <form action="/vlcc-dispatches/delete/{{ item.id }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this dispatch note?')" style="margin: 0; display: inline-block;">
+                                                <button type="submit" class="btn btn-ghost" style="border: 1px solid #fecaca; background: white; color: #ef4444; padding: 6px 10px; border-radius: 6px; font-size: 13px; display: inline-flex; align-items: center; cursor: pointer; transition: all 0.2s;">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" style="padding: 48px; text-align: center; color: #64748b;">
+                                    <i class="fa-solid fa-truck" style="font-size: 40px; color: #94a3b8; margin-bottom: 12px;"></i>
+                                    <div style="font-weight: 600; font-size: 15px;">No Dispatches Found</div>
+                                    <p style="margin: 4px 0 0 0; font-size: 13px;">Create a new dispatch note to record milk transport.</p>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
 
     <!-- =========================================================
          PAGINATION
@@ -160,16 +662,16 @@
     {% if total_pages > 1 or page > 1 %}
         <div class="pagination-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 10px 0;">
             <div style="font-size: 13px; color: #64748b;">
-                Page <span style="font-weight: 600; color: #334155;">{{ page }}</span>
+                Page <span style="font-weight: 600; color: #334155;">{{ page }}</span> of <span style="font-weight: 600; color: #334155;">{{ total_pages }}</span>
             </div>
             <div style="display: flex; gap: 8px;">
                 {% if page > 1 %}
-                    <a href="/vlcc-dispatches?page={{ page - 1 }}&vlcc_id={{ selected_vlcc_id or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
+                    <a href="/vlcc-dispatches?tab={{ active_tab }}&page={{ page - 1 }}&vlcc_id={{ selected_vlcc_id or '' }}&shift={{ selected_shift if selected_shift is not none else '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
                         Previous
                     </a>
                 {% endif %}
-                {% if items|length >= limit %}
-                    <a href="/vlcc-dispatches?page={{ page + 1 }}&vlcc_id={{ selected_vlcc_id or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
+                {% if page < total_pages %}
+                    <a href="/vlcc-dispatches?tab={{ active_tab }}&page={{ page + 1 }}&vlcc_id={{ selected_vlcc_id or '' }}&shift={{ selected_shift if selected_shift is not none else '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
                         Next
                     </a>
                 {% endif %}

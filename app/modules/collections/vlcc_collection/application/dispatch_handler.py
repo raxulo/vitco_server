@@ -5,9 +5,12 @@ from uuid import UUID, uuid4
 from app.core.database.manager import DatabaseManager
 from app.core.exceptions.base import ForbiddenException
 from app.middleware.authentication import CurrentUser
-from app.modules.collections.vlcc_collection.domain.dispatch_entities import Dispatch
-from app.modules.collections.vlcc_collection.domain.dispatch_dto import DispatchDto, DispatchListDto
-from app.modules.collections.vlcc_collection.domain.dispatch_exceptions import DispatchNotFoundException
+from app.modules.collections.vlcc_collection.domain.dispatch_dto import (
+    DispatchDto,
+    DispatchListDto,
+    ShiftComparisonItemDto,
+    ComparisonSummaryDto,
+)
 from app.modules.collections.vlcc_collection.infrastructure.dispatch_repository import DispatchRepository
 from app.core.clock import now_naive_ist
 from app.modules.collections.vlcc_collection.application.dispatch_command import (
@@ -134,6 +137,22 @@ class DispatchHandler:
         end_date: datetime | None = None,
     ) -> int:
         return await self._repository.count(
+            owner=self._require_owner(owner),
+            vlcc_id=vlcc_id,
+            shift=shift,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    async def get_comparison(
+        self,
+        owner: CurrentUser | None,
+        vlcc_id: UUID | None = None,
+        shift: CollectionShift | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> tuple[list[ShiftComparisonItemDto], ComparisonSummaryDto]:
+        return await self._repository.get_comparison(
             owner=self._require_owner(owner),
             vlcc_id=vlcc_id,
             shift=shift,
