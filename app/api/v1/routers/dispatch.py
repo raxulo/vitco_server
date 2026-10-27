@@ -277,6 +277,7 @@ async def get_dispatch(
 
 # --- 4. Update Dispatch ---
 
+@router.post("/{id}", response_model=DispatchSingleResponse)
 @router.put("/{id}", response_model=DispatchSingleResponse)
 async def update_dispatch(
     request: Request,
