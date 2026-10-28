@@ -56,12 +56,14 @@ class VlccShiftSummaryExecutor(ReportExecutor):
             .limit(query.size)
         )
 
+
+
         totals_stmt = (
             select(
                 func.coalesce(func.sum(m.quantity), 0).label("quantity"),
                 func.coalesce(func.sum(m.total_amount), 0).label("amount"),
-                func.coalesce(func.sum(m.fat_percent), 0).label("fat"),
-                func.coalesce(func.sum(m.snf_percent), 0).label("snf"),
+                func.coalesce(func.sum(m.fat_percent * m.quantity), 0).label("fat"),
+                func.coalesce(func.sum(m.snf_percent * m.quantity), 0).label("snf"),
             )
             .select_from(m)
             .where(*filters)
@@ -147,8 +149,8 @@ class VlccShiftSummaryExecutor(ReportExecutor):
                 func.coalesce(func.sum(m.quantity), 0).label("quantity"),
                 func.coalesce(func.sum(m.total_amount), 0).label("amount"),
                 m.milk_type.label("milk_type"),
-                func.coalesce(func.sum(m.fat_percent), 0).label("fat"),
-                func.coalesce(func.sum(m.snf_percent), 0).label("snf"),
+                func.coalesce(func.sum(m.fat_percent * m.quantity), 0).label("fat"),
+                func.coalesce(func.sum(m.snf_percent * m.quantity), 0).label("snf"),
             )
             .select_from(m)
             .where(*filters)
@@ -164,6 +166,8 @@ class VlccShiftSummaryExecutor(ReportExecutor):
         grouped: dict[int, list[dict]] = defaultdict(list)
         milk_types: dict[int, str] = {}
 
+        totals_fat_snf_rate_by_specific_milk_type = {}
+
         for row in rows_result.mappings():
             milk_type_val = row["milk_type"]
             milk_types[milk_type_val] = milk_type_val
@@ -177,7 +181,7 @@ class VlccShiftSummaryExecutor(ReportExecutor):
                     "rate": row["rate"],
                     "amount": row["amount"],
                 }
-            )
+            )   
 
         totals = {
             row["milk_type"]: row
