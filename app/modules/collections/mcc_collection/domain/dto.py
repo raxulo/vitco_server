@@ -64,6 +64,7 @@ class MccCollectionListDto:
     mcc_code: str
     vlcc_name: str
     vlcc_uic_code: str
+    is_deleted: bool = False
 
 
 

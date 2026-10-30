@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.manager import DatabaseManager
+from app.core.numeric import to_fixed_2
 from app.modules.collections.mcc_collection.domain.entities import MccCollection
 from app.modules.collections.mcc_collection.domain.irepository import IMccCollectionRepository
 from app.modules.collections.mcc_collection.infrastructure.mapper import MccCollectionMapper
@@ -158,6 +159,7 @@ class MccCollectionRepository(IMccCollectionRepository):
             return
 
         model.is_deleted = True
+        model.updated_at = now_naive_ist()
         await self._session.commit()
 
     async def delete_bulk(
@@ -229,7 +231,6 @@ class MccCollectionRepository(IMccCollectionRepository):
         - date_from / date_to: collected_at range (date_to is exclusive)
         """
         conditions = [
-            MccCollectionModel.is_deleted.is_(False),
             MccCollectionAccessScope.condition(owner),
         ]
         keyword = (keyword or "").strip()
@@ -282,6 +283,7 @@ class MccCollectionRepository(IMccCollectionRepository):
                 MccModel.code.label("mcc_code"),
                 VlccModel.name.label("vlcc_name"),
                 VlccModel.vlcc_code.label("vlcc_uic_code"),
+                MccCollectionModel.is_deleted,
             )
             .select_from(MccCollectionModel)
             .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
@@ -597,9 +599,9 @@ class MccCollectionRepository(IMccCollectionRepository):
         total_snf_product = float(row.total_snf_product or 0.0)
         total_vlcc = int(row.total_vlcc or 0)
 
-        avg_fat = round(total_fat_product / total_quantity, 2) if total_quantity > 0 else 0.0
-        avg_snf = round(total_snf_product / total_quantity, 2) if total_quantity > 0 else 0.0
-        avg_rate = round(total_amount / total_quantity, 2) if total_quantity > 0 else 0.0
+        avg_fat = to_fixed_2(total_fat_product / total_quantity) if total_quantity > 0 else 0.0
+        avg_snf = to_fixed_2(total_snf_product / total_quantity) if total_quantity > 0 else 0.0
+        avg_rate = to_fixed_2(total_amount / total_quantity) if total_quantity > 0 else 0.0
 
         return MccCollectionSummaryDto(
             total_quantity=total_quantity,

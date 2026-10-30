@@ -23,6 +23,7 @@ from app.modules.collections.mcc_collection.infrastructure.models import (
 from app.modules.reports.application.dto import ReportMetadata, ReportResult
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.executors.base import ReportExecutor
+from app.core.numeric import to_fixed_2
 from app.modules.reports.infrastructure.filters import AppliedOnFilters
 from app.modules.vlcc.infrastructure.models import VlccModel
 
@@ -88,10 +89,10 @@ class MccFixedRateSummaryExecutor(ReportExecutor):
             rows=rows,
             footer={
                 "average_fat": self.avg_fat(fat_qty, total_qty),
-                "average_clr": round(clr_qty / total_qty, 2) if total_qty > 0 else 0,
+                "average_clr": to_fixed_2(clr_qty / total_qty) if total_qty > 0 else 0.0,
                 "average_rate": self.avg_rate(total_amount, total_net_qty),
-                "total_amount": round(total_amount, 2),
-                "total_quantity": round(total_qty, 2),
+                "total_amount": to_fixed_2(total_amount),
+                "total_quantity": to_fixed_2(total_qty),
             },
             total=len(rows),
             page=query.page,
@@ -106,12 +107,12 @@ class MccFixedRateSummaryExecutor(ReportExecutor):
             "shift": self._shift_code(row["shift"]),
             "quantity": self.marked(quantity, self.is_manual(row["quantity_collection_mode"])),
             "fat": self.marked(fat, self.is_manual(row["measurement_mode"])),
-            "snf": round(float(row["snf_percent"] or 0), 2),
-            "clr": round(clr, 2),
+            "snf": to_fixed_2(float(row["snf_percent"] or 0)),
+            "clr": to_fixed_2(clr),
             "detection": round(float(row["detection_value"] or 0), 3),
-            "net_qty": round(net_qty, 2),
-            "rate": round(rate, 2),
-            "amount": round(amount, 2),
+            "net_qty": to_fixed_2(net_qty),
+            "rate": to_fixed_2(rate),
+            "amount": to_fixed_2(amount),
         }
 
     @staticmethod

@@ -3,6 +3,7 @@ VLCC Collection ViewModel Assembler
 """
 
 from decimal import Decimal
+from app.core.numeric import to_fixed_2_decimal
 from app.modules.masters.advanced.domain.enums import PaymentMode
 from uuid import UUID
 from app.modules.collections.vlcc_collection.application.command import (
@@ -67,4 +68,4 @@ class VlccCollectionAssembler:
 
     @staticmethod
     def get_total_amount(rate: Decimal, quantity: Decimal) -> Decimal:
-        return rate * quantity
+        return to_fixed_2_decimal(rate * quantity)

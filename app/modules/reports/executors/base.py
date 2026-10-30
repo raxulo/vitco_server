@@ -24,6 +24,7 @@ from abc import ABC, abstractmethod
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.application.dto import ReportResult
+from app.core.numeric import to_fixed_2
 
 
 class ReportExecutor(ABC):
@@ -225,13 +226,13 @@ class ReportExecutor(ABC):
         return (await session.execute(stmt)).mappings().one_or_none()
 
     def avg_fat(self, fat, quantity):
-        return round(fat / quantity, 2) if quantity > 0 else 0
+        return to_fixed_2(fat / quantity) if quantity > 0 else 0.0
 
     def avg_snf(self, snf, quantity):
-        return round(snf / quantity, 2) if quantity > 0 else 0
+        return to_fixed_2(snf / quantity) if quantity > 0 else 0.0
 
     def avg_rate(self, amount, quantity):
-        return round(amount / quantity, 2) if quantity > 0 else 0
+        return to_fixed_2(amount / quantity) if quantity > 0 else 0.0
 
     def short_date(self, datetime_obj: datetime) -> str:
         return datetime_obj.strftime("%d/%m")

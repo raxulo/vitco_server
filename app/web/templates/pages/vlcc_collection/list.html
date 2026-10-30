@@ -116,18 +116,29 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle;">
+                    <tr style="border-bottom: 1px solid {{ '#fecaca' if item.is_deleted else '#f1f5f9' }}; color: {{ '#991b1b' if item.is_deleted else '#334155' }}; vertical-align: middle; background: {{ '#fef2f2' if item.is_deleted else 'transparent' }};">
                         <!-- Checkbox -->
                         {% if not is_farmer %}
                         <td style="padding: 16px; text-align: center;">
+                            {% if item.is_deleted %}
+                            <span title="Already deleted" style="color: #dc2626; font-size: 13px; opacity: 0.6;"><i class="fa-solid fa-ban"></i></span>
+                            {% else %}
                             <input type="checkbox" class="row-check" value="{{ item.id }}" onchange="updateBulkBar()">
+                            {% endif %}
                         </td>
                         {% endif %}
 
                          <!-- Entry Details -->
                         <td style="padding: 16px; line-height: 1.4;">
-                            <div style="font-weight: 600;">{{ item.collected_at.strftime('%d %b %Y') if item.collected_at else '—' }}</div>
-                            <div style="color: #94a3b8; font-size: 11px;">{{ item.collected_at.strftime('%I:%M %p') if item.collected_at else '' }} • {{ shift_names[item.shift|int] }}</div>
+                            <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                <span>{{ item.collected_at.strftime('%d %b %Y') if item.collected_at else '—' }}</span>
+                                {% if item.is_deleted %}
+                                <span style="background: #fee2e2; color: #dc2626; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; border: 1px solid #fca5a5;">
+                                    <i class="fa-solid fa-trash-can" style="font-size: 9px;"></i> DELETED
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">{{ item.collected_at.strftime('%I:%M %p') if item.collected_at else '' }} • {{ shift_names[item.shift|int] }}</div>
                         </td>
 
                         <!-- VLCC Shop -->
@@ -137,24 +148,24 @@
 
                         <!-- Farmer Details -->
                         <td style="padding: 16px; line-height: 1.4;">
-                            <a href="/farmer/view/{{ item.farmer_id if item.farmer_id else '' }}" style="font-weight: 700; color: #2563eb; text-decoration: none;">
+                            <a href="/farmer/view/{{ item.farmer_id if item.farmer_id else '' }}" style="font-weight: 700; color: {{ '#b91c1c' if item.is_deleted else '#2563eb' }}; text-decoration: none;">
                                 {{ item.farmer_name if item.farmer_name else '—' }}
                             </a>
-                            <div style="color: #94a3b8; font-size: 11px;">Code: {{ item.farmer_code if item.farmer_code else '—' }}</div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">Code: {{ item.farmer_code if item.farmer_code else '—' }}</div>
                         </td>
 
                         <!-- Milk Specs -->
                         <td style="padding: 16px; line-height: 1.4;">
                             <div style="font-weight: 600;">{{ milk_types[item.milk_type|int] }}</div>
-                            <div style="color: #94a3b8; font-size: 11px;">FAT {{ item.fat_percent or '0.0' }}% • SNF {{ item.snf_percent or '0.0' }}%</div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">FAT {{ item.fat_percent or '0.0' }}% • SNF {{ item.snf_percent or '0.0' }}%</div>
                         </td>
 
                         <!-- Weight Info -->
                         <td style="padding: 16px; line-height: 1.4;">
                             <div style="font-weight: 600;">
-                                {{ item.quantity }} <span style="color: #94a3b8; font-size: 10px; font-weight: 700;">KG</span>
+                                {{ item.quantity }} <span style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 10px; font-weight: 700;">KG</span>
                             </div>
-                            <div style="color: #94a3b8; font-size: 11px;">Rate: ₹{{ item.rate_per_unit }}</div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">Rate: ₹{{ item.rate_per_unit }}</div>
                         </td>
 
                         <!-- Billing -->
@@ -165,7 +176,12 @@
                         <!-- Actions -->
                         {% if not is_farmer %}
                         <td style="padding: 16px; text-align: center;">
-                            <div class="actions-wrapper" style="display: flex; gap: 8px; justify-content: center;">
+                            <div class="actions-wrapper" style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                {% if item.is_deleted %}
+                                <span style="color: #dc2626; font-size: 11px; font-weight: 700; background: #fee2e2; padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fca5a5;">
+                                    <i class="fa-solid fa-trash-can"></i> Deleted
+                                </span>
+                                {% else %}
                                 <button
                                     type="button"
                                     class="action-btn delete"
@@ -175,6 +191,7 @@
                                 >
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
+                                {% endif %}
                             </div>
                         </td>
                         {% endif %}
@@ -238,14 +255,23 @@
     </div>
 </div>
 
+<!-- Delete Confirmation Modal Component -->
+{% include "components/modal.html" %}
+
 <script>
     function confirmDelete(id, name) {
-        if (confirm("Are you sure you want to delete this record?")) {
-            fetch(`/vlcc-collections/delete/${id}`, { method: 'POST' })
-                .then(res => {
-                    if (res.ok) window.location.reload();
-                });
-        }
+        openModal({
+            title: "Confirm Deletion",
+            body: `Are you sure you want to delete this collection record? This action cannot be undone.`,
+            confirmText: "Delete Record",
+            confirmClass: "btn-danger",
+            onConfirm: function() {
+                fetch(`/vlcc-collections/delete/${id}`, { method: 'POST' })
+                    .then(res => {
+                        if (res.ok) window.location.reload();
+                    });
+            }
+        });
     }
 
     // ---------- Multi-select delete ----------
@@ -276,13 +302,20 @@
     function confirmBulkDelete() {
         const ids = selectedIds();
         if (!ids.length) return;
-        if (!confirm(`Are you sure you want to delete ${ids.length} selected record(s)? This action cannot be undone.`)) return;
-        fetch('/vlcc-collections/delete-bulk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: ids })
-        }).then(res => {
-            if (res.ok) window.location.reload();
+        openModal({
+            title: "Delete Selected Records",
+            body: `Are you sure you want to delete <strong>${ids.length}</strong> selected collection record(s)? This action cannot be undone.`,
+            confirmText: `Delete ${ids.length} Record(s)`,
+            confirmClass: "btn-danger",
+            onConfirm: function() {
+                fetch('/vlcc-collections/delete-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: ids })
+                }).then(res => {
+                    if (res.ok) window.location.reload();
+                });
+            }
         });
     }
 </script>

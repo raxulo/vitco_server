@@ -1,0 +1,107 @@
+<!-- Reusable Confirmation Modal Component -->
+<div id="global-confirm-modal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(2px); z-index: 99999; align-items: center; justify-content: center; padding: 16px;">
+    <div class="modal-box animate-scaleUp" style="background: white; border-radius: 12px; width: 100%; max-width: 440px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04); overflow: hidden; border: 1px solid #e2e8f0;">
+        <!-- Header -->
+        <div style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; background: #fafafa;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="g-modal-icon-wrapper" style="width: 32px; height: 32px; border-radius: 50%; background: #fee2e2; display: flex; align-items: center; justify-content: center; color: #dc2626; font-size: 14px;">
+                    <i id="g-modal-icon" class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h4 id="g-modal-title" style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Confirm Action</h4>
+            </div>
+            <button type="button" onclick="closeModal()" style="border: none; background: transparent; font-size: 20px; color: #94a3b8; cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
+        </div>
+
+        <!-- Body -->
+        <div id="g-modal-body" style="padding: 20px; font-size: 14px; color: #475569; line-height: 1.5;">
+            Are you sure you want to proceed?
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 14px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
+            <button type="button" id="g-modal-cancel-btn" onclick="closeModal()" style="padding: 8px 16px; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                Cancel
+            </button>
+            <button type="button" id="g-modal-confirm-btn" style="padding: 8px 18px; border: none; background: #dc2626; color: white; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                <i class="fa-solid fa-check"></i> Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        let currentOnConfirm = null;
+
+        window.openModal = function(options) {
+            options = options || {};
+            const modal = document.getElementById('global-confirm-modal');
+            const titleEl = document.getElementById('g-modal-title');
+            const bodyEl = document.getElementById('g-modal-body');
+            const confirmBtn = document.getElementById('g-modal-confirm-btn');
+            const cancelBtn = document.getElementById('g-modal-cancel-btn');
+            const iconWrapper = document.getElementById('g-modal-icon-wrapper');
+            const iconEl = document.getElementById('g-modal-icon');
+
+            if (!modal) return;
+
+            if (titleEl) titleEl.textContent = options.title || "Confirm Action";
+            if (bodyEl) bodyEl.innerHTML = options.body || "Are you sure you want to proceed?";
+
+            if (cancelBtn) cancelBtn.textContent = options.cancelText || "Cancel";
+
+            if (confirmBtn) {
+                confirmBtn.innerHTML = `<i class="fa-solid fa-trash-can"></i> ${options.confirmText || 'Confirm'}`;
+                confirmBtn.disabled = false;
+                confirmBtn.style.opacity = '1';
+
+                // Button colors based on confirmClass or danger intent
+                if (options.confirmClass && options.confirmClass.includes('primary')) {
+                    confirmBtn.style.background = '#2563eb';
+                    if (iconWrapper) iconWrapper.style.background = '#dbeafe';
+                    if (iconWrapper) iconWrapper.style.color = '#2563eb';
+                    if (iconEl) iconEl.className = 'fa-solid fa-circle-info';
+                } else {
+                    confirmBtn.style.background = '#dc2626';
+                    if (iconWrapper) iconWrapper.style.background = '#fee2e2';
+                    if (iconWrapper) iconWrapper.style.color = '#dc2626';
+                    if (iconEl) iconEl.className = 'fa-solid fa-triangle-exclamation';
+                }
+
+                currentOnConfirm = options.onConfirm || null;
+                confirmBtn.onclick = function() {
+                    confirmBtn.disabled = true;
+                    confirmBtn.style.opacity = '0.7';
+                    confirmBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+                    if (typeof currentOnConfirm === 'function') {
+                        currentOnConfirm();
+                    }
+                };
+            }
+
+            modal.style.display = 'flex';
+        };
+
+        window.closeModal = function() {
+            const modal = document.getElementById('global-confirm-modal');
+            if (modal) modal.style.display = 'none';
+            currentOnConfirm = null;
+        };
+
+        // Close on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.closeModal();
+            }
+        });
+
+        // Close when clicking backdrop outside modal-box
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('global-confirm-modal');
+            if (modal && e.target === modal) {
+                window.closeModal();
+            }
+        });
+    })();
+</script>
+

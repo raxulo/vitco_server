@@ -36,6 +36,7 @@ class VlccCollectionDto:
     status: CollectionStatus
     rank: int | None
     clr_value : Decimal | None = None
+    is_deleted: bool = False
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)
@@ -56,6 +57,7 @@ class VlccCollectionListDto:
     vlcc_name: str | None = None
     farmer_name: str | None = None
     farmer_code: str | None = None
+    is_deleted: bool = False
 
 
 @dataclass(slots=True, frozen=True, kw_only=True)

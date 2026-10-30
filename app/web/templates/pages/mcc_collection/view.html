@@ -4,6 +4,11 @@
 
 {% block content %}
 <div class="animate-fadeIn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 16px 50px;">
+    {% if collection and collection.is_deleted %}
+    <div class="no-print" style="width: 100%; max-width: 330px; margin-bottom: 12px; background: #fee2e2; border: 1px solid #f87171; color: #991b1b; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 1px 2px rgba(220,38,38,0.1);">
+        <i class="fa-solid fa-trash-can" style="color: #dc2626;"></i> This collection record is DELETED
+    </div>
+    {% endif %}
     <!-- Only the Printable Slip Content -->
     <div id="printable-slip" style="width: 100%; max-width: 330px; font-family: 'Courier New', Courier, monospace; color: #000000; box-sizing: border-box; margin: 0 auto; background: transparent;">
         

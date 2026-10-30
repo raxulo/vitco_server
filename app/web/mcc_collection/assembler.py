@@ -3,6 +3,7 @@ MCC Collection ViewModel Assembler
 """
 
 from decimal import Decimal
+from app.core.numeric import to_fixed_2_decimal
 from app.modules.mcc.domain.enums import MccType
 from uuid import UUID
 from app.modules.collections.mcc_collection.application.command import (
@@ -86,5 +87,5 @@ class MccCollectionAssembler:
     @staticmethod
     def get_total_amount(data):
         if data.mcc_type != MccType.WEIGHT:
-            return Decimal(data.rate_per_unit) * Decimal(data.quantity)
-        return Decimal(data.rate_per_unit)
+            return to_fixed_2_decimal(Decimal(data.rate_per_unit) * Decimal(data.quantity))
+        return to_fixed_2_decimal(Decimal(data.rate_per_unit))

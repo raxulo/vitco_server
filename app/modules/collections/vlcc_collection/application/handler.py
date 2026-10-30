@@ -345,4 +345,5 @@ class VlccCollectionHandler:
             payment_mode=collection.payment_mode,
             status=collection.status,
             rank=collection.rank,
+            is_deleted=collection.is_deleted,
         )

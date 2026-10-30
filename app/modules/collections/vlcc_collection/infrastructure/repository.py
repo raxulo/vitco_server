@@ -24,6 +24,7 @@ from app.modules.collections.vlcc_collection.domain.irepository import IVlccColl
 from app.modules.collections.vlcc_collection.infrastructure.mapper import VlccCollectionMapper
 from app.modules.collections.vlcc_collection.infrastructure.models import VlccCollectionModel
 from app.core.clock import now_naive_ist
+from app.core.numeric import to_fixed_2
 
 
 class VlccCollectionAccessScope:
@@ -141,6 +142,7 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         model = await self._session.scalar(stmt)
         if model is not None:
             model.is_deleted = True
+            model.updated_at = now_naive_ist()
             await self._session.commit()
 
     async def delete_bulk(
@@ -161,6 +163,7 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         for model in models:
             model.is_deleted = True
             model.updated_at = now_naive_ist()
+            model.updated_at = now_naive_ist()
             deleted_ids.append(model.id)
 
         if deleted_ids:
@@ -180,7 +183,6 @@ class VlccCollectionRepository(IVlccCollectionRepository):
     ) -> VlccCollection | None:
         stmt = select(VlccCollectionModel).where(
             VlccCollectionModel.id == id,
-            VlccCollectionModel.is_deleted == False,
             VlccCollectionAccessScope.condition(owner),
         )
         model = await self._session.scalar(stmt)
@@ -214,7 +216,6 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         - date_from / date_to: collected_at range (date_to is exclusive)
         """
         conditions = [
-            VlccCollectionModel.is_deleted.is_(False),
             VlccCollectionAccessScope.condition(owner),
         ]
         keyword = (keyword or "").strip()
@@ -279,6 +280,7 @@ class VlccCollectionRepository(IVlccCollectionRepository):
                 vlcc_name=row.vlcc_name,
                 farmer_name=row.farmer_name,
                 farmer_code=row.farmer_code,
+                is_deleted=bool(row.VlccCollectionModel.is_deleted),
             )
             for row in result
         ]
@@ -393,9 +395,9 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         total_snf_product = float(row.total_snf_product or 0.0)
         total_farmer = int(row.total_farmer or 0)
 
-        avg_fat = round(total_fat_product / total_quantity, 2) if total_quantity > 0 else 0.0
-        avg_snf = round(total_snf_product / total_quantity, 2) if total_quantity > 0 else 0.0
-        avg_rate = round(total_amount / total_quantity, 2) if total_quantity > 0 else 0.0
+        avg_fat = to_fixed_2(total_fat_product / total_quantity) if total_quantity > 0 else 0.0
+        avg_snf = to_fixed_2(total_snf_product / total_quantity) if total_quantity > 0 else 0.0
+        avg_rate = to_fixed_2(total_amount / total_quantity) if total_quantity > 0 else 0.0
 
         return VlccCollectionSummaryDto(
             total_quantity=total_quantity,

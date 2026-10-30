@@ -106,10 +106,14 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr style="border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: middle;">
+                    <tr style="border-bottom: 1px solid {{ '#fecaca' if item.is_deleted else '#f1f5f9' }}; color: {{ '#991b1b' if item.is_deleted else '#334155' }}; vertical-align: middle; background: {{ '#fef2f2' if item.is_deleted else 'transparent' }};">
                         <!-- Checkbox -->
                         <td style="padding: 16px; text-align: center;">
+                            {% if item.is_deleted %}
+                            <span title="Already deleted" style="color: #dc2626; font-size: 13px; opacity: 0.6;"><i class="fa-solid fa-ban"></i></span>
+                            {% else %}
                             <input type="checkbox" class="row-check" value="{{ item.id }}" onchange="updateBulkBar()">
+                            {% endif %}
                         </td>
 
                         <!-- MCC Code -->
@@ -119,28 +123,34 @@
 
                         <!-- Entry Details -->
                         <td style="padding: 16px; line-height: 1.4;">
-                            <div style="font-weight: 600;">{{ item.collected_at.strftime('%d %b %Y') if item.collected_at else '—' }}</div>
-                            <div style="font-weight: 600;">{{ item.collected_at.strftime('%I:%M %p') if item.collected_at else '' }}</div>
-                            <div style="color: #94a3b8; font-size: 11px;">{{ item.collected_at.strftime('%I:%M %p') if item.collected_at else '' }} • {{ shift_names[item.shift|int] }}</div>
+                            <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                                <span>{{ item.collected_at.strftime('%d %b %Y') if item.collected_at else '—' }}</span>
+                                {% if item.is_deleted %}
+                                <span style="background: #fee2e2; color: #dc2626; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; border: 1px solid #fca5a5;">
+                                    <i class="fa-solid fa-trash-can" style="font-size: 9px;"></i> DELETED
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">{{ item.collected_at.strftime('%I:%M %p') if item.collected_at else '' }} • {{ shift_names[item.shift|int] }}</div>
                         </td>
 
                         <!-- Supplying VLCC Shop -->
                         <td style="padding: 16px; line-height: 1.4;">
-                            <a href="/vlcc/view/{{ item.vlcc_id }}" style="font-weight: 700; color: #2563eb; text-decoration: none;">
+                            <a href="/vlcc/view/{{ item.vlcc_id }}" style="font-weight: 700; color: {{ '#b91c1c' if item.is_deleted else '#2563eb' }}; text-decoration: none;">
                                 {{ item.vlcc_name or '—' }}
                             </a>
-                            <div style="color: #94a3b8; font-size: 11px;">UIC: {{ item.vlcc_uic_code or '—' }}</div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">UIC: {{ item.vlcc_uic_code or '—' }}</div>
                         </td>
 
                         <!-- Weight Info -->
                         <td style="padding: 16px; line-height: 1.4;">
                             <div style="font-weight: 600;">
-                                {{ item.quantity }} <span style="color: #94a3b8; font-size: 10px; font-weight: 700;">KG</span>
+                                {{ item.quantity }} <span style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 10px; font-weight: 700;">KG</span>
                             </div>
                             {% if item.fat_percent and item.fat_percent|float > 0 %}
-                            <div style="color: #94a3b8; font-size: 11px;">Rate: ₹{{ item.rate_per_unit }}</div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">Rate: ₹{{ item.rate_per_unit }}</div>
                             {% else %}
-                            <div style="color: #94a3b8; font-size: 11px;">Samples: {{ item.sample_number }} • Cans: {{ item.can_count }}</div>
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">Samples: {{ item.sample_number }} • Cans: {{ item.can_count }}</div>
                             {% endif %}
                         </td>
 
@@ -155,15 +165,20 @@
 
                         <!-- MCC Origin -->
                         <td style="padding: 16px;">
-                            <div style="display: inline-flex; align-items: center; gap: 6px; color: #64748b;">
-                                <i class="fa-solid fa-circle-nodes" style="color: #94a3b8;"></i>
+                            <div style="display: inline-flex; align-items: center; gap: 6px; color: {{ '#b91c1c' if item.is_deleted else '#64748b' }};">
+                                <i class="fa-solid fa-circle-nodes" style="color: {{ '#dc2626' if item.is_deleted else '#94a3b8' }};"></i>
                                 {{item.mcc_name or '—'}}
                             </div>
                         </td>
 
                         <!-- Actions -->
                         <td style="padding: 16px; text-align: center;">
-                            <div class="actions-wrapper" style="display: flex; gap: 8px; justify-content: center;">
+                            <div class="actions-wrapper" style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                                {% if item.is_deleted %}
+                                <span style="color: #dc2626; font-size: 11px; font-weight: 700; background: #fee2e2; padding: 4px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #fca5a5;">
+                                    <i class="fa-solid fa-trash-can"></i> Deleted
+                                </span>
+                                {% else %}
                                 <button
                                     type="button"
                                     class="action-btn delete"
@@ -173,6 +188,7 @@
                                 >
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
