@@ -7,10 +7,10 @@ class CollectionMode(IntEnum):
     AUTOMATIC = 1
 
 
-class VlccType(StrEnum):
+class VlccType(IntEnum):
 
-    NORMAL = "NORMAL"
-    VLCC_FARMER_TYPE = "VLCC_FARMER_TYPE"
+    NORMAL = 0
+    VLCC_FARMER_TYPE = 1
 
     @property
     def label(self) -> str:

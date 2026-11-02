@@ -1,3 +1,4 @@
+from app.modules.vlcc.domain.enums import VlccType
 from app.modules.vlcc.application.command import PartialUpdateFullDetailVlcc
 from app.api.v1.schemas.sync import SubUserProfileSyncDto
 from app.modules.vlcc.domain.dto import VlccForMccDto

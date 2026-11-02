@@ -1,3 +1,4 @@
+from typing import Any
 from app.modules.common.settings.infrastructure.models import SettingsModel
 from app.modules.vlcc.domain.dto import VlccDto
 from app.modules.vlcc.domain.enums import VlccType
@@ -7,6 +8,21 @@ from app.modules.vlcc.infrastructure.models import VlccModel
 
 
 class VlccMapper:
+
+    @staticmethod
+    def _parse_vlcc_type(val: Any) -> VlccType:
+        if val is None:
+            return VlccType.NORMAL
+        if isinstance(val, VlccType):
+            return val
+        try:
+            return VlccType(int(val))
+        except (ValueError, TypeError):
+            return (
+                VlccType.VLCC_FARMER_TYPE
+                if str(val).strip().upper() in ("VLCC_FARMER_TYPE", "1")
+                else VlccType.NORMAL
+            )
 
     @staticmethod
     def to_entity(
@@ -48,7 +64,7 @@ class VlccMapper:
             deleted_at=model.deleted_at,
             deleted_by=model.deleted_by,
             city=city,
-            vlcc_type=getattr(model, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
+            vlcc_type=VlccMapper._parse_vlcc_type(getattr(model, "vlcc_type", VlccType.NORMAL)),
         )
 
     @staticmethod
@@ -76,7 +92,7 @@ class VlccMapper:
             is_deleted=entity.is_deleted,
             deleted_at=entity.deleted_at,
             deleted_by=entity.deleted_by,
-            vlcc_type=getattr(entity, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
+            vlcc_type=VlccMapper._parse_vlcc_type(getattr(entity, "vlcc_type", VlccType.NORMAL)),
         )
 
     @staticmethod
@@ -98,7 +114,7 @@ class VlccMapper:
             is_active=data.is_active,
             assigned_chart_rank=data.assigned_chart_rank,
             created_by=data.created_by,
-            vlcc_type=getattr(data, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
+            vlcc_type=VlccMapper._parse_vlcc_type(getattr(data, "vlcc_type", VlccType.NORMAL)),
         )
 
     @staticmethod
@@ -123,5 +139,5 @@ class VlccMapper:
             is_active=entity.is_active,
             assigned_chart_rank=entity.assigned_chart_rank,
             can_modify=entity.can_modify,
-            vlcc_type=getattr(entity, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
+            vlcc_type=VlccMapper._parse_vlcc_type(getattr(entity, "vlcc_type", VlccType.NORMAL)),
         )

@@ -844,6 +844,16 @@ async def get_dashboard_data(
         )
         metrics_cards = create_metric_cards(vlcc_summary)
 
+    elif user_state.role_type == Role.VLCC_FARMER:
+        mcc_collection_service = GetHandler.mcc_collection_handler(request)
+        mcc_summary = await mcc_collection_service.get_collection_summary(
+            date_from=date_from,
+            date_to=date_to,
+            owner=user_state,
+            shift=collection_shift,
+        )
+        metrics_cards = create_metric_cards(mcc_summary)
+
     elif user_state.role_type == Role.FARMER:
         vlcc_collection_service = GetHandler.vlcc_collection_handler(request)
         vlcc_summary = await vlcc_collection_service.get_collection_summary(

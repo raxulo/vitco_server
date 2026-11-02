@@ -624,6 +624,18 @@ async def get_recent_collections(
             vlcc_id=user_state.own_id,
             farmer_id=member_id_uuid,
         )
+    elif role_type == Role.VLCC_FARMER:
+        return await _get_collection_by_mcc(
+            request=request,
+            currentUser=user_state,
+            date_from=dt_from,
+            date_to=dt_to,
+            shift=shift_filter,
+            offset=body.offset,
+            limit=body.limit,
+            is_deleted=body.is_deleted,
+            vlcc_id=user_state.own_id,
+        )
     elif role_type == Role.FARMER:
         return await _get_collection_by_vlcc(
             request=request,

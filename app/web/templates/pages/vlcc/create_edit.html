@@ -435,8 +435,8 @@
                             class="form-control"
                             onchange="handleVlccTypeChange(this.value)"
                         >
-                            <option value="NORMAL" {{ 'selected' if not vlcc or vlcc.vlcc_type == 'NORMAL' else '' }}>Normal</option>
-                            <option value="VLCC_FARMER_TYPE" {{ 'selected' if vlcc and vlcc.vlcc_type == 'VLCC_FARMER_TYPE' else '' }}>VLCC Farmer Type</option>
+                            <option value="0" {{ 'selected' if not vlcc or vlcc.vlcc_type == 0 or vlcc.vlcc_type == 'NORMAL' or vlcc.vlcc_type|string == '0' else '' }}>Normal</option>
+                            <option value="1" {{ 'selected' if vlcc and (vlcc.vlcc_type == 1 or vlcc.vlcc_type == 'VLCC_FARMER_TYPE' or vlcc.vlcc_type|string == '1') else '' }}>VLCC Farmer Type</option>
                         </select>
                     </div>
                 </div>
@@ -1328,7 +1328,7 @@
          - Items Version
     ========================================================= */
     function handleVlccTypeChange(val) {
-        const isFarmerType = (val === "VLCC_FARMER_TYPE");
+        const isFarmerType = (val === "1" || val === 1 || val === "VLCC_FARMER_TYPE");
         const sections = document.querySelectorAll(".vlcc-standard-section");
         sections.forEach(function (sec) {
             sec.style.display = isFarmerType ? "none" : "";

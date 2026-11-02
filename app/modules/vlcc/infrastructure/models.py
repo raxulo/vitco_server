@@ -1,5 +1,5 @@
 from uuid import UUID
-from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
@@ -103,8 +103,8 @@ class VlccModel(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
     vlcc_type: Mapped[VlccType] = mapped_column(
-        Enum(VlccType, native_enum=False),
+        SmallInteger,
         nullable=False,
         default=VlccType.NORMAL,
-        server_default="NORMAL",
+        server_default="0",
     )

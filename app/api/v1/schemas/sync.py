@@ -1,3 +1,4 @@
+from app.modules.vlcc.domain.enums import VlccType
 from app.modules.administration.presentation.requests import PartialUpdateUserRequest
 from pydantic import BaseModel
 from app.modules.common.address.presentation.requests import UpdateAddressRequest
@@ -64,6 +65,7 @@ class VlccExtraInfoSyncDto:
     entry_mode: CollectionMode
     soc_percentage: float
     farmer_enabled: bool
+    vlcc_type: VlccType = VlccType.NORMAL
 
 @dataclass(slots=True, kw_only=True)
 class MccExtraInfoSyncDto:

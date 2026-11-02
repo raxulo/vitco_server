@@ -129,7 +129,7 @@
                         <span class="lbl">SOC Percentage</span>
                         <strong class="val">{{ vlcc.soc_percentage or 0.0 }}%</strong>
                     </div>
-                    {% if vlcc.vlcc_type != 'VLCC_FARMER_TYPE' %}
+                    {% if vlcc.vlcc_type != 1 and vlcc.vlcc_type != 'VLCC_FARMER_TYPE' and vlcc.vlcc_type|string != '1' %}
                     <div class="grid-cell">
                         <span class="lbl">Farmer Module</span>
                         <span class="val badge-tag {{ 'enabled' if vlcc.farmer_enabled else 'disabled' }}">
@@ -143,8 +143,8 @@
                     </div>
                     <div class="grid-cell">
                         <span class="lbl">VLCC Type</span>
-                        <span class="val badge-tag {{ 'indigo' if vlcc.vlcc_type == 'VLCC_FARMER_TYPE' else 'primary' }}">
-                            {{ 'VLCC Farmer Type' if vlcc.vlcc_type == 'VLCC_FARMER_TYPE' else 'Normal' }}
+                        <span class="val badge-tag {{ 'indigo' if vlcc.vlcc_type == 1 or vlcc.vlcc_type == 'VLCC_FARMER_TYPE' or vlcc.vlcc_type|string == '1' else 'primary' }}">
+                            {{ 'VLCC Farmer Type' if vlcc.vlcc_type == 1 or vlcc.vlcc_type == 'VLCC_FARMER_TYPE' or vlcc.vlcc_type|string == '1' else 'Normal' }}
                         </span>
                     </div>
                 </div>

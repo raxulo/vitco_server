@@ -202,8 +202,9 @@ class UserRepository(IUserRepository):
         if raw_vlcc_type is not None:
             if (
                 raw_vlcc_type == VlccType.VLCC_FARMER_TYPE
-                or getattr(raw_vlcc_type, "value", None) == 2
-                or str(raw_vlcc_type).strip().upper() in ("VLCC_FARMER_TYPE", "2")
+                or raw_vlcc_type == 1
+                or getattr(raw_vlcc_type, "value", None) == 1
+                or str(raw_vlcc_type).strip().upper() in ("VLCC_FARMER_TYPE", "1")
             ):
                 is_vlcc_farmer = True
 
