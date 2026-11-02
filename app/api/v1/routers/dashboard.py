@@ -851,6 +851,7 @@ async def get_dashboard_data(
             date_to=date_to,
             owner=user_state,
             shift=collection_shift,
+            exclude_zero_quality=True,
         )
         metrics_cards = create_metric_cards(mcc_summary)
 

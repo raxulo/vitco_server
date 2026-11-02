@@ -573,6 +573,7 @@ class MccCollectionRepository(IMccCollectionRepository):
         date_to: datetime,
         owner: CurrentUser,
         shift: CollectionShift | None = None,
+        exclude_zero_quality: bool = False,
     ) -> MccCollectionSummaryDto:
         stmt = select(
             func.coalesce(func.sum(MccCollectionModel.quantity), 0.0).label("total_quantity"),
@@ -590,6 +591,9 @@ class MccCollectionRepository(IMccCollectionRepository):
 
         if shift is not None:
             stmt = stmt.where(MccCollectionModel.shift == shift)
+
+        if exclude_zero_quality:
+            stmt = stmt.where(self._has_quality_reading())
 
         row = (await self._session.execute(stmt)).one()
 
@@ -627,6 +631,7 @@ class MccCollectionRepository(IMccCollectionRepository):
         vlcc_id: UUID | None = None,
         owner: CurrentUser | None = None,
         is_deleted: bool | None = None,
+        exclude_zero_quality: bool = False,
     ) -> list[MccDetailedCollectionDto]:
         conditions = self._collection_conditions(
             date_from=date_from,
@@ -636,6 +641,7 @@ class MccCollectionRepository(IMccCollectionRepository):
             vlcc_id=vlcc_id,
             owner=owner,
             is_deleted=is_deleted,
+            exclude_zero_quality=exclude_zero_quality,
         )
 
         stmt = (
@@ -703,6 +709,7 @@ class MccCollectionRepository(IMccCollectionRepository):
         vlcc_id: UUID | None = None,
         owner: CurrentUser | None = None,
         is_deleted: bool | None = None,
+        exclude_zero_quality: bool = False,
     ) -> int:
         conditions = self._collection_conditions(
             date_from=date_from,
@@ -712,6 +719,7 @@ class MccCollectionRepository(IMccCollectionRepository):
             vlcc_id=vlcc_id,
             owner=owner,
             is_deleted=is_deleted,
+            exclude_zero_quality=exclude_zero_quality,
         )
 
         total_count = await self._session.scalar(
@@ -719,6 +727,14 @@ class MccCollectionRepository(IMccCollectionRepository):
         ) or 0
 
         return total_count
+
+    @staticmethod
+    def _has_quality_reading():
+        """Rows where both FAT and SNF are 0 (or missing) carry no quality reading."""
+        return or_(
+            func.coalesce(MccCollectionModel.fat_percent, 0) != 0,
+            func.coalesce(MccCollectionModel.snf_percent, 0) != 0,
+        )
 
     def _collection_conditions(
         self,
@@ -730,8 +746,10 @@ class MccCollectionRepository(IMccCollectionRepository):
         vlcc_id: UUID | None = None,
         owner: CurrentUser | None = None,
         is_deleted: bool | None = None,
+        exclude_zero_quality: bool = False,
     ) -> list:
         return [
+            *([self._has_quality_reading()] if exclude_zero_quality else []),
             *([MccCollectionModel.is_deleted.is_(is_deleted)] if is_deleted is not None else []),
             *([MccCollectionModel.mcc_id == mcc_id] if mcc_id else []),
             *([MccCollectionModel.vlcc_id == vlcc_id] if vlcc_id else []),

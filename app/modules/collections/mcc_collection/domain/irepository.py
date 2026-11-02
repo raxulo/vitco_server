@@ -94,6 +94,7 @@ class IMccCollectionRepository(ABC):
         date_to: datetime,
         owner: Any,
         shift: Any | None = None,
+        exclude_zero_quality: bool = False,
     ) -> MccCollectionSummaryDto:
         ...
 
@@ -109,6 +110,7 @@ class IMccCollectionRepository(ABC):
         vlcc_id: UUID | None = None,
         owner: Any | None = None,
         is_deleted: bool | None = None,
+        exclude_zero_quality: bool = False,
     ) -> list[MccDetailedCollectionDto]:
         ...
 
@@ -122,6 +124,7 @@ class IMccCollectionRepository(ABC):
         vlcc_id: UUID | None = None,
         owner: Any | None = None,
         is_deleted: bool | None = None,
+        exclude_zero_quality: bool = False,
     ) -> int:
         ...
 

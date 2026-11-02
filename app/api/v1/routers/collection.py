@@ -376,10 +376,11 @@ async def _get_collection_by_mcc(
     mcc_id: UUID | None = None,
     vlcc_id: UUID | None = None,
     is_deleted: bool | None = None,
+    exclude_zero_quality: bool = False,
 ) -> CollectionListResponse:
     if not currentUser:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    
+
     handler = GetHandler.mcc_collection_handler(request)
     detailed_list = await handler.get_detailed_collection_list(
         date_from=date_from,
@@ -391,6 +392,7 @@ async def _get_collection_by_mcc(
         vlcc_id=vlcc_id,
         owner=currentUser,
         is_deleted=is_deleted,
+        exclude_zero_quality=exclude_zero_quality,
     )
     total_count = await handler.get_total_collection_count(
         date_from=date_from,
@@ -400,6 +402,7 @@ async def _get_collection_by_mcc(
         vlcc_id=vlcc_id,
         owner=currentUser,
         is_deleted=is_deleted,
+        exclude_zero_quality=exclude_zero_quality,
     )
 
     items = [
@@ -635,6 +638,7 @@ async def get_recent_collections(
             limit=body.limit,
             is_deleted=body.is_deleted,
             vlcc_id=user_state.own_id,
+            exclude_zero_quality=True,
         )
     elif role_type == Role.FARMER:
         return await _get_collection_by_vlcc(

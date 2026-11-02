@@ -293,12 +293,14 @@ class MccCollectionHandler:
         date_to: datetime,
         owner: CurrentUser,
         shift: CollectionShift | None = None,
+        exclude_zero_quality: bool = False,
     ) -> MccCollectionSummaryDto:
         return await self._repository.get_collection_summary(
             date_from=date_from,
             date_to=date_to,
             owner=owner,
             shift=shift,
+            exclude_zero_quality=exclude_zero_quality,
         )
 
     async def get_detailed_collection_list(
@@ -312,6 +314,7 @@ class MccCollectionHandler:
         vlcc_id: UUID | None = None,
         owner: CurrentUser | None = None,
         is_deleted: bool | None = None,
+        exclude_zero_quality: bool = False,
     ) -> list[MccDetailedCollectionDto]:
         return await self._repository.get_detailed_collection_list(
             date_from=date_from,
@@ -323,6 +326,7 @@ class MccCollectionHandler:
             vlcc_id=vlcc_id,
             owner=owner,
             is_deleted=is_deleted,
+            exclude_zero_quality=exclude_zero_quality,
         )
 
     async def get_total_collection_count(
@@ -334,6 +338,7 @@ class MccCollectionHandler:
         vlcc_id: UUID | None = None,
         owner: CurrentUser | None = None,
         is_deleted: bool | None = None,
+        exclude_zero_quality: bool = False,
     ) -> int:
         return await self._repository.get_total_collection_count(
             date_from=date_from,
@@ -343,6 +348,7 @@ class MccCollectionHandler:
             vlcc_id=vlcc_id,
             owner=owner,
             is_deleted=is_deleted,
+            exclude_zero_quality=exclude_zero_quality,
         )
 
 
