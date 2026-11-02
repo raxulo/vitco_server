@@ -1,17 +1,13 @@
-from sqlalchemy import Enum
-from sqlalchemy import Boolean
-from sqlalchemy import Float
-from sqlalchemy import Integer
-from app.modules.common.settings.domain.enums import CollectionMode
-from sqlalchemy import String
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped
 from uuid import UUID
-from sqlalchemy.orm import mapped_column
-from app.core.database.mixins import TimestampMixin
-from app.core.database.mixins import UUIDMixin
-from app.core.database.mixins import SoftDeleteMixin
+from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.database.base import Base
+from app.core.database.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.modules.common.settings.domain.enums import CollectionMode
+from app.modules.vlcc.domain.enums import VlccType
+
+
 class VlccModel(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
 
     __tablename__ = "vlcc_master"
@@ -64,8 +60,6 @@ class VlccModel(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         nullable=True
     )
 
-
-
     entry_mode: Mapped[CollectionMode] = mapped_column(
         Enum(CollectionMode),
         nullable=False,
@@ -106,4 +100,11 @@ class VlccModel(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     created_by: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id"),
         index=True,
+    )
+
+    vlcc_type: Mapped[VlccType] = mapped_column(
+        Enum(VlccType, native_enum=False),
+        nullable=False,
+        default=VlccType.NORMAL,
+        server_default="NORMAL",
     )

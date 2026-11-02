@@ -108,6 +108,11 @@
                                             UIC: {{ vlcc.uic_code }}
                                         </span>
                                         {% endif %}
+                                        {% if vlcc.vlcc_type == 'VLCC_FARMER_TYPE' %}
+                                        <span class="badge-type" style="background-color: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe;">
+                                            Farmer Type
+                                        </span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>

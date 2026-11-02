@@ -281,6 +281,7 @@ class VlccHandler:
             weight_collection_mode=vlcc.weight_collection_mode,
             can_modify=vlcc.can_modify,
             city=vlcc.city,
+            vlcc_type=vlcc.vlcc_type,
         )
 
     def _to_dto(
@@ -354,6 +355,7 @@ class VlccHandler:
             is_active=True,
             assigned_chart_rank=command.assigned_chart_rank,
             created_by=command.created_by,
+            vlcc_type=command.vlcc_type,
         )
 
     def _validate(
@@ -435,7 +437,8 @@ class VlccHandler:
             farmer_enabled=command.farmer_enabled,
             is_active=command.is_active,
             assigned_chart_rank=command.assigned_chart_rank,
-            updated_at=now_naive_ist()
+            vlcc_type=command.vlcc_type,
+            updated_at=now_naive_ist(),
         )
 
     async def full_create(

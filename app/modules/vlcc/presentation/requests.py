@@ -3,7 +3,7 @@ from typing import Any
 from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from app.core.validators import apply_milk_quality_rules, apply_shift_time_rules, digits_only, limit_at_most, mobile_number
-from app.modules.vlcc.domain.enums import CollectionMode
+from app.modules.vlcc.domain.enums import CollectionMode, VlccType
 from app.modules.common.settings.domain.enums import (
     AnalyzerType,
     CattleType,
@@ -48,6 +48,21 @@ class CreateVlccRequest(BaseModel):
     farmer_enabled: bool = True
     assigned_chart_rank: int = Field(default=1, ge=1, le=15)
     is_active: bool = True
+    vlcc_type: VlccType = Field(default=VlccType.NORMAL)
+
+    @field_validator('vlcc_type', mode='before')
+    @classmethod
+    def _validate_vlcc_type(cls, value: Any) -> VlccType:
+        if isinstance(value, VlccType):
+            return value
+        if not value:
+            return VlccType.NORMAL
+        str_val = str(value).strip().upper()
+        if str_val in ('NORMAL', '0'):
+            return VlccType.NORMAL
+        if str_val in ('VLCC_FARMER_TYPE', '1', 'VLCC FARMER TYPE', 'FARMER_TYPE', 'FARMER'):
+            return VlccType.VLCC_FARMER_TYPE
+        return VlccType.NORMAL
 
     # Address
     line: str | None = None
@@ -93,6 +108,8 @@ class CreateVlccRequest(BaseModel):
 
     @model_validator(mode="after")
     def _milk_quality_rules(self):
+        if self.vlcc_type == VlccType.VLCC_FARMER_TYPE:
+            return self
         # FAT / SNF limits: 2 digits, "." and 2 digits at most (99.99)
         limit_at_most(self, (
             "cow_min_fat", "cow_max_fat", "cow_min_snf", "cow_max_snf",

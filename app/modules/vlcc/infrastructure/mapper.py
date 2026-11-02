@@ -1,8 +1,7 @@
 from app.modules.common.settings.infrastructure.models import SettingsModel
 from app.modules.vlcc.domain.dto import VlccDto
-from app.modules.vlcc.application.command import CreateVlcc
-from app.modules.vlcc.application.command import CreateVlccCommand
-
+from app.modules.vlcc.domain.enums import VlccType
+from app.modules.vlcc.application.command import CreateVlcc, CreateVlccCommand
 from app.modules.vlcc.domain.entities import Vlcc
 from app.modules.vlcc.infrastructure.models import VlccModel
 
@@ -10,7 +9,15 @@ from app.modules.vlcc.infrastructure.models import VlccModel
 class VlccMapper:
 
     @staticmethod
-    def to_entity(model: VlccModel, owner_name: str | None = None, setting: SettingsModel | None = None, route_name: str | None = None, profile_image: str | None = None, can_modify: bool = False, city: str | None = None) -> Vlcc:
+    def to_entity(
+        model: VlccModel,
+        owner_name: str | None = None,
+        setting: SettingsModel | None = None,
+        route_name: str | None = None,
+        profile_image: str | None = None,
+        can_modify: bool = False,
+        city: str | None = None,
+    ) -> Vlcc:
         return Vlcc(
             id=model.id,
             user_id=model.user_id,
@@ -41,6 +48,7 @@ class VlccMapper:
             deleted_at=model.deleted_at,
             deleted_by=model.deleted_by,
             city=city,
+            vlcc_type=getattr(model, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
         )
 
     @staticmethod
@@ -68,6 +76,7 @@ class VlccMapper:
             is_deleted=entity.is_deleted,
             deleted_at=entity.deleted_at,
             deleted_by=entity.deleted_by,
+            vlcc_type=getattr(entity, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
         )
 
     @staticmethod
@@ -89,6 +98,7 @@ class VlccMapper:
             is_active=data.is_active,
             assigned_chart_rank=data.assigned_chart_rank,
             created_by=data.created_by,
+            vlcc_type=getattr(data, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
         )
 
     @staticmethod
@@ -113,4 +123,5 @@ class VlccMapper:
             is_active=entity.is_active,
             assigned_chart_rank=entity.assigned_chart_rank,
             can_modify=entity.can_modify,
+            vlcc_type=getattr(entity, "vlcc_type", VlccType.NORMAL) or VlccType.NORMAL,
         )

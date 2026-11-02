@@ -352,7 +352,7 @@
 
 
                 <!-- ENTRY MODE -->
-                <div class="form-field">
+                <div class="form-field vlcc-standard-field">
                     <label>Measurement Mode</label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-keyboard"></i>
@@ -383,7 +383,7 @@
 
 
                 <!-- FARMER ENABLED -->
-                <div class="form-field">
+                <div class="form-field vlcc-standard-field">
                     <label>Farmer Module Access</label>
                     <div class="input-wrapper">
                         <i class="fa-solid fa-users-gear"></i>
@@ -419,6 +419,24 @@
                                 R-{{ rank }}
                             </option>
                             {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+
+                <!-- VLCC TYPE -->
+                <div class="form-field">
+                    <label>VLCC Type</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-shapes"></i>
+                        <select
+                            id="vlcc-type"
+                            name="vlcc_type"
+                            class="form-control"
+                            onchange="handleVlccTypeChange(this.value)"
+                        >
+                            <option value="NORMAL" {{ 'selected' if not vlcc or vlcc.vlcc_type == 'NORMAL' else '' }}>Normal</option>
+                            <option value="VLCC_FARMER_TYPE" {{ 'selected' if vlcc and vlcc.vlcc_type == 'VLCC_FARMER_TYPE' else '' }}>VLCC Farmer Type</option>
                         </select>
                     </div>
                 </div>
@@ -668,7 +686,7 @@
         <!-- =====================================================
              04. HARDWARE & DEVICE CONFIGURATION
         ====================================================== -->
-        <section class="settings-card">
+        <section id="section-hardware-config" class="settings-card vlcc-standard-section">
 
             <div class="section-header">
 
@@ -789,7 +807,7 @@
         <!-- =====================================================
              05. OPERATIONS & ACCESS LIMITS
         ====================================================== -->
-        <section class="settings-card">
+        <section id="section-shifts-limits" class="settings-card vlcc-standard-section">
 
             <div class="section-header">
 
@@ -906,7 +924,7 @@
         <!-- =====================================================
              06. FAT / SNF LIMITS
         ====================================================== -->
-        <section id="fat-snf-section" class="settings-card">
+        <section id="fat-snf-section" class="settings-card vlcc-standard-section">
 
             <div class="section-header">
                 <div class="section-header-left">
@@ -1067,7 +1085,7 @@
         <!-- =====================================================
              07. DEVICE APP VERSIONS
         ====================================================== -->
-        <section class="settings-card">
+        <section id="section-items-version" class="settings-card vlcc-standard-section">
             <div class="section-header">
                 <div class="section-header-left">
                     <div class="section-icon" style="background: var(--primary-light); color: var(--primary);">
@@ -1267,6 +1285,10 @@
         ];
 
         function invalidRange() {
+            const typeSelect = document.getElementById("vlcc-type");
+            if (typeSelect && typeSelect.value === "VLCC_FARMER_TYPE") {
+                return null;
+            }
             for (const [label, minId, maxId] of ranges) {
                 const min = parseFloat(document.getElementById(minId)?.value);
                 const max = parseFloat(document.getElementById(maxId)?.value);
@@ -1293,6 +1315,59 @@
             });
         }
     })();
+</script>
+
+<script>
+    /* =========================================================
+       VLCC TYPE TOGGLE
+       When VLCC Type is "VLCC_FARMER_TYPE":
+       Hide:
+         - Hardware Configurations
+         - Collection Shifts & Limits
+         - FAT / SNF Limits
+         - Items Version
+    ========================================================= */
+    function handleVlccTypeChange(val) {
+        const isFarmerType = (val === "VLCC_FARMER_TYPE");
+        const sections = document.querySelectorAll(".vlcc-standard-section");
+        sections.forEach(function (sec) {
+            sec.style.display = isFarmerType ? "none" : "";
+            sec.querySelectorAll("input, select, textarea").forEach(function (el) {
+                if (isFarmerType) {
+                    if (el.hasAttribute("required")) {
+                        el.setAttribute("data-was-required", "true");
+                        el.removeAttribute("required");
+                    }
+                } else {
+                    if (el.getAttribute("data-was-required") === "true") {
+                        el.setAttribute("required", "required");
+                    }
+                }
+            });
+        });
+
+        const fields = document.querySelectorAll(".vlcc-standard-field");
+        fields.forEach(function (fld) {
+            fld.style.display = isFarmerType ? "none" : "";
+        });
+    }
+
+    function initVlccTypeToggle() {
+        const typeSelect = document.getElementById("vlcc-type");
+        if (typeSelect) {
+            handleVlccTypeChange(typeSelect.value);
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initVlccTypeToggle);
+    } else {
+        initVlccTypeToggle();
+    }
+
+    document.body.addEventListener("htmx:afterSwap", function (evt) {
+        initVlccTypeToggle();
+    });
 </script>
 
 {% endblock %}

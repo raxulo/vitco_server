@@ -55,7 +55,8 @@ class VlccAssembler:
                 soc_percentage=data.soc_percentage,
                 farmer_enabled=data.farmer_enabled,
                 assigned_chart_rank=data.assigned_chart_rank,
-                created_by=created_by
+                created_by=created_by,
+                vlcc_type=data.vlcc_type,
             ), 
             address=CreateAddressCommand(
                 line=data.line,
@@ -138,6 +139,7 @@ class VlccAssembler:
                 is_active=data.is_active,
                 assigned_chart_rank=data.assigned_chart_rank,
                 updated_by=updated_by,
+                vlcc_type=data.vlcc_type,
                 address_id=data.address_id,
                 bank_account_id=data.bank_account_id,
                 milk_quality_config_id=data.milk_quality_config_id,

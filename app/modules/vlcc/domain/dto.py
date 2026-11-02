@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.modules.vlcc.domain.enums import CollectionMode
+from app.modules.vlcc.domain.enums import CollectionMode, VlccType
 
 from app.modules.administration.domain.entities import UserDto
 from app.modules.common.address.application.dto import AddressDto
@@ -34,6 +34,7 @@ class VlccDto:
     can_modify: bool = False
     city: str | None = None
     mobile: str | None = None
+    vlcc_type: VlccType = VlccType.NORMAL
 
 @dataclass(slots=True, frozen=True)
 class VlccListDto:
@@ -52,6 +53,7 @@ class VlccListDto:
     weight_collection_mode: CollectionMode | None = None
     can_modify: bool = False
     city: str | None = None
+    vlcc_type: VlccType = VlccType.NORMAL
 
 @dataclass(slots=True)
 class VlccDetailDto:
@@ -106,4 +108,3 @@ class VlccWithAllDetailsForMccDto:
     vlcc: VlccForMccDto
     address: AddressDto | None = None
     bank_account: BankAccountDto | None = None
-    

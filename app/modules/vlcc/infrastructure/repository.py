@@ -143,6 +143,7 @@ class VlccRepository(IVlccRepository):
                 is_active=entity.is_active,
                 is_deleted=entity.is_deleted,
                 assigned_chart_rank=entity.assigned_chart_rank,
+                vlcc_type=entity.vlcc_type,
                 updated_at=now_naive_ist(),
             )
         )
@@ -178,6 +179,7 @@ class VlccRepository(IVlccRepository):
                 farmer_enabled=data.farmer_enabled,
                 is_active=data.is_active,
                 assigned_chart_rank=data.assigned_chart_rank,
+                vlcc_type=data.vlcc_type,
                 updated_at=now_naive_ist(),
             )
         )

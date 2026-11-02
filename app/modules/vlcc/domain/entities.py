@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from app.modules.vlcc.domain.enums import CollectionMode
+from app.modules.vlcc.domain.enums import CollectionMode, VlccType
 
 
 @dataclass(slots=True)
@@ -39,6 +39,7 @@ class Vlcc:
     deleted_at: datetime | None = None
     deleted_by: UUID | None = None
     city: str | None = None
+    vlcc_type: VlccType = VlccType.NORMAL
 
 
 @dataclass(slots=True)

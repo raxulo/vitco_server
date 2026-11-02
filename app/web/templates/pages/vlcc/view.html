@@ -129,15 +129,23 @@
                         <span class="lbl">SOC Percentage</span>
                         <strong class="val">{{ vlcc.soc_percentage or 0.0 }}%</strong>
                     </div>
+                    {% if vlcc.vlcc_type != 'VLCC_FARMER_TYPE' %}
                     <div class="grid-cell">
                         <span class="lbl">Farmer Module</span>
                         <span class="val badge-tag {{ 'enabled' if vlcc.farmer_enabled else 'disabled' }}">
                             {{ 'Enabled' if vlcc.farmer_enabled else 'Disabled' }}
                         </span>
                     </div>
+                    {% endif %}
                     <div class="grid-cell">
                         <span class="lbl">Assigned Chart Rank</span>
                         <strong class="val">R-{{ vlcc.assigned_chart_rank }}</strong>
+                    </div>
+                    <div class="grid-cell">
+                        <span class="lbl">VLCC Type</span>
+                        <span class="val badge-tag {{ 'indigo' if vlcc.vlcc_type == 'VLCC_FARMER_TYPE' else 'primary' }}">
+                            {{ 'VLCC Farmer Type' if vlcc.vlcc_type == 'VLCC_FARMER_TYPE' else 'Normal' }}
+                        </span>
                     </div>
                 </div>
             </div>
