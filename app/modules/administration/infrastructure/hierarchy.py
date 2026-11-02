@@ -80,7 +80,7 @@ class Hierarchy:
         role = owner.role_type
         if role == Role.SUPER_ADMIN:
             return None
-        if role == Role.VLCC:
+        if role in (Role.VLCC, Role.VLCC_FARMER):
             return select(VlccModel.id).where(VlccModel.user_id == owner.id)
         if role in (*_MANAGER_ROLES, Role.MCC):
             return select(VlccModel.id).where(VlccModel.created_by.in_(cls.vlcc_creators(owner)))
@@ -142,7 +142,7 @@ class Hierarchy:
     @classmethod
     def shared_modifiable(cls, owner: CurrentUser | None, created_by):
         """Modify / delete a user-created master record: its creator and everyone above it."""
-        if owner is None or owner.role_type == Role.FARMER:
+        if owner is None or owner.role_type in (Role.FARMER, Role.VLCC_FARMER):
             return false()
         below = cls.controlled_users(owner)
         return true() if below is None else created_by.in_(below)
@@ -202,7 +202,7 @@ class Hierarchy:
                 select(VlccModel.user_id).where(vlcc_filter),
                 select(VlccModel.created_by).where(vlcc_filter),
             ]
-        elif role == Role.VLCC:
+        elif role in (Role.VLCC, Role.VLCC_FARMER):
             direct = [select(VlccModel.created_by).where(VlccModel.user_id == owner.id)]
         elif role == Role.MCC:
             direct = [select(MccModel.created_by).where(MccModel.user_id == owner.id)]

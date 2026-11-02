@@ -23,7 +23,8 @@ class ContextBuilder:
         if user and getattr(user, "role", None) is not None:
             try:
                 role_val = int(user.role)
-                navigation = build_navigation(role_val)
+                is_farmer_vlcc = getattr(user, "is_farmer_vlcc", False)
+                navigation = build_navigation(role_val, is_farmer_vlcc=is_farmer_vlcc)
             except (ValueError, TypeError):
                 navigation = ()
             context.update({"current_user": user, "navigation": navigation})

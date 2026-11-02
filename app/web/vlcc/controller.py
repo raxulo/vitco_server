@@ -43,7 +43,7 @@ class VlccController:
         limit: int = 10,
         search: str = "",
     ):
-
+        WebHelper.deny_farmer_vlcc(request)
         handler = GetHandler.vlcc_handler(request)
 
         result = await handler.list(
@@ -72,6 +72,7 @@ class VlccController:
 
     @staticmethod
     async def create_page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         user: CurrentUser = request.state.user
         try:
             VlccHandler.ensure_can_create(user)
@@ -179,6 +180,7 @@ class VlccController:
 
     @staticmethod
     async def create(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         current_user: CurrentUser = request.state.user
 
         form_data = await request.form()
@@ -220,6 +222,7 @@ class VlccController:
         request: Request,
         vlcc_id: UUID,
     ):
+        WebHelper.deny_farmer_vlcc(request)
         WebHelper.deny_role(request, Role.VLCC)
         current_user: CurrentUser = request.state.user
 
@@ -305,6 +308,7 @@ class VlccController:
 
     @staticmethod
     async def post_delete(request: Request, id: UUID):
+        WebHelper.deny_farmer_vlcc(request)
         from fastapi.responses import RedirectResponse, Response
         from app.modules.vlcc.application.command import DeleteVlccCommand
         

@@ -75,7 +75,7 @@ async def get_my_profile(request: Request):
     # =========================================================
     # ROLE: VLCC
     # =========================================================
-    if user_state.role_type == Role.VLCC:
+    if user_state.role_type in (Role.VLCC, Role.VLCC_FARMER):
         stmt_vlcc = (
             select(
                 VlccModel,

@@ -13,6 +13,7 @@ from app.modules.collections.vlcc_collection.application.dispatch_command import
 )
 from app.modules.vlcc.application.command import ListVlccQuery
 from app.web.framework.renderer import Renderer
+from app.web.framework.helpers import WebHelper
 from app.core.clock import now_naive_ist
 from app.modules.collections.mcc_collection.domain.enums import (
     CollectionShift,
@@ -35,6 +36,7 @@ class DispatchController:
         end_date: str | None = None,
         tab: str = "dispatches",
     ):
+        WebHelper.deny_farmer_vlcc(request)
         tab_param = request.query_params.get("tab", tab)
         active_tab = "comparison" if tab_param == "comparison" else "dispatches"
 
@@ -132,6 +134,7 @@ class DispatchController:
 
     @staticmethod
     async def get_create_page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=request.state.user))
         now = now_naive_ist()
@@ -150,6 +153,7 @@ class DispatchController:
 
     @staticmethod
     async def post_create(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         form = await request.form()
         handler = GetHandler.dispatch_handler(request)
         

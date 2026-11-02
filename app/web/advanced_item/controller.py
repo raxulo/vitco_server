@@ -13,6 +13,7 @@ from app.modules.advanceditem.application.command import (
 from app.modules.farmer.application.command import ListFarmerQuery
 from app.modules.masters.items.application.command import ListItemMasterQuery
 from app.web.framework.renderer import Renderer
+from app.web.framework.helpers import WebHelper
 from app.core.clock import now_naive_ist
 
 
@@ -26,6 +27,7 @@ class AdvancedItemController:
         page: int = 1,
         limit: int = 10,
     ):
+        WebHelper.deny_farmer_vlcc(request)
         owner = request.state.user
         advance_service = GetHandler.advance_item_service(request)
 
@@ -49,6 +51,7 @@ class AdvancedItemController:
 
     @staticmethod
     async def create_page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         owner = request.state.user
         farmer_handler = GetHandler.farmer_handler(request)
         item_handler = GetHandler.item_master_handler(request)

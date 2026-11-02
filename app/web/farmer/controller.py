@@ -38,6 +38,7 @@ class FarmerController:
         limit: int = 10,
         search: str = "",
     ):
+        WebHelper.deny_farmer_vlcc(request)
         handler = GetHandler.farmer_handler(request)
         current_user: CurrentUser = request.state.user
 
@@ -78,6 +79,7 @@ class FarmerController:
     @staticmethod
     async def _ensure_can_manage(request: Request) -> None:
         """A VLCC without the farmer permission only views farmers."""
+        WebHelper.deny_farmer_vlcc(request)
         try:
             await GetHandler.farmer_handler(request).ensure_can_manage(request.state.user)
         except PermissionError as exc:
@@ -152,6 +154,7 @@ class FarmerController:
         request: Request,
         farmer_id: UUID,
     ):
+        WebHelper.deny_farmer_vlcc(request)
         handler = GetHandler.farmer_handler(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
 
@@ -183,6 +186,7 @@ class FarmerController:
 
     @staticmethod
     async def post_create_page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         current_user: CurrentUser = request.state.user
 
         form_data = await request.form()
@@ -212,6 +216,7 @@ class FarmerController:
         request: Request,
         farmer_id: UUID,
     ):
+        WebHelper.deny_farmer_vlcc(request)
         WebHelper.deny_role(request, Role.FARMER)
         current_user: CurrentUser = request.state.user
 
@@ -247,6 +252,7 @@ class FarmerController:
         request: Request,
         farmer_id: UUID,
     ):
+        WebHelper.deny_farmer_vlcc(request)
         handler = GetHandler.farmer_handler(request)
         await handler.delete(DeleteFarmerQuery(id=farmer_id, owner=request.state.user))
         return HTMLResponse("success")

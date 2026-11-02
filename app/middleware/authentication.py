@@ -36,6 +36,10 @@ class CurrentUser:
             except (KeyError, TypeError):
                 return Role.ADMIN
 
+    @property
+    def is_farmer_vlcc(self) -> bool:
+        return self.role_type == Role.VLCC_FARMER
+
 class AuthenticationMiddleware(BaseHTTPMiddleware):
 
     __slots__ = (

@@ -31,6 +31,7 @@ class MenuGroup:
 # SUPER_ADMIN=1, ADMIN=2, SUB_ADMIN=3, MCC=4, VLCC=5, FARMER=6).
 SUPER_ADMIN_ONLY: Final = frozenset({Role.SUPER_ADMIN})
 FARMER_ONLY: Final = frozenset({Role.FARMER})
+VLCC_FARMER_ONLY: Final = frozenset({Role.VLCC_FARMER})
 # Managed Admins page: Super Admin manages Admins / Sub Admins, an Admin its own Sub Admins
 ADMIN_ROLES: Final = frozenset({Role.SUPER_ADMIN, Role.ADMIN})
 # Super Admin, Admin, Sub Admin: MCC management and the System Setup masters
@@ -69,7 +70,7 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "Dashboard",
                 "/dashboard",
                 "fa-solid fa-house-chimney-window",
-                ALL_ROLES | FARMER_ONLY,
+                ALL_ROLES | FARMER_ONLY | VLCC_FARMER_ONLY,
                 "/dashboard",
             ),
             # Farmer sees only its own collections and received payments
@@ -81,10 +82,17 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 "/vlcc-collections",
             ),
             item(
+                "My Collections",
+                "/mcc-collections/",
+                "fa-solid fa-flask",
+                VLCC_FARMER_ONLY,
+                "/mcc-collections",
+            ),
+            item(
                 "My Payments",
                 "/payments/history",
                 "fa-solid fa-indian-rupee-sign",
-                FARMER_ONLY,
+                FARMER_ONLY | VLCC_FARMER_ONLY,
                 "/payments/history",
             ),
             item(
@@ -291,7 +299,9 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
 )
 
 
-def build_navigation(role: int) -> tuple[MenuGroup, ...]:
+def build_navigation(role: int, is_farmer_vlcc: bool = False) -> tuple[MenuGroup, ...]:
+    if is_farmer_vlcc:
+        role = Role.VLCC_FARMER.value
     return tuple(
         MenuGroup(
             label=group.label,

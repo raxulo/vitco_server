@@ -11,6 +11,7 @@ from app.modules.masters.units.application.command import (
     ListUnitMasterQuery,
 )
 from app.web.framework.renderer import Renderer
+from app.web.framework.helpers import WebHelper
 
 
 class UnitController:
@@ -24,6 +25,7 @@ class UnitController:
         limit: int = 10,
         search: str = "",
     ):
+        WebHelper.deny_farmer_vlcc(request)
         owner = request.state.user
         handler = GetHandler.unit_master_handler(request)
 
@@ -59,6 +61,7 @@ class UnitController:
 
     @staticmethod
     async def post_create(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         form = await request.form()
         name = form.get("name", "").strip()
 

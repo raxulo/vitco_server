@@ -260,7 +260,7 @@ class DashboardRepository:
 
     async def count_vlccs(self, owner: CurrentUser) -> int:
         conditions = [VlccModel.is_deleted.is_(False)]
-        if owner.role_type == Role.VLCC:
+        if owner.role_type in (Role.VLCC, Role.VLCC_FARMER):
             conditions.append(VlccModel.user_id == owner.id)
         else:
             conditions.append(VlccAccessScope.condition(owner))
@@ -302,7 +302,7 @@ class DashboardRepository:
                 select(MccModel.name, MccModel.code).where(MccModel.user_id == owner.id)
             )).first()
             return f"{row.name} ({row.code})" if row else None
-        if role == Role.VLCC:
+        if role in (Role.VLCC, Role.VLCC_FARMER):
             row = (await self._session.execute(
                 select(VlccModel.name, VlccModel.vlcc_code).where(VlccModel.user_id == owner.id)
             )).first()

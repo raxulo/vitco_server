@@ -37,6 +37,7 @@ _ROLE_LABELS = {
     Role.SUB_ADMIN: "Sub Admin",
     Role.MCC: "MCC",
     Role.VLCC: "VLCC",
+    Role.VLCC_FARMER: "VLCC (Farmer)",
     Role.FARMER: "Farmer",
 }
 
@@ -80,6 +81,10 @@ _QUICK_ACTIONS: dict[Role, tuple[QuickAction, ...]] = {
         QuickAction("VLCC Reports", "/reports/", "fa-solid fa-chart-bar"),
         QuickAction("Payments", "/payments/overview", "fa-solid fa-money-bill-transfer"),
     ),
+    Role.VLCC_FARMER: (
+        QuickAction("My Collections", "/mcc-collections/", "fa-solid fa-flask"),
+        QuickAction("My Payments", "/payments/history", "fa-solid fa-indian-rupee-sign"),
+    ),
     Role.FARMER: (
         QuickAction("My Collections", "/vlcc-collections/", "fa-solid fa-flask"),
         QuickAction("My Payments", "/payments/history", "fa-solid fa-indian-rupee-sign"),
@@ -104,6 +109,7 @@ class DashboardHandler:
         owner, period = query.owner, query.period
         role = owner.role_type
         repo = self._repository
+        is_farmer_vlcc = getattr(owner, "is_farmer_vlcc", False)
 
         # Windows: [start, end) for the period, the one before it, and the trend range
         today_start = datetime.combine(now_naive_ist().date(), time.min)
@@ -113,7 +119,7 @@ class DashboardHandler:
         trend_start = end - timedelta(days=period.trend_days)
 
         # Primary collection source for this role
-        if role == Role.MCC:
+        if role in (Role.MCC, Role.VLCC_FARMER) or is_farmer_vlcc:
             source = repo.mcc_collections(owner)
             party_column = "vlcc_id"
         elif role in (Role.VLCC, Role.FARMER):
@@ -126,7 +132,7 @@ class DashboardHandler:
         current = await repo.totals(source, start, end, party_column=party_column)
         previous = await repo.totals(source, prev_start, start, party_column=party_column)
 
-        kpis = await self._kpis(owner, role, current, previous, start, end, prev_start)
+        kpis = await self._kpis(owner, role, current, previous, start, end, prev_start, is_farmer_vlcc=is_farmer_vlcc)
 
         daily = await repo.daily(source, trend_start, end)
         trend = tuple(
@@ -140,7 +146,7 @@ class DashboardHandler:
         )
         milk_split = self._split(await repo.quantity_by(source, start, end, "milk_type"))
 
-        if role == Role.FARMER:
+        if role == Role.FARMER or is_farmer_vlcc:
             leaderboard_title, leaderboard = "", ()
         elif role == Role.VLCC:
             leaderboard_title = "Top Farmers"
@@ -149,18 +155,37 @@ class DashboardHandler:
             leaderboard_title = "Top VLCCs"
             leaderboard = await repo.top_vlccs(source, start, end)
 
-        recent_party = "farmer" if role in (Role.VLCC, Role.FARMER) else "vlcc"
+        if is_farmer_vlcc:
+            recent_party = "vlcc"
+            recent_title = "My Recent Collections"
+        elif role == Role.FARMER:
+            recent_party = "farmer"
+            recent_title = "My Recent Pourings"
+        elif role == Role.VLCC:
+            recent_party = "farmer"
+            recent_title = "Recent Collections"
+        else:
+            recent_party = "vlcc"
+            recent_title = "Recent Collections"
         recent = await repo.recent(source, party=recent_party)
 
+        if is_farmer_vlcc:
+            actions = (
+                QuickAction("My Collections", "/mcc-collections/", "fa-solid fa-flask"),
+                QuickAction("My Payments", "/payments/history", "fa-solid fa-indian-rupee-sign"),
+            )
+        else:
+            actions = _QUICK_ACTIONS.get(role, ())
+
         return DashboardResult(
-            role_label=_ROLE_LABELS.get(role, "User"),
+            role_label="VLCC (Farmer)" if is_farmer_vlcc else _ROLE_LABELS.get(role, "User"),
             user_name=owner.name or "",
             scope_label=await repo.scope_label(owner) or ("All network" if role == Role.SUPER_ADMIN else "Your network"),
             period=period.value,
             period_label=period.label,
             period_options=tuple((p.value, p.label) for p in DashboardPeriod),
             kpis=kpis,
-            trend_title=self._trend_title(role),
+            trend_title=self._trend_title(role, is_farmer_vlcc=is_farmer_vlcc),
             trend=trend,
             shift_split=shift_split,
             milk_split=milk_split,
@@ -171,9 +196,9 @@ class DashboardHandler:
             ),
             leaderboard_title=leaderboard_title,
             leaderboard=leaderboard,
-            recent_title="My Recent Pourings" if role == Role.FARMER else "Recent Collections",
+            recent_title=recent_title,
             recent=recent,
-            quick_actions=_QUICK_ACTIONS.get(role, ()),
+            quick_actions=actions,
         )
 
     # =========================================================
@@ -189,6 +214,7 @@ class DashboardHandler:
         start: datetime,
         end: datetime,
         prev_start: datetime,
+        is_farmer_vlcc: bool = False,
     ) -> tuple[Kpi, ...]:
         repo = self._repository
         quantity = Kpi("Milk Collected", current.quantity, "qty", "fa-solid fa-droplet", "blue", previous.quantity, "Farmer → VLCC")
@@ -215,7 +241,7 @@ class DashboardHandler:
                 Kpi("Entries", current.entries, "int", "fa-solid fa-receipt", "violet", previous.entries),
             )
 
-        if role == Role.VLCC:
+        if role == Role.VLCC and not is_farmer_vlcc:
             dispatched = await repo.dispatch_quantity(owner, start, end)
             dispatched_prev = await repo.dispatch_quantity(owner, prev_start, start)
             return (
@@ -254,7 +280,9 @@ class DashboardHandler:
         )
 
     @staticmethod
-    def _trend_title(role: Role) -> str:
+    def _trend_title(role: Role, is_farmer_vlcc: bool = False) -> str:
+        if is_farmer_vlcc:
+            return "My Milk per Day"
         return {
             Role.MCC: "Milk Received per Day",
             Role.FARMER: "My Milk per Day",

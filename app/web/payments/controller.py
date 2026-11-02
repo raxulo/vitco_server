@@ -4,6 +4,8 @@ from fastapi import Request
 from app.modules.dependencies import GetHandler
 from app.web.framework.renderer import Renderer
 from app.core.clock import now_naive_ist
+from app.core.exceptions.base import ForbiddenException
+from app.modules.administration.domain.enums import Role
 
 class PaymentsController:
     __slots__ = ()
@@ -100,7 +102,7 @@ class PaymentsController:
         selected_user_id = ""
         selected_user_name = ""
         # Farmers only ever see their own history
-        is_farmer = user.role_type == Role.FARMER
+        is_farmer = user.role_type == Role.FARMER or getattr(user, "is_farmer_vlcc", False)
 
         if user_id.strip() and not is_farmer:
             try:
@@ -224,6 +226,8 @@ class PaymentsController:
         amount: str = None,
     ):
         user = request.state.user
+        if user.role_type == Role.FARMER or getattr(user, "is_farmer_vlcc", False):
+            raise ForbiddenException("Action not permitted for this account")
         prefilled_user = None
         
         if target_user_id:
@@ -254,6 +258,8 @@ class PaymentsController:
     @staticmethod
     async def post_give_receive(request: Request):
         user = request.state.user
+        if user.role_type == Role.FARMER or getattr(user, "is_farmer_vlcc", False):
+            raise ForbiddenException("Action not permitted for this account")
         db_manager = request.app.state.application.container.database
         service = GetHandler.payment_posting_service(request)
         

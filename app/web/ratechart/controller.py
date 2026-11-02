@@ -24,6 +24,7 @@ from app.modules.vlcc.application.command import ListVlccQuery, GetVlccQuery
 from app.modules.mcc.application.command import ListMccQuery, GetMccQuery
 from app.modules.administration.domain.enums import Role
 from app.web.framework.renderer import Renderer
+from app.web.framework.helpers import WebHelper
 from app.web.ratechart.assembler import RateChartAssembler
 from app.modules.ratechart.presentation.requests import (
     CreateRateChartRequest,
@@ -51,6 +52,7 @@ class RateChartController:
         limit: int = 10,
         search: str = "",
     ):
+        WebHelper.deny_farmer_vlcc(request)
         handler = GetHandler.ratechart_handler(request)
         user: CurrentUser = request.state.user
 
@@ -420,6 +422,7 @@ class RateChartController:
 
     @staticmethod
     async def assign_page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         vlcc_handler = GetHandler.vlcc_handler(request)
         rate_handler = GetHandler.ratechart_handler(request)
 
@@ -440,6 +443,7 @@ class RateChartController:
 
     @staticmethod
     async def assign_mcc_page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         mcc_handler = GetHandler.mcc_handler(request)
         rate_handler = GetHandler.ratechart_handler(request)
 

@@ -21,6 +21,15 @@ class WebHelper:
             raise ForbiddenException(message)
 
     @staticmethod
+    def deny_farmer_vlcc(request: Request, message: str = "Access denied for VLCC Farmer accounts") -> None:
+        from app.core.exceptions.base import ForbiddenException
+        from app.modules.administration.domain.enums import Role
+
+        user = getattr(request.state, "user", None)
+        if user is not None and (getattr(user, "is_farmer_vlcc", False) or user.role_type == Role.VLCC_FARMER):
+            raise ForbiddenException(message)
+
+    @staticmethod
     def client_ip(request: Request) -> str:
 
         forwarded = request.headers.get("X-Forwarded-For")

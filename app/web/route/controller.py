@@ -10,6 +10,7 @@ from app.modules.masters.route.application.command import (
     ListRouteMasterQuery,
 )
 from app.web.framework.renderer import Renderer
+from app.web.framework.helpers import WebHelper
 
 
 class RouteController:
@@ -23,6 +24,7 @@ class RouteController:
         limit: int = 10,
         search: str = "",
     ):
+        WebHelper.deny_farmer_vlcc(request)
         owner = request.state.user
         handler = GetHandler.route_master_handler(request)
 
@@ -57,6 +59,7 @@ class RouteController:
 
     @staticmethod
     async def post_create(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         form = await request.form()
         code_str = form.get("code", "0")
         name = form.get("name", "").strip()

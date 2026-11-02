@@ -10,6 +10,7 @@ class Role(IntEnum):
     MCC = 4
     VLCC = 5
     FARMER = 6
+    VLCC_FARMER = 7
 
 
 class Permission(StrEnum):
@@ -95,5 +96,7 @@ ROLE_PERMISSIONS = {
     },
 
     Role.FARMER: set(),
+
+    Role.VLCC_FARMER: set(),
 
 }

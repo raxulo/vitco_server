@@ -363,13 +363,13 @@
                 {% if d.recent %}
                 <table class="ov-table">
                     <thead>
-                        <tr><th>{{ 'Date' if d.role_label == 'Farmer' else 'From' }}</th><th>Shift</th><th class="num">Qty (L)</th><th class="num">FAT</th><th class="num">SNF</th><th class="num">Amount</th></tr>
+                        <tr><th>{{ 'Date' if d.role_label in ('Farmer', 'VLCC (Farmer)') else 'From' }}</th><th>Shift</th><th class="num">Qty (L)</th><th class="num">FAT</th><th class="num">SNF</th><th class="num">Amount</th></tr>
                     </thead>
                     <tbody>
                         {% for r in d.recent %}
                         <tr>
                             <td>
-                                {% if d.role_label == 'Farmer' %}
+                                {% if d.role_label in ('Farmer', 'VLCC (Farmer)') %}
                                 <strong>{{ r.collected_at.strftime('%d %b') }}</strong> <small style="color:var(--ov-ink-3); font-weight:700;">{{ r.collected_at.strftime('%I:%M %p') }}</small>
                                 {% else %}
                                 <div class="ov-who">

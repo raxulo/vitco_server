@@ -11,6 +11,7 @@ from app.modules.mcc.domain.enums import MccType
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.domain.enums import ReportType
 from app.web.framework.renderer import Renderer
+from app.web.framework.helpers import WebHelper
 from app.core.clock import now_naive_ist, today_ist
 
 REPORT_TITLES = {
@@ -48,6 +49,7 @@ class ReportsController:
 
     @staticmethod
     async def page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         owner = request.state.user
         
         mcc_handler = GetHandler.mcc_handler(request)
@@ -77,6 +79,7 @@ class ReportsController:
 
     @staticmethod
     async def vlcc_page(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         from app.modules.vlcc.application.command import ListVlccQuery
         vlcc_handler = GetHandler.vlcc_handler(request)
         vlccs = await vlcc_handler.list(ListVlccQuery(size=200, owner=request.state.user))
@@ -101,6 +104,7 @@ class ReportsController:
 
     @staticmethod
     async def mcc_type_reports(request: Request, mcc_id: str):
+        WebHelper.deny_farmer_vlcc(request)
         mcc_handler = GetHandler.mcc_handler(request)
         try:
             mcc = await mcc_handler.get(GetMccQuery(id=UUID(mcc_id), owner=request.state.user))
@@ -120,6 +124,7 @@ class ReportsController:
 
     @staticmethod
     async def generate(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         try:
             form_data = dict(await request.form())
             for key in list(form_data.keys()):
@@ -159,6 +164,7 @@ class ReportsController:
         )
     @staticmethod
     async def preview(request: Request):
+        WebHelper.deny_farmer_vlcc(request)
         form_data = dict(await request.form())
         for key in list(form_data.keys()):
             if form_data[key] in ("", "null", "None"):

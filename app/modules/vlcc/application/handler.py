@@ -313,14 +313,16 @@ class VlccHandler:
         )
 
     def _build_user(self, command: CreateVlccCommand) -> User:
+        from app.modules.vlcc.domain.enums import VlccType
         now = now_naive_ist()
+        user_role = Role.VLCC_FARMER if getattr(command, "vlcc_type", None) == VlccType.VLCC_FARMER_TYPE else Role.VLCC
         return User(
             id=uuid4(),
             name=command.name,
             email=command.email.lower(),
             mobile=command.mobile,
             password_hash=self._password.hash(command.password),
-            role=Role.VLCC,
+            role=user_role,
             created_by=command.created_by,
             is_active=True,
             is_locked=False,
@@ -456,7 +458,19 @@ class VlccHandler:
         settings = None
 
         async with self._database.transaction():
-            profile = await self._profile.create(user_data=command.user, address_data=command.address, bank_data=command.bank_account, role=Role.VLCC)
+            from app.modules.vlcc.domain.enums import VlccType
+            target_role = (
+                Role.VLCC_FARMER
+                if getattr(command.vlcc, "vlcc_type", None) == VlccType.VLCC_FARMER_TYPE
+                or getattr(command.user, "role", None) == Role.VLCC_FARMER
+                else Role.VLCC
+            )
+            profile = await self._profile.create(
+                user_data=command.user,
+                address_data=command.address,
+                bank_data=command.bank_account,
+                role=target_role,
+            )
             settings = await self._settings_repository.create(settings=settings_1)
             milk_quality = self._build_milk_quality_config(command=command.milk_quality_config, user_id=profile.user.id)
             await self._milk_quality_config_repository.create(milk_quality)
@@ -517,13 +531,20 @@ class VlccHandler:
             # USER
             # ---------------------------------------------
 
+            from app.modules.vlcc.domain.enums import VlccType
+            target_role = (
+                Role.VLCC_FARMER
+                if getattr(command.vlcc, "vlcc_type", None) == VlccType.VLCC_FARMER_TYPE
+                or getattr(command.user, "role", None) == Role.VLCC_FARMER
+                else Role.VLCC
+            )
             await self._profile.update(
                 user_data=UpdateUserCommand(
                     id=vlcc_relation.user_id,
                     name=command.user.name,
                     email=command.user.email,
                     mobile=command.user.mobile,
-                    role=Role.VLCC,
+                    role=target_role,
                     is_active=command.user.is_active,
                     password_hash=command.user.password_hash,
                     updated_by=command.updated_by,

@@ -46,8 +46,11 @@ class VlccCollectionController:
         date_from: str = "",
         date_to: str = "",
     ):
+        user = getattr(request.state, "user", None)
+        if getattr(user, "is_farmer_vlcc", False):
+            return Renderer.redirect("/mcc-collections/")
+
         handler = GetHandler.vlcc_collection_handler(request)
-        user = request.state.user
 
         # Search: VLCC name / farmer name / farmer code; dates (yyyy-mm-dd) are whole days
         keyword = search.strip()
@@ -121,9 +124,9 @@ class VlccCollectionController:
 
     @staticmethod
     def _deny_farmer(request: Request) -> None:
-        # Farmers may only view their own collections
-        if request.state.user.role_type == Role.FARMER:
-            raise ForbiddenException("Farmers can only view their collections")
+        user = getattr(request.state, "user", None)
+        if user and (user.role_type == Role.FARMER or getattr(user, "is_farmer_vlcc", False)):
+            raise ForbiddenException("Action not permitted for this account")
 
     @staticmethod
     async def _form_model(request: Request, vlcc_id: UUID | None) -> dict:

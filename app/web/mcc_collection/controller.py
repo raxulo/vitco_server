@@ -3,6 +3,7 @@ MCC Collection Web Controller
 """
 
 from app.modules.collections.mcc_collection.application.command import GetCollectionBySampleNumberQuery
+from app.core.exceptions.base import ForbiddenException
 from app.modules.administration.domain.enums import Role
 from app.middleware.authentication import CurrentUser
 from app.modules.ratechart.application.command import ListRateChartsQuery
@@ -43,6 +44,12 @@ from app.modules.collections.mcc_collection.presentation.requests import (
 class MccCollectionController:
 
     __slots__ = ()
+
+    @staticmethod
+    def _deny_vlcc(request: Request) -> None:
+        user = getattr(request.state, "user", None)
+        if user and (user.role_type in (Role.VLCC, Role.VLCC_FARMER) or getattr(user, "is_farmer_vlcc", False)):
+            raise ForbiddenException("Action not permitted for VLCC accounts")
 
     # =========================================================
     # LIST
@@ -192,6 +199,7 @@ class MccCollectionController:
 
     @staticmethod
     async def get_create_page(request: Request):
+        MccCollectionController._deny_vlcc(request)
         model = await MccCollectionController._form_model(request, None)
         model["default_date"] = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
 
@@ -210,6 +218,7 @@ class MccCollectionController:
         request: Request,
         collection_id: UUID,
     ):
+        MccCollectionController._deny_vlcc(request)
         handler = GetHandler.mcc_collection_handler(request)
         user = request.state.user
 
@@ -284,6 +293,7 @@ class MccCollectionController:
 
     @staticmethod
     async def post_create_page(request: Request):
+        MccCollectionController._deny_vlcc(request)
         form_data = dict(await request.form())
         
         # Populate defaults for missing/empty parameters
@@ -354,6 +364,7 @@ class MccCollectionController:
         request: Request,
         collection_id: UUID,
     ):
+        MccCollectionController._deny_vlcc(request)
         form_data = dict(await request.form())
         user = request.state.user
         handler = GetHandler.mcc_collection_handler(request)
@@ -393,6 +404,7 @@ class MccCollectionController:
         request: Request,
         collection_id: UUID,
     ):
+        MccCollectionController._deny_vlcc(request)
         user = request.state.user
         handler = GetHandler.mcc_collection_handler(request)
         await handler.delete(DeleteMccCollectionCommand(id=collection_id), owner=user)
@@ -400,6 +412,7 @@ class MccCollectionController:
 
     @staticmethod
     async def delete_bulk_post(request: Request):
+        MccCollectionController._deny_vlcc(request)
         """Delete the selected rows; ids outside the user's scope are skipped by the repository."""
         body = await request.json()
         try:

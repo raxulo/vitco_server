@@ -156,6 +156,7 @@ class UserRepository(IUserRepository):
                 UserModel,
                 MccModel.id.label("mcc_id"),
                 VlccModel.id.label("vlcc_id"),
+                VlccModel.vlcc_type.label("vlcc_type"),
                 FarmerModel.id.label("farmer_id"),
             )
             .outerjoin(
@@ -169,7 +170,7 @@ class UserRepository(IUserRepository):
                 VlccModel,
                 and_(
                     VlccModel.user_id == UserModel.id,
-                    UserModel.role == Role.VLCC,
+                    UserModel.role.in_([Role.VLCC, Role.VLCC_FARMER]),
                 ),
             )
             .outerjoin(
@@ -195,9 +196,23 @@ class UserRepository(IUserRepository):
 
         user_model = row.UserModel
 
+        from app.modules.vlcc.domain.enums import VlccType
+        raw_vlcc_type = getattr(row, "vlcc_type", None)
+        is_vlcc_farmer = False
+        if raw_vlcc_type is not None:
+            if (
+                raw_vlcc_type == VlccType.VLCC_FARMER_TYPE
+                or getattr(raw_vlcc_type, "value", None) == 2
+                or str(raw_vlcc_type).strip().upper() in ("VLCC_FARMER_TYPE", "2")
+            ):
+                is_vlcc_farmer = True
+
+        if is_vlcc_farmer:
+            user_model.role = Role.VLCC_FARMER
+
         if user_model.role == Role.MCC:
             own_id = row.mcc_id
-        elif user_model.role == Role.VLCC:
+        elif user_model.role in (Role.VLCC, Role.VLCC_FARMER):
             own_id = row.vlcc_id
         elif user_model.role == Role.FARMER:
             own_id = row.farmer_id
@@ -432,6 +447,6 @@ class UserRepository(IUserRepository):
             updated_at=model.updated_at,
             owner_name=owner_name,
             owner_id=owner_id,
-            profile_image=model.profile_url
+            profile_image=model.profile_url,
         )
         

@@ -58,7 +58,7 @@ class MccCollectionAccessScope:
         # VLCC
         # Only own VLCC collection
         # =====================================================
-        if role == Role.VLCC:
+        if role in (Role.VLCC, Role.VLCC_FARMER):
             return exists(
                 select(1)
                 .select_from(VlccModel)

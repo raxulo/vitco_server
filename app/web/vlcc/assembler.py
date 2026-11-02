@@ -31,6 +31,8 @@ class VlccAssembler:
         data: CreateVlccRequest,
         created_by: UUID,
     ) -> CreateFullDetailVlcc:
+        from app.modules.vlcc.domain.enums import VlccType
+        user_role = Role.VLCC_FARMER if data.vlcc_type == VlccType.VLCC_FARMER_TYPE else Role.VLCC
 
         return CreateFullDetailVlcc(
             created_by=created_by,
@@ -39,7 +41,7 @@ class VlccAssembler:
                 email=data.email,
                 mobile=data.mobile,
                 password_hash=data.password,
-                role=Role.VLCC,
+                role=user_role,
                 is_active=True,
                 created_by=created_by,
                 profile_image=data.profile_image
@@ -112,6 +114,8 @@ class VlccAssembler:
         vlcc_id: UUID,
         updated_by: UUID,
     ) -> UpdateFullDetailVlcc:
+        from app.modules.vlcc.domain.enums import VlccType
+        user_role = Role.VLCC_FARMER if data.vlcc_type == VlccType.VLCC_FARMER_TYPE else Role.VLCC
 
         return UpdateFullDetailVlcc(
             updated_by=updated_by,
@@ -121,7 +125,7 @@ class VlccAssembler:
                 mobile= data.mobile,
                 password_hash= data.password,
                 is_active= data.is_active,
-                role=Role.VLCC,
+                role=user_role,
                 profile_image=data.profile_image
             ),
             vlcc=UpdateVlccCommand(
