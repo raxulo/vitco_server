@@ -7,6 +7,7 @@ from app.modules.administration.domain.enums import Role
 from app.web.framework.renderer import Renderer
 from app.web.framework.helpers import WebHelper
 
+import time
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -45,7 +46,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
     __slots__ = (
         "_jwt",
         "_public_routes",
+        "_account_cache",
     )
+
+    # A token only counts while its user still exists, is active and not deleted.
+    # The answer is cached briefly so a request costs at most one primary-key read.
+    _ACCOUNT_CHECK_TTL = 30.0
 
     def __init__(
         self,
@@ -58,6 +64,31 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         self._jwt = jwt_service
         self._public_routes = public_routes
+        self._account_cache: dict[UUID, tuple[bool, float]] = {}
+
+    async def _account_is_valid(self, request: Request, user_id: UUID) -> bool:
+        """False for a token whose user was removed, deleted or disabled (e.g. an old login)."""
+        now = time.monotonic()
+        cached = self._account_cache.get(user_id)
+        if cached and cached[1] > now:
+            return cached[0]
+
+        from sqlalchemy import select
+        from app.modules.administration.infrastructure.models import UserModel
+
+        database = request.app.state.application.container.database
+        async with database.transaction() as session:
+            row = (
+                await session.execute(
+                    select(UserModel.is_active, UserModel.is_deleted).where(UserModel.id == user_id)
+                )
+            ).first()
+        valid = row is not None and bool(row.is_active) and not row.is_deleted
+
+        if len(self._account_cache) > 10_000:
+            self._account_cache.clear()
+        self._account_cache[user_id] = (valid, now + self._ACCOUNT_CHECK_TTL)
+        return valid
 
     async def dispatch(
         self,
@@ -109,7 +140,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                                 own_id = None
 
                         raw_sub = payload["sub"]
-                        if raw_sub:
+                        if raw_sub and await self._account_is_valid(request, UUID(str(raw_sub))):
                             request.state.user = CurrentUser(
                                 id=UUID(str(raw_sub)),
                                 role=str(payload.get("role", "")),

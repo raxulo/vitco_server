@@ -169,7 +169,7 @@ class SubAdminController:
             return HTMLResponse("Unauthorized", status_code=403)
 
         from app.modules.administration.application.command import DeleteUserCommand
-        await handler.delete(DeleteUserCommand(id=user_id))
+        await handler.delete(DeleteUserCommand(id=user_id, deleted_by=user.id))
         
         redirect_url = request.query_params.get("redirect")
         if request.headers.get("HX-Request"):

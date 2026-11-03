@@ -119,6 +119,18 @@ updated: 2026-10-25T00:00:00+05:30
 
 ---
 
+### Phase 7: Super Admin Recycle Bin
+**Status:** ✅ Complete (verified at runtime 2026-11-04)
+**Objective:** Super-Admin-only page under General listing soft-deleted Admins, Sub Admins, MCCs, VLCCs and Farmers, with a permanent delete that removes the record, its ownership tree and all dependent data.
+**Requirements:** REQ-22 … REQ-26
+**Depends on:** —
+
+**Plans:**
+- [x] Plan 7.1: Soft-delete admins & purge engine — [1-PLAN.md](phases/7/1-PLAN.md)
+- [x] Plan 7.2: Recycle Bin web page & tests — [2-PLAN.md](phases/7/2-PLAN.md)
+
+---
+
 ## Progress Summary
 
 | Phase | Status | Plans | Complete |
@@ -129,6 +141,7 @@ updated: 2026-10-25T00:00:00+05:30
 | 4 | ✅ | 2/2 | 100% |
 | 5 | ✅ | 4/4 | 100% |
 | 6 | ✅ | 2/2 | 100% |
+| 7 | ✅ | 2/2 | 100% |
 
 ---
 

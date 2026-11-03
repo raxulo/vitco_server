@@ -269,6 +269,8 @@ class UserRepository(IUserRepository):
             model.password_hash = user.password_hash
         model.is_active = user.is_active
         model.is_deleted = user.is_deleted
+        model.deleted_at = user.deleted_at
+        model.deleted_by = user.deleted_by
         model.is_locked = user.is_locked
         model.created_by = user.created_by
         model.profile_url = user.profile_image
@@ -328,6 +330,9 @@ class UserRepository(IUserRepository):
         # ---------------------------------------------------------
         # FILTERS
         # ---------------------------------------------------------
+        # Soft-deleted users live only in the Super Admin recycle bin
+        conditions.append(UserModel.is_deleted.is_(False))
+
         if query.role is not None:
             conditions.append(UserModel.role == query.role)
 
@@ -446,6 +451,10 @@ class UserRepository(IUserRepository):
             last_login=model.last_login,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            # Soft-delete state round-trips, so an update never revives a deleted user
+            is_deleted=model.is_deleted,
+            deleted_at=model.deleted_at,
+            deleted_by=model.deleted_by,
             owner_name=owner_name,
             owner_id=owner_id,
             profile_image=model.profile_url,

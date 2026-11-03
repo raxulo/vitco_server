@@ -2,6 +2,8 @@
 Auth Web Controller
 """
 
+import logging
+
 from app.modules.administration.application import permission
 from app.modules.administration.application import permission
 from app.modules.administration.application import permission
@@ -34,7 +36,6 @@ class AuthController:
         command = await WebHelper.bind_form(request=request, model=LoginCommand)
         try:
             result = await GetHandler.login_handler(request).login(command=command)
-            print("KKKKK: ", result)
             if result:
                 res = Renderer.htmx_redirect(url="/dashboard")
                 res.set_cookie(
@@ -48,9 +49,15 @@ class AuthController:
                 return res
             else:
                 return Renderer.empty(status_code=401).error("Unauthrized").build()
-        except Exception as e:
+        except ApplicationException as e:
+            # Known login failures (wrong password, disabled account) carry a user-facing message
             return Renderer.partial(request=request, template="components/forms/login_form.html",
-             model={"error": str(e)}).build()
+             model={"error": e.message}).build()
+        except Exception:
+            # Anything else is a server fault: log the details, show a short message
+            logging.getLogger(__name__).exception("Web login failed")
+            return Renderer.partial(request=request, template="components/forms/login_form.html",
+             model={"error": "Login failed. Please try again later."}).build()
 
     @staticmethod
     async def profile_page(request: Request):

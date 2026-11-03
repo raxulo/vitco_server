@@ -70,6 +70,8 @@ from app.modules.dataexchange.application.prodata_exchange import ProdataExchang
 from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
 from app.modules.dataexchange.infrastructure.vlcc_scope import VlccScope
 from app.modules.dataexchange.infrastructure.owner_scope import OwnerScope
+from app.modules.recyclebin.application.handler import RecycleBinHandler
+from app.modules.recyclebin.infrastructure.repository import RecycleBinRepository
 from app.modules.dataexchange.infrastructure.ratechart_scope import RateChartScope
 from app.worker.supervisor import WorkerSupervisor
 
@@ -210,6 +212,9 @@ class ModuleConfigurator:
         repository = ExcelJobRepository(_database)
         container.register(ExcelJobRepository, repository)
 
+        repository = RecycleBinRepository(_database)
+        container.register(RecycleBinRepository, repository)
+
     @classmethod
     def _dataexchange_register(cls, container: ServiceContainer):
         """Excel import / export infrastructure, shared by the API and the exchange worker."""
@@ -249,6 +254,7 @@ class ModuleConfigurator:
         cls._reports(container)
         cls._marketplace(container)
         cls._dataexchange(container)
+        cls._recycle_bin(container)
 
     @classmethod
     def _dataexchange(cls, container: ServiceContainer):
@@ -494,6 +500,15 @@ class ModuleConfigurator:
             repository=container.resolve(UnitMasterRepository),
         )
         container.register(UnitMasterHandler, handler)
+
+    @classmethod
+    def _recycle_bin(cls, container: ServiceContainer):
+        handler = RecycleBinHandler(
+            database=container.database,
+            repository=container.resolve(RecycleBinRepository),
+            media_service=container.resolve(MediaService),
+        )
+        container.register(RecycleBinHandler, handler)
 
     @classmethod
     def _advance(cls, container: ServiceContainer):

@@ -130,13 +130,26 @@ class UserHandler:
 
             user = await self._repository.get_by_id(id=command.id)
 
-            if user is None:
+            if user is None or user.is_deleted:
                 raise UserNotFoundException()
+
+            # Soft delete (DECISION-014): the row stays for the Super Admin recycle bin,
+            # email / mobile are freed for reuse the same way a deleted farmer's are
+            now = now_naive_ist()
+            tag = f"del_{uuid4().hex[:6]}_"
+            user.is_active = False
+            user.is_deleted = True
+            user.deleted_at = now
+            user.deleted_by = command.deleted_by
+            user.email = f"{tag}{user.email}"
+            if user.mobile:
+                user.mobile = f"{tag}{user.mobile}"
 
             # A deleted user's profile image is removed (file + media row)
             await self._media_service.delete_profile_image(user.id)
+            user.profile_image = None
 
-            await self._repository.delete(user.id)
+            await self._repository.update(user)
 
             # await self._write_audit_log(
             #     user=user,

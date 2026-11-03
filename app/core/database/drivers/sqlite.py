@@ -79,6 +79,13 @@ class SQLiteDriver(BaseDatabaseDriver):
                             # Nullable: older / guest orders have no buyer
                             cur.execute("ALTER TABLE marketplace_orders ADD COLUMN buyer_id UUID REFERENCES users(id);")
                             cur.execute("CREATE INDEX IF NOT EXISTS ix_marketplace_orders_buyer_id ON marketplace_orders (buyer_id);")
+                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='vlcc_master';")
+                    if cur.fetchone():
+                        cur.execute("PRAGMA table_info(vlcc_master);")
+                        cols = [c[1] for c in cur.fetchall()]
+                        if "vlcc_type" not in cols:
+                            # Existing VLCCs are normal (VlccType.NORMAL = 0)
+                            cur.execute("ALTER TABLE vlcc_master ADD COLUMN vlcc_type SMALLINT NOT NULL DEFAULT 0;")
                     cur.close()
                 except Exception:
                     pass

@@ -102,6 +102,14 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 ADMIN_ROLES,
                 "/sub-admins",
             ),
+            # Soft-deleted Admins / Sub Admins / MCCs / VLCCs / Farmers and their permanent delete
+            item(
+                "Recycle Bin",
+                "/recycle-bin",
+                "fa-solid fa-trash-can",
+                SUPER_ADMIN_ONLY,
+                "/recycle-bin",
+            ),
         ),
     ),
 

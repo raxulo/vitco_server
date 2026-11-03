@@ -6,22 +6,18 @@ updated: 2026-10-25T00:00:00+05:30
 
 ## Current Position
 
-**Milestone:** v1.1.0 — Excel Data Exchange
-**Phase:** 6 - Formula Rate-Chart Excel Exchange
-**Status:** ✅ Complete (Verified 2026-10-25)
-**Plan:** 6.1 (Formula sheet spec, repository & export), 6.2 (Formula import, endpoints, UI modal & tests)
-**Branch:** `feature/excel-import-export` (from `develop`; Git Flow: main / develop / feature/* / bugfix/* / hotfix/*)
+**Phase:** 7 - Super Admin Recycle Bin
+**Status:** ✅ Complete (verified 2026-11-04) — awaiting commit approval
+**Plan:** 7.1 (Soft-delete admins & purge engine), 7.2 (Recycle Bin web page & tests)
+**Branch:** current working branch; commit after `/verify` and user approval
 
 ## Last Action
 
-- Phase 6 implemented and verified with comprehensive automated test suite (`tests/dataexchange/test_formula_api.py` 8/8 passed, 269 full suite passed).
-- Formula rate chart Excel template, async export processor, all-or-nothing import processor, and dynamic modal integration in `ratecharts/list.html` and `excel_exchange.js` completed.
-- Support for creating brand-new Formula rate charts directly from Excel via `__NEW__` target selection.
+- 2026-11-04: Phase 7 researched, planned, executed and verified (VERIFICATION.md): recycle bin module + page, admin soft delete, who / when shown, VLCC delete now stores deleted_at / deleted_by, cleaner sidebar. 16 new tests; full suite 304 passed, 2 pre-existing failures.
 
 ## Next Steps
 
-1. Milestone review / audit for v1.1.0 — Excel Data Exchange.
-2. Commit Phase 6 changes upon user confirmation.
+1. Commit Phase 7 after user approval.
 
 ## Active Decisions
 

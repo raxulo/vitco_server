@@ -42,6 +42,7 @@ class DeleteUserCommand(BaseModel):
     )
 
     id: UUID
+    deleted_by: UUID | None = None
 
 
 class GetUserQuery(BaseModel):

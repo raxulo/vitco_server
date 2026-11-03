@@ -90,6 +90,17 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | NFR-13 | **No connection hogging:** upload requests never hold a DB connection while receiving bytes (exempt from the request-wide transaction) | Reliability | 1 | Pending |
 | NFR-14 | **Efficient downloads:** job files are not gzipped by `GZipMiddleware` (`Content-Encoding: identity`), stream from disk, and support Range / resume | Performance | 1 | Pending |
 
+### Recycle Bin (Phase 7)
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-22 | A "Recycle Bin" page under General, visible and reachable only for Super Admin | User 2026-11-04 | 7 | Complete |
+| REQ-23 | The page lists soft-deleted Admins, Sub Admins, MCCs, VLCCs and Farmers (tab per type, search, pagination) | User 2026-11-04 | 7 | Complete |
+| REQ-24 | Each row has a permanent delete; the confirm dialog shows everything that will be removed | User 2026-11-04 | 7 | Complete |
+| REQ-25 | Permanent delete removes the record, its whole ownership tree and all dependent data in one transaction; survivors' balances stay correct (DECISION-013) | User 2026-11-04 | 7 | Complete |
+| REQ-26 | Deleting an Admin / Sub Admin from Managed Admins is a soft delete (DECISION-014) | User 2026-11-04 | 7 | Complete |
+| REQ-27 | The bin shows who soft-deleted each record and when (list and confirm dialog) | User 2026-11-04 | 7 | Complete |
+
 ---
 
 ## Constraints

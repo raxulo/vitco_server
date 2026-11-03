@@ -142,6 +142,9 @@ class VlccRepository(IVlccRepository):
                 farmer_enabled=entity.farmer_enabled,
                 is_active=entity.is_active,
                 is_deleted=entity.is_deleted,
+                # Who deleted it and when: shown in the Super Admin recycle bin
+                deleted_at=entity.deleted_at,
+                deleted_by=entity.deleted_by,
                 assigned_chart_rank=entity.assigned_chart_rank,
                 vlcc_type=entity.vlcc_type,
                 updated_at=now_naive_ist(),

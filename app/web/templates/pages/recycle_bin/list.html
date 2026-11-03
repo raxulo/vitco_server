@@ -1,0 +1,215 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Recycle Bin - VITCO{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn rb-container" style="width: 100%; box-sizing: border-box; padding: 20px;">
+
+    <!-- Page Header -->
+    <div class="rb-header" style="margin-bottom: 20px; background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+        <h2 style="margin:0; font-size: 22px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-trash-can" style="color: #dc2626;"></i> Recycle Bin
+        </h2>
+        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">
+            Deleted accounts and centres. A permanent delete also removes everything under the record and cannot be undone.
+        </p>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="rb-tabs" aria-label="Deleted record type">
+        {% for value, label, count in tabs %}
+        <a href="/recycle-bin?type={{ value }}" class="rb-tab {{ 'rb-tab-active' if value == active_type else '' }}"
+           {% if value == active_type %}aria-current="page"{% endif %}>
+            {{ label }}
+            <span class="rb-badge">{{ count }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    <!-- Search -->
+    <div class="card" style="padding: 16px 20px; margin-bottom: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0;">
+        <form method="GET" class="rb-search" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <input type="hidden" name="type" value="{{ active_type }}">
+            <div style="flex: 1; min-width: 220px; position: relative;">
+                <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                <input type="text" name="search" value="{{ search }}" placeholder="Search {{ active_label|lower }} by name, code, email or mobile..."
+                    style="padding-left: 40px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; box-sizing: border-box;">
+            </div>
+            <button type="submit" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 0 20px; height: 42px; border-radius: 8px; font-weight: 600; cursor: pointer;">Search</button>
+            {% if search %}
+            <a href="/recycle-bin?type={{ active_type }}" style="color: #64748b; font-size: 14px; text-decoration: none; padding: 8px 12px;">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="padding: 0; overflow: hidden; background: white; border-radius: 12px; border: 1px solid #e2e8f0;">
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; min-width: 820px;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 1px solid #cbd5e1; color: #475569; font-weight: 600;">
+                        <th style="width: 56px; text-align: center; padding: 14px;">#</th>
+                        {% if active_type not in ('admin', 'sub-admin') %}<th style="padding: 14px;">CODE</th>{% endif %}
+                        <th style="padding: 14px;">NAME</th>
+                        <th style="padding: 14px;">EMAIL / MOBILE</th>
+                        <th style="padding: 14px;">{{ 'VLCC' if active_type == 'farmer' else 'CREATED BY' }}</th>
+                        <th style="padding: 14px;">DELETED BY</th>
+                        <th style="padding: 14px;">DELETED ON</th>
+                        <th style="width: 190px; text-align: center; padding: 14px;">ACTION</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in items %}
+                    <tr id="rb-row-{{ row.id }}" style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="text-align: center; font-weight: 700; color: #64748b; padding: 14px;">{{ loop.index + (page - 1) * limit }}</td>
+                        {% if active_type not in ('admin', 'sub-admin') %}
+                        <td style="padding: 14px; font-weight: 700; color: #1e293b; white-space: nowrap;">{{ row.code or '—' }}</td>
+                        {% endif %}
+                        <td style="padding: 14px; font-weight: 600; color: #1e293b;">{{ row.name }}</td>
+                        <td style="padding: 14px; color: #475569;">
+                            <div>{{ row.email or '—' }}</div>
+                            <div style="font-size: 12px; color: #94a3b8;">{{ row.mobile or '' }}</div>
+                        </td>
+                        <td style="padding: 14px; color: #475569;">{{ row.parent_name or '—' }}</td>
+                        <td style="padding: 14px; white-space: nowrap;">
+                            {% if row.deleted_by_name %}
+                            <span style="display: inline-flex; align-items: center; gap: 6px; color: #1e293b; font-weight: 600;">
+                                <i class="fa-solid fa-user" style="color: #94a3b8; font-size: 12px;"></i> {{ row.deleted_by_name }}
+                            </span>
+                            {% elif row.deleted_by_id %}
+                            <span style="display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-style: italic;"
+                                title="The account that deleted this record no longer exists">
+                                <i class="fa-solid fa-user-slash" style="color: #94a3b8; font-size: 12px;"></i> {{ row.deleted_by_label }}
+                            </span>
+                            {% else %}
+                            <span style="color: #94a3b8;" title="Deleted before this was recorded">{{ row.deleted_by_label }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 14px; color: #475569; white-space: nowrap;">
+                            {% if row.deleted_at %}
+                            <div style="font-weight: 600;">{{ row.deleted_at.strftime('%d %b %Y') }}</div>
+                            <div style="font-size: 12px; color: #94a3b8;">{{ row.deleted_at.strftime('%I:%M %p') }}</div>
+                            {% else %}
+                            <span style="color: #94a3b8;">Not recorded</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 14px; text-align: center;">
+                            <button type="button" class="rb-purge-btn"
+                                hx-get="/recycle-bin/{{ active_type }}/{{ row.id }}/impact"
+                                hx-target="#rb-modal-body" hx-swap="innerHTML"
+                                onclick="rbOpenModal()">
+                                <i class="fa-solid fa-trash-can"></i> Delete permanently
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 48px; color: #94a3b8;">
+                            <i class="fa-solid fa-trash-can" style="font-size: 32px; margin-bottom: 12px; display: block; color: #cbd5e1;"></i>
+                            No deleted {{ active_label|lower }}{% if search %} match "{{ search }}"{% endif %}.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; background: white; padding: 14px 20px; border-radius: 12px; border: 1px solid #e2e8f0; flex-wrap: wrap; gap: 12px;">
+        <span style="font-size: 13px; color: #64748b;">Page {{ page }} of {{ total_pages }} · {{ total }} records</span>
+        <div style="display: flex; gap: 8px;">
+            {% if page > 1 %}
+            <a class="rb-page-btn" href="?type={{ active_type }}&page={{ page - 1 }}&search={{ search|urlencode }}">Previous</a>
+            {% endif %}
+            {% if page < total_pages %}
+            <a class="rb-page-btn" href="?type={{ active_type }}&page={{ page + 1 }}&search={{ search|urlencode }}">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Confirm modal (content loaded from the impact endpoint) -->
+    <div id="rb-modal" class="rb-modal" role="dialog" aria-modal="true" aria-labelledby="rb-modal-title" style="display: none;">
+        <div class="rb-modal-box">
+            <div style="padding: 16px 20px; border-bottom: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="rb-modal-title" style="margin: 0; font-size: 16px; font-weight: 800; color: #991b1b;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Permanent delete
+                </h3>
+                <button type="button" onclick="rbCloseModal()" aria-label="Close"
+                    style="border: none; background: none; font-size: 24px; cursor: pointer; line-height: 1; color: #94a3b8;">&times;</button>
+            </div>
+            <div id="rb-modal-body" style="padding: 20px; overflow-y: auto;">
+                <p style="color: #64748b; margin: 0;">Checking what will be removed…</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function rbOpenModal() {
+        document.getElementById('rb-modal-body').innerHTML =
+            '<p style="color:#64748b;margin:0;">Checking what will be removed…</p>';
+        document.getElementById('rb-modal').style.display = 'flex';
+    }
+
+    function rbCloseModal() {
+        document.getElementById('rb-modal').style.display = 'none';
+    }
+
+    // Enable the delete button only when the typed text matches exactly
+    function rbCheckConfirm(input) {
+        const button = document.getElementById('rb-confirm-btn');
+        if (button) button.disabled = input.value.trim() !== input.dataset.expected;
+    }
+
+    // After a successful purge the row is gone (empty swap): close the dialog and update the tab badge
+    document.body.addEventListener('htmx:afterRequest', function (e) {
+        const el = e.detail.elt;
+        if (!el || el.id !== 'rb-confirm-btn' || !e.detail.successful) return;
+        rbCloseModal();
+        const badge = document.querySelector('.rb-tab-active .rb-badge');
+        if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent || '0', 10) - 1);
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') rbCloseModal();
+    });
+</script>
+
+<style>
+    .rb-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .rb-tab {
+        display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 8px;
+        background: white; border: 1px solid #e2e8f0; color: #475569; font-weight: 600; font-size: 14px;
+        text-decoration: none;
+    }
+    .rb-tab:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .rb-tab-active { background: #1e293b; border-color: #1e293b; color: white; }
+    .rb-tab-active:hover { background: #1e293b; }
+    .rb-badge { background: #f1f5f9; color: #475569; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+    .rb-tab-active .rb-badge { background: #dc2626; color: white; }
+    .rb-purge-btn {
+        border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; border-radius: 6px;
+        padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+    }
+    .rb-purge-btn:hover { background: #dc2626; border-color: #dc2626; color: white; }
+    .rb-page-btn {
+        background: white; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 6px;
+        text-decoration: none; font-size: 12px; font-weight: 600;
+    }
+    .rb-modal {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
+        align-items: center; justify-content: center; padding: 16px;
+    }
+    .rb-modal-box {
+        background: white; width: 100%; max-width: 560px; border-radius: 14px; overflow: hidden;
+        display: flex; flex-direction: column; max-height: 90vh; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    @media (max-width: 768px) {
+        .rb-container { padding: 12px !important; }
+        .rb-search { flex-direction: column; align-items: stretch !important; }
+    }
+</style>
+{% endblock %}

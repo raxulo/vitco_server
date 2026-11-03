@@ -150,7 +150,7 @@
                 style="padding:16px 20px; border-bottom:1px solid #edf2f7; display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-size:16px; font-weight:800; color: #1e293b;">Report Print Preview</h3>
                 <div style="display:flex; align-items:center; gap:12px;">
-                    <button type="button" onclick="window.print()"
+                    <button type="button" onclick="printReportPreview()"
                         style="padding:6px 16px; font-size:13px; font-weight:bold; background:#000; color:#fff; border:none; border-radius:6px; cursor:pointer;">
                         <i class="fa-solid fa-print" style="margin-right:6px;"></i> Print
                     </button>
@@ -169,6 +169,11 @@
 <style>
     @keyframes spin {
         to { transform: rotate(360deg); }
+    }
+    @media print {
+        body.printing-preview #report-result-container {
+            display: none !important;
+        }
     }
     .htmx-indicator {
         display: none;
@@ -485,6 +490,16 @@
 
     function closeReportPreviewModal() {
         document.getElementById('mccReportPreviewModal').style.display = 'none';
+    }
+
+    // Print only the preview receipt: the generated result's own print styles
+    // would otherwise print it too, below the receipt.
+    function printReportPreview() {
+        document.body.classList.add('printing-preview');
+        window.addEventListener('afterprint', function () {
+            document.body.classList.remove('printing-preview');
+        }, { once: true });
+        window.print();
     }
 </script>
 {% include "pages/reports/partials/filter_inputs.html" %}

@@ -27,6 +27,7 @@ from app.web.route.router import router as route_router
 from app.web.reports.router import router as reports_router
 from app.web.vlcc_dispatch.router import router as dispatch_router
 from app.web.sub_admin.router import router as sub_admin_router
+from app.web.recycle_bin.router import router as recycle_bin_router
 from app.web.payments.router import router as payments_router
 from app.web.advanced_item.router import router as advance_item_router
 from app.web.marketplace.router import marketplace_router
@@ -78,6 +79,7 @@ class WebRouterRegistrar:
         app.include_router(reports_router)
         app.include_router(dispatch_router)
         app.include_router(sub_admin_router)
+        app.include_router(recycle_bin_router)
         app.include_router(payments_router)
         app.include_router(advance_item_router)
         app.include_router(marketplace_router)

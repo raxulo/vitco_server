@@ -250,4 +250,38 @@ We own ~300 lines of xlsx reading code, covered by tests against files written b
 
 ---
 
+## [DECISION-013] Recycle bin purge deletes the whole ownership tree and its data
+
+**Date**: 2026-11-04
+**Status**: Accepted (user decision, Phase 7)
+
+### Context
+Foreign keys are enforced (`PRAGMA foreign_keys=ON`). A soft-deleted Admin / MCC / VLCC is still the
+`created_by` of other users and masters, and owns collections, payments, rate charts and advances.
+
+### Decision
+Permanently deleting a soft-deleted record removes the record, every user / MCC / VLCC / farmer below
+it in the `created_by` tree (active ones too), and every row that references any of them. Super Admins
+are never part of a tree. Rate charts created inside the tree are deleted only when no surviving user
+is assigned to them; otherwise they stay with `created_by` NULL. Survivors' account balances are
+corrected by reversing their ledger entries of deleted transfers.
+
+### Consequences
+One click can remove thousands of rows, so the confirm dialog shows the full impact and asks for the
+record's code / name. The purge runs in one transaction; it cannot be undone.
+
+---
+
+## [DECISION-014] Admin / Sub Admin delete is a soft delete
+
+**Date**: 2026-11-04
+**Status**: Accepted (user decision, Phase 7)
+
+### Decision
+`UserHandler.delete` marks the user deleted (`is_deleted`, `deleted_at`, `deleted_by`, inactive) and
+frees email / mobile with a `del_<hex6>_` prefix, like farmers. Deleted users are excluded from
+`UserRepository.list`. Permanent removal happens only from the recycle bin.
+
+---
+
 *Last updated: 2026-10-25*

@@ -136,6 +136,11 @@ class GetHandler:
         return request.app.state.application.container.resolve(UnitMasterHandler)
 
     @staticmethod
+    def recycle_bin_handler(request: Request):
+        from app.modules.recyclebin.application.handler import RecycleBinHandler
+        return request.app.state.application.container.resolve(RecycleBinHandler)
+
+    @staticmethod
     def item_master_handler(request: Request):
         from app.modules.masters.items.application.handler import ItemMasterHandler
         return request.app.state.application.container.resolve(ItemMasterHandler)
