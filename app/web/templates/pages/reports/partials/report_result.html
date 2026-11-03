@@ -195,7 +195,7 @@
                         <span style="color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: bold;">{{ k|replace('_', ' ')|title }}:</span>
                         <span>
                             {% if 'qty' in k|lower or 'quantity' in k|lower or 'weight' in k|lower %}
-                                {{ "%.2f"|format(v|float) if v is not none else '0.00' }} Ltr
+                                {{ v|fixed }} Ltr
                             {% else %}
                                 {{ v if v is not none else '0' }}
                             {% endif %}
@@ -252,13 +252,13 @@
                     <span style="color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ k|replace('_', ' ')|title }}</span>
                     <span style="font-weight: 800; color: #0f172a; font-size: 16px;">
                         {% if 'amount' in k|lower or 'rate' in k|lower or 'price' in k|lower or 'cost' in k|lower or 'payout' in k|lower or 'balance' in k|lower or 'debit' in k|lower or 'credit' in k|lower %}
-                            ₹{{ "%.2f"|format(v|float) if v is not none else '0.00' }}
+                            ₹{{ v|fixed }}
                         {% elif 'fat' in k|lower or 'snf' in k|lower %}
-                            {{ "%.1f"|format(v|float) if v is not none else '0.0' }}%
+                            {{ v|fixed }}%
                         {% elif 'clr' in k|lower %}
-                            {{ "%.2f"|format(v|float) if v is not none else '0.00' }}
+                            {{ v|fixed }}
                         {% elif 'qty' in k|lower or 'quantity' in k|lower or 'weight' in k|lower %}
-                            {{ "%.2f"|format(v|float) if v is not none else '0.00' }} Ltr
+                            {{ v|fixed }} Ltr
                         {% else %}
                             {{ v if v is not none else '—' }}
                         {% endif %}

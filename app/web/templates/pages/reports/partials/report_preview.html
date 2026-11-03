@@ -143,7 +143,7 @@
                             <td style="padding: 6px 10px; text-align: {{ 'right' if not loop.first else 'left' }};">
                                 {% if val is not none %}
                                     {% if val is float %}
-                                        {{ "%.2f"|format(val|float) }}
+                                        {{ val|fixed }}
                                     {% else %}
                                         {{ val }}
                                     {% endif %}
@@ -178,7 +178,7 @@
                     <div>
                         {% if v is not none %}
                             {% if v is float %}
-                                {{ "%.2f"|format(v|float) }}
+                                {{ v|fixed }}
                             {% else %}
                                 {{ v }}
                             {% endif %}
@@ -210,7 +210,7 @@
                 <div>
                     {% if v is not none %}
                         {% if v is float %}
-                            {{ "%.2f"|format(v|float) }}
+                            {{ v|fixed }}
                         {% else %}
                             {{ v }}
                         {% endif %}

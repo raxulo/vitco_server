@@ -1,4 +1,5 @@
 import asyncio
+from app.core.numeric import fixed
 from app.modules.reports.executors.base import ReportExecutor
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.collections.mcc_collection.domain.enums import (
@@ -92,8 +93,8 @@ class MccShiftSummaryExecutor(ReportExecutor):
             # '*' marks manual entries; mode fields are not display columns
             qty_manual = "*" if r.pop("quantity_collection_mode") == QuantityCollectionMode.MANUAL else ""
             fat_manual = "*" if r.pop("measurement_mode") == MeasurementMode.MANUAL else ""
-            r["quantity"] = f"{float(r['quantity'] or 0):.2f}{qty_manual}"
-            r["fat"] = f"{float(r['fat'] or 0):.2f}{fat_manual}"
+            r["quantity"] = f"{fixed(r['quantity'])}{qty_manual}"
+            r["fat"] = f"{fixed(r['fat'])}{fat_manual}"
             rows.append(r)
 
         totals = totals_result.mappings().one()

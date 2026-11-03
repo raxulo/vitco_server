@@ -8,6 +8,7 @@ quantity, with '*' on a manually entered quantity.
 
 from sqlalchemy import select
 
+from app.core.numeric import fixed, truncate_float
 from app.modules.administration.domain.enums import Role
 from app.modules.collections.mcc_collection.domain.enums import (
     CollectionShift,
@@ -65,7 +66,7 @@ class MccWeightDuplicateReceiptExecutor(ReportExecutor):
                     "shift": "M" if row["shift"] == CollectionShift.MORNING else "E",
                     "sample": row["sample_number"],
                     "can": int(row["can_count"] or 0),
-                    "quantity": f"{qty:.2f}{manual}",
+                    "quantity": f"{fixed(qty)}{manual}",
                 })
                 cans += int(row["can_count"] or 0)
                 quantity += qty
@@ -86,7 +87,7 @@ class MccWeightDuplicateReceiptExecutor(ReportExecutor):
                     footer={
                         "total_samples": len(rows),
                         "total_cans": cans,
-                        "total_quantity": round(quantity, 2),
+                        "total_quantity": truncate_float(quantity, 2),
                     } if rows else None,
                 )
             ],

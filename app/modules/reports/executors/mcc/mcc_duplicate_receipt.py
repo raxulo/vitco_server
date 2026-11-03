@@ -7,6 +7,7 @@ supplied to the MCC on the selected date and shift.
 
 from sqlalchemy import select
 
+from app.core.numeric import truncate_float
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
@@ -89,8 +90,8 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
                         "average_fat": self.avg_fat(fat_qty, quantity),
                         "average_snf": self.avg_snf(snf_qty, quantity),
                         "average_rate": self.avg_rate(amount, quantity),
-                        "total_quantity": round(quantity, 2),
-                        "total_amount": round(amount, 2),
+                        "total_quantity": truncate_float(quantity, 2),
+                        "total_amount": truncate_float(amount, 2),
                     } if rows else None,
                 )
             ],

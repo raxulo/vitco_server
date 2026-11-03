@@ -1,4 +1,5 @@
 import asyncio
+from app.core.numeric import fixed
 from app.modules.reports.executors.base import ReportExecutor
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.collections.mcc_collection.domain.enums import QuantityCollectionMode
@@ -70,7 +71,7 @@ class MccWeightShiftSummaryExecutor(ReportExecutor):
                 r["time"] = r["time"].strftime("%H:%M")
             # '*' marks a manually collected quantity; mode is not a display column
             manual = "*" if r.pop("quantity_collection_mode") == QuantityCollectionMode.MANUAL else ""
-            r["quantity"] = f"{float(r['quantity'] or 0):.2f}{manual}"
+            r["quantity"] = f"{fixed(r['quantity'])}{manual}"
             rows.append(r)
 
         totals = totals_result.mappings().one()

@@ -15,6 +15,7 @@ from typing import Any
 
 from sqlalchemy import Integer, cast, func, select
 
+from app.core.numeric import truncate_float
 from app.modules.administration.domain.enums import Role
 from app.modules.collections.mcc_collection.infrastructure.models import (
     MccCollectionModel,
@@ -81,8 +82,8 @@ class MccPaymentSummaryExecutor(ReportExecutor):
             fat_qty = float(row["fat_qty"])
             snf_qty = float(row["snf_qty"])
             amount = float(row["amount"])
-            soc_value = round(amount * float(row["soc_percentage"] or 0) / 100, 2)
-            net_amount = round(amount + soc_value, 2)
+            soc_value = truncate_float(amount * float(row["soc_percentage"] or 0) / 100, 2)
+            net_amount = truncate_float(amount + soc_value, 2)
 
             # Keys follow `headers` order: generic templates render rows positionally
             rows.append(
@@ -92,11 +93,11 @@ class MccPaymentSummaryExecutor(ReportExecutor):
                     "vlcc_name": row["name"],
                     "account_number": row["account_number"] or "—",
                     "ifsc_code": row["ifsc_code"] or "—",
-                    "quantity": round(quantity, 2),
+                    "quantity": truncate_float(quantity, 2),
                     "fat": self.avg_fat(fat_qty, quantity),
                     "snf": self.avg_snf(snf_qty, quantity),
                     "rate": self.avg_rate(amount, quantity),
-                    "amount": round(amount, 2),
+                    "amount": truncate_float(amount, 2),
                     "round_diff": _ROUND_DIFF,
                     "soc_value": soc_value,
                     "ded_advance": _DED_ADVANCE,
@@ -120,16 +121,16 @@ class MccPaymentSummaryExecutor(ReportExecutor):
             rows=rows,
             footer={
                 "total_vlcc": len(rows),
-                "total_quantity": round(quantity, 2),
+                "total_quantity": truncate_float(quantity, 2),
                 "average_fat": self.avg_fat(totals["fat_qty"], quantity),
                 "average_snf": self.avg_snf(totals["snf_qty"], quantity),
                 "average_rate": self.avg_rate(totals["amount"], quantity),
-                "total_amount": round(totals["amount"], 2),
+                "total_amount": truncate_float(totals["amount"], 2),
                 "total_round_diff": _ROUND_DIFF,
-                "total_soc_value": round(totals["soc_value"], 2),
+                "total_soc_value": truncate_float(totals["soc_value"], 2),
                 "total_ded_advance": _DED_ADVANCE,
                 "total_ded_fg": _DED_FG,
-                "total_net_amount": round(totals["net_amount"], 2),
+                "total_net_amount": truncate_float(totals["net_amount"], 2),
             },
             total=len(rows),
             page=query.page,

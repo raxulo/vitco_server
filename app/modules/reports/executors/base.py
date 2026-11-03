@@ -24,7 +24,7 @@ from abc import ABC, abstractmethod
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.application.dto import ReportResult
-from app.core.numeric import to_fixed_2
+from app.core.numeric import fixed, to_fixed_2
 
 
 class ReportExecutor(ABC):
@@ -249,8 +249,8 @@ class ReportExecutor(ABC):
 
     @staticmethod
     def marked(value, manual) -> str:
-        """Value to 2 decimals, with '*' when it was entered manually."""
-        return f"{float(value or 0):.2f}{'*' if manual else ''}"
+        """Value truncated to 2 decimals, with '*' when it was entered manually."""
+        return f"{fixed(value)}{'*' if manual else ''}"
 
     def _date_filters(
         self,

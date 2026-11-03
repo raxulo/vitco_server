@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import func, select
 
+from app.core.numeric import fixed
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.collections.mcc_collection.domain.enums import QuantityCollectionMode
@@ -107,7 +108,7 @@ class MccWeightVlccWiseExecutor(ReportExecutor):
                     "route":row["route_code"],
                     "sample": row["sample"],
                     "can": row["can"],
-                    "quantity": f"{float(row['quantity'] or 0):.2f}{manual}",
+                    "quantity": f"{fixed(row['quantity'])}{manual}",
                 }
             )
 

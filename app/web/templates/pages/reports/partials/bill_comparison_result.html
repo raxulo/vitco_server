@@ -4,7 +4,7 @@
 {% set rows = block.rows if block and block.rows else [] %}
 {% set totals = block.footer if block else None %}
 
-{% macro num(v, digits=2) -%}{{ ("%." ~ digits ~ "f")|format((v or 0)|float) }}{%- endmacro %}
+{% macro num(v, digits=2) -%}{{ v|fixed(digits) }}{%- endmacro %}
 {% macro signed(v, digits=2) -%}{% if (v or 0) > 0 %}+{% endif %}{{ num(v, digits) }}{%- endmacro %}
 {% macro tone(v) -%}{% if (v or 0) < 0 %}bc-neg{% elif (v or 0) > 0 %}bc-pos{% else %}bc-zero{% endif %}{%- endmacro %}
 

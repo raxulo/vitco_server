@@ -1,5 +1,6 @@
 from datetime import date
 
+from app.core.numeric import fixed
 from app.modules.reports.application.dto import LedgerResult
 from app.modules.reports.executors.base import ReportExecutor
 from app.modules.vlcc.infrastructure.models import VlccModel
@@ -78,7 +79,7 @@ class MccWeightDateWiseExecutor(ReportExecutor):
                 "date": self._day_label(row["day"]),
                 "vlcc_name": row["vlcc_name"],
                 "can": int(row["can"] or 0),
-                "quantity": f"{float(row['quantity'] or 0):.2f}",
+                "quantity": fixed(row["quantity"]),
             })
 
         totals = totals_result.mappings().one()

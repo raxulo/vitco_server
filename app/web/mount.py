@@ -92,3 +92,6 @@ class WebMount:
         env.filters["chart_type_name"] = lambda x: {0: "Formula", 1: "CSV", 2: "Prodata", 3: "Text"}.get(int(x), "Formula")
         env.filters["status_name"] = lambda x: {0: "Inactive", 1: "Active", 2: "Archived"}.get(int(x), "Inactive")
         env.filters["milk_type_name"] = lambda x: {0: "Cow", 1: "Buffalo", 2: "Mixed"}.get(int(x) if x is not None else 2, "Mixed")
+        # Decimal display that truncates instead of rounding: {{ v|fixed }} / {{ v|fixed(3) }}
+        from app.core.numeric import fixed
+        env.filters["fixed"] = fixed

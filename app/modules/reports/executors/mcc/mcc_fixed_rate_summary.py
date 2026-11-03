@@ -23,7 +23,7 @@ from app.modules.collections.mcc_collection.infrastructure.models import (
 from app.modules.reports.application.dto import ReportMetadata, ReportResult
 from app.modules.reports.application.queries import ReportQuery
 from app.modules.reports.executors.base import ReportExecutor
-from app.core.numeric import to_fixed_2
+from app.core.numeric import to_fixed_2, truncate_float
 from app.modules.reports.infrastructure.filters import AppliedOnFilters
 from app.modules.vlcc.infrastructure.models import VlccModel
 
@@ -109,7 +109,7 @@ class MccFixedRateSummaryExecutor(ReportExecutor):
             "fat": self.marked(fat, self.is_manual(row["measurement_mode"])),
             "snf": to_fixed_2(float(row["snf_percent"] or 0)),
             "clr": to_fixed_2(clr),
-            "detection": round(float(row["detection_value"] or 0), 3),
+            "detection": truncate_float(row["detection_value"], 3),
             "net_qty": to_fixed_2(net_qty),
             "rate": to_fixed_2(rate),
             "amount": to_fixed_2(amount),

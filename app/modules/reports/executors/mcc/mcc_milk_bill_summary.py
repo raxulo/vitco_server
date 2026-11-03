@@ -7,6 +7,7 @@ total quantity, average rate and total amount, plus a signature column.
 
 from sqlalchemy import Integer, cast, func, select
 
+from app.core.numeric import truncate_float
 from app.modules.administration.domain.enums import Role
 from app.modules.collections.mcc_collection.infrastructure.models import (
     MccCollectionModel,
@@ -65,9 +66,9 @@ class MccMilkBillSummaryExecutor(ReportExecutor):
             rows.append({
                 "code": row["code"],
                 "name": row["name"],
-                "total_quantity": round(qty, 2),
+                "total_quantity": truncate_float(qty, 2),
                 "average_rate": self.avg_rate(amount, qty),
-                "total_amount": round(amount, 2),
+                "total_amount": truncate_float(amount, 2),
                 "sign": "─────",
             })
 
@@ -81,9 +82,9 @@ class MccMilkBillSummaryExecutor(ReportExecutor):
             header=self.headers,
             footer={
                 "total_vlcc": totals["total_vlcc"],
-                "total_quantity": round(quantity, 2),
+                "total_quantity": truncate_float(quantity, 2),
                 "average_rate": self.avg_rate(amount, quantity),
-                "total_amount": round(amount, 2),
+                "total_amount": truncate_float(amount, 2),
             },
             rows=rows,
             total=totals["total_vlcc"],

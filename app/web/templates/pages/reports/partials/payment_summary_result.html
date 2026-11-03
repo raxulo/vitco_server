@@ -3,7 +3,7 @@
 {% set rows = result.rows or [] %}
 {% set f = result.footer or {} %}
 
-{% macro num(v, digits=2) -%}{{ ("%." ~ digits ~ "f")|format((v or 0)|float) }}{%- endmacro %}
+{% macro num(v, digits=2) -%}{{ v|fixed(digits) }}{%- endmacro %}
 
 <div class="ps-card">
     <style>

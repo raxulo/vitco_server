@@ -100,7 +100,7 @@
                         {% elif key in text_cols or val is string %}
                             {{ val }}
                         {% else %}
-                            {{ "%.2f"|format(val|float) }}
+                            {{ val|fixed }}
                         {% endif %}
                     </td>
                     {% endfor %}
@@ -130,7 +130,7 @@
             <div>
                 {% if v is not none %}
                     {% if v is float %}
-                        {{ "%.2f"|format(v|float) }}
+                        {{ v|fixed }}
                     {% else %}
                         {{ v }}
                     {% endif %}

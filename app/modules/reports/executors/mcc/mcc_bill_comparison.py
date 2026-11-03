@@ -18,6 +18,7 @@ from typing import Any
 from sqlalchemy import select
 
 from app.core.clock import to_naive_ist
+from app.core.numeric import truncate_float
 from app.modules.administration.domain.enums import Role
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift, MilkType
@@ -81,13 +82,13 @@ class _Bucket:
         return {
             "manual_quantity": self.manual_quantity,
             "manual_fat": self.manual_fat,
-            "quantity": round(float(q), 2),
-            "fat": round(float(self.fat_qty / q), 2) if q else 0.0,
-            "snf": round(float(self.snf_qty / q), 2) if q else 0.0,
-            "fat_kg": round(float(self.fat_qty / 100), 3),
-            "snf_kg": round(float(self.snf_qty / 100), 3),
-            "rate": round(float(amt / q), 2) if q else 0.0,
-            "amount": round(float(amt), 2),
+            "quantity": truncate_float(q, 2),
+            "fat": truncate_float(self.fat_qty / q, 2) if q else 0.0,
+            "snf": truncate_float(self.snf_qty / q, 2) if q else 0.0,
+            "fat_kg": truncate_float(self.fat_qty / 100, 3),
+            "snf_kg": truncate_float(self.snf_qty / 100, 3),
+            "rate": truncate_float(amt / q, 2) if q else 0.0,
+            "amount": truncate_float(amt, 2),
         }
 
 
@@ -98,7 +99,7 @@ _METRICS = ("quantity", "fat", "snf", "fat_kg", "snf_kg", "amount")
 def _diff(received: dict[str, float], dispatched: dict[str, float]) -> dict[str, float]:
     """Received minus dispatched; negative means the MCC got less."""
     return {
-        k: round(received[k] - dispatched[k], 3 if k.endswith("_kg") else 2)
+        k: truncate_float(received[k] - dispatched[k], 3 if k.endswith("_kg") else 2)
         for k in _METRICS
     }
 
@@ -311,7 +312,7 @@ class MccBillComparisonExecutor(ReportExecutor):
         key = (chart_id, fat, snf, milk_type)
         if key not in cache:
             rate = await self._rate_chart_handler.get_rate_by_chart_id(chart_id, fat, snf, milk_type)
-            cache[key] = round(rate, 2)
+            cache[key] = truncate_float(rate, 2)
         return cache[key]
 
     @staticmethod
