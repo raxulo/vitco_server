@@ -283,7 +283,8 @@ class MccCollectionHandler:
         self,query: GetCollectionBySampleNumberQuery,
     ) -> bool:
         """
-        Check whether a milk collection already exists for the same mcc_id, shift, date, and sample_number.
+        Check whether a milk collection already exists for the same shift, date and
+        sample_number at any MCC created by the same owner as mcc_id.
         """
         return await self._repository.is_sample_number_collected(query)
 

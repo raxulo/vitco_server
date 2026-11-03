@@ -36,7 +36,7 @@ from app.modules.collections.mcc_collection.domain.irepository import IMccCollec
 from app.modules.collections.mcc_collection.infrastructure.mapper import MccCollectionMapper
 from app.modules.collections.mcc_collection.infrastructure.models import MccCollectionModel
 
-from sqlalchemy import exists, false, or_, select, true
+from sqlalchemy import and_, exists, false, or_, select, true
 
 class MccCollectionAccessScope:
 
@@ -385,8 +385,6 @@ class MccCollectionRepository(IMccCollectionRepository):
                 is_mcc_exists=False, next_sample_number=0
             )
 
-        print("MMMMMMM: ", row.max_sample_number, row.sample_start, row.sample_end, day_start, day_end)
-
         next_sample = (
             row.sample_start
             if row.max_sample_number is None
@@ -520,7 +518,8 @@ class MccCollectionRepository(IMccCollectionRepository):
         query: GetCollectionBySampleNumberQuery,
     ) -> bool:
         """
-        Check whether a collection already exists for the given mcc_id, shift, date, and sample_number.
+        Check whether a collection already exists for the given shift, date and
+        sample_number across every non-WEIGHT MCC created by the same owner as mcc_id.
         """
         mcc_id = query.mcc_id
         sample_number = query.sample_number
@@ -533,9 +532,25 @@ class MccCollectionRepository(IMccCollectionRepository):
         # Parse date range using central IST helper
         day_start, day_end = day_bounds_ist(collected_at)
 
+        # All non-WEIGHT MCCs created by the same owner as the given MCC
+        # (the MCC itself is always included, even if created_by is NULL)
+        sibling_mcc_ids = select(MccModel.id).where(
+            or_(
+                MccModel.id == mcc_id,
+                and_(
+                    MccModel.created_by == (
+                        select(MccModel.created_by)
+                        .where(MccModel.id == mcc_id)
+                        .scalar_subquery()
+                    ),
+                    MccModel.mcc_type != MccType.WEIGHT,
+                ),
+            )
+        )
+
         stmt = select(
             exists().where(
-                MccCollectionModel.mcc_id == mcc_id,
+                MccCollectionModel.mcc_id.in_(sibling_mcc_ids),
                 MccCollectionModel.sample_number == sample_number,
                 MccCollectionModel.shift == shift,
                 MccCollectionModel.collected_at >= day_start,
