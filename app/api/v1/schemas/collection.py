@@ -222,7 +222,8 @@ class CollectionResponseData(CollectionCommand):
     """Collection record returned by the API."""
 
     id: str | UUID
-    
+    is_deleted: bool = Field(default=False, description="True when the collection was soft-deleted.")
+
 
 # =============================================================================
 # Collection List Response

@@ -342,6 +342,7 @@ async def _get_collection_by_vlcc(
             rank=dto.rank,
             calibration_fat=dto.calibration_fat,
             calibration_snf=dto.calibration_snf,
+            is_deleted=bool(dto.is_deleted),
         )
         for dto in detailed_list
     ]
@@ -433,6 +434,7 @@ async def _get_collection_by_mcc(
             rank=dto.rank,
             calibration_fat=dto.calibration_fat,
             calibration_snf=dto.calibration_snf,
+            is_deleted=bool(dto.is_deleted),
         )
         for dto in detailed_list
     ]
