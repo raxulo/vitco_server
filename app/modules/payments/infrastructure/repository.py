@@ -1,4 +1,4 @@
-from app.modules.payments.application.dto import PaymentCollectionSummaryViaPeriodDto
+from app.modules.payments.application.dto import MilkPaymentDetailDto, PaymentCollectionSummaryViaPeriodDto
 from sqlalchemy import case
 from uuid import uuid4
 from datetime import datetime
@@ -788,6 +788,8 @@ class PaymentLedgerRepository:
                 PaymentLedgerEntryModel.created_at,
                 PaymentTransferModel.source_type,
                 PaymentTransferModel.payment_method,
+                # For milk payments: the collection the money was for
+                PaymentTransferModel.source_id,
             )
             .outerjoin(Counterparty, Counterparty.id == PaymentLedgerEntryModel.counterparty_id)
             .outerjoin(PaymentTransferModel, PaymentTransferModel.id == PaymentLedgerEntryModel.transfer_id)
@@ -843,6 +845,50 @@ class PaymentLedgerRepository:
         result = await self._session.execute(stmt)
 
         return result.all()
+
+    # =========================================================
+    # MILK DETAILS OF MILK-COLLECTION PAYMENTS
+    # =========================================================
+
+    async def get_milk_collection_details(
+        self,
+        collection_ids: set[UUID],
+    ) -> dict[UUID, MilkPaymentDetailDto]:
+        """
+        Quantity / FAT / SNF / rate of the collections behind milk payments.
+
+        A milk payment's `source_id` is either a VLCC collection (VLCC -> farmer)
+        or an MCC collection (MCC -> VLCC); both tables are looked up in one
+        query each. Deleted collections are included: the payment still exists.
+        """
+        if not collection_ids:
+            return {}
+
+        from app.modules.collections.mcc_collection.infrastructure.models import MccCollectionModel
+        from app.modules.collections.vlcc_collection.infrastructure.models import VlccCollectionModel
+
+        details: dict[UUID, MilkPaymentDetailDto] = {}
+        ids = list(collection_ids)
+        for model in (VlccCollectionModel, MccCollectionModel):
+            for start in range(0, len(ids), 500):
+                rows = await self._session.execute(
+                    select(
+                        model.id,
+                        model.quantity,
+                        model.fat_percent,
+                        model.snf_percent,
+                        model.rate_per_unit,
+                    ).where(model.id.in_(ids[start:start + 500]))
+                )
+                for row in rows:
+                    details[row.id] = MilkPaymentDetailDto(
+                        collection_id=row.id,
+                        quantity=row.quantity,
+                        fat=row.fat_percent,
+                        snf=row.snf_percent,
+                        rate=row.rate_per_unit,
+                    )
+        return details
 
     # =========================================================
     # USER + COUNTERPARTY HISTORY

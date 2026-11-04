@@ -21,6 +21,7 @@ from sqlalchemy import select
 
 from app.api.v1.schemas.payment import (
     CounterpartyBalanceSchema,
+    MilkPaymentDetailsSchema,
     PairHistoryItem,
     PairStatementResponse,
     PairUserSummary,
@@ -33,6 +34,7 @@ from app.api.v1.schemas.payment import (
     PostPaymentRequest,
     PostPaymentResponse,
 )
+from app.core.numeric import truncate_float
 from app.middleware.authentication import CurrentUser
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.dependencies import GetHandler
@@ -64,7 +66,26 @@ def _compute_pagination(total: int, limit: int, offset: int):
     }
 
 
-def _format_entry_to_schema(entry) -> PaymentRecentEntrySchema:
+def _milk_details_schema(entry, milk_details: dict | None) -> MilkPaymentDetailsSchema | None:
+    """Milk Payment entries carry the quantity / FAT / SNF / rate of their collection."""
+    source_id = getattr(entry, "source_id", None)
+    detail = (milk_details or {}).get(source_id) if source_id is not None else None
+    if detail is None:
+        return None
+
+    def number(value):
+        return truncate_float(value, 2) if value is not None else None
+
+    return MilkPaymentDetailsSchema(
+        collection_id=str(detail.collection_id),
+        quantity=number(detail.quantity),
+        fat=number(detail.fat),
+        snf=number(detail.snf),
+        rate=number(detail.rate),
+    )
+
+
+def _format_entry_to_schema(entry, milk_details: dict | None = None) -> PaymentRecentEntrySchema:
     """Helper to convert domain/infra ledger entry to Pydantic schema."""
     s_type = int(getattr(entry, "source_type", 0) or 0)
     p_method = int(getattr(entry, "payment_method", 0) or 0)
@@ -133,6 +154,7 @@ def _format_entry_to_schema(entry) -> PaymentRecentEntrySchema:
         badge_color=badge_color,
         icon_class=icon_class,
         created_at=created_dt_str,
+        milk_details=_milk_details_schema(entry, milk_details),
     )
 
 
@@ -199,7 +221,8 @@ async def get_payments_overview(
             )
             total_to_pay += abs_val
 
-    recent_entries: List[PaymentRecentEntrySchema] = [_format_entry_to_schema(entry) for entry in raw_recent]
+    recent_milk = await service.milk_details_for(raw_recent)
+    recent_entries: List[PaymentRecentEntrySchema] = [_format_entry_to_schema(entry, recent_milk) for entry in raw_recent]
 
     overview_data = PaymentsOverviewData(
         balance=round(balance, 2),
@@ -270,9 +293,11 @@ async def get_payment_history(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to fetch payment history: {str(exc)}")
 
-    all_formatted = [_format_entry_to_schema(e) for e in raw_entries]
-    total_count = len(all_formatted)
-    paginated_items = all_formatted[offset : offset + limit]
+    total_count = len(raw_entries)
+    page_entries = raw_entries[offset : offset + limit]
+    # Milk details only for the page actually returned
+    milk_details = await service.milk_details_for(page_entries)
+    paginated_items = [_format_entry_to_schema(e, milk_details) for e in page_entries]
 
     pag_meta = _compute_pagination(total=total_count, limit=limit, offset=offset)
 

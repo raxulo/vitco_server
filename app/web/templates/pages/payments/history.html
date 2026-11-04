@@ -115,9 +115,22 @@
                             {% endif %}
                         </td>
                         <td style="padding: 16px; text-align: center;">
+                            {% if entry.milk %}
+                            {# Milk payment: the badge opens the milk details (qty / FAT / SNF / rate) #}
+                            <button type="button" class="milk-view-badge"
+                                data-qty="{{ entry.milk.quantity }}" data-fat="{{ entry.milk.fat }}"
+                                data-snf="{{ entry.milk.snf }}" data-rate="{{ entry.milk.rate }}"
+                                aria-haspopup="dialog" aria-expanded="false"
+                                title="Qty {{ entry.milk.quantity }} · FAT {{ entry.milk.fat }} · SNF {{ entry.milk.snf }}"
+                                style="background: {{ entry.badge_bg }}; color: {{ entry.badge_color }};">
+                                <i class="fa-solid {{ entry.icon_class }}"></i> {{ entry.payment_type_label }}
+                                <i class="fa-solid fa-circle-info" style="opacity: .7; font-size: 10px;"></i>
+                            </button>
+                            {% else %}
                             <span style="padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; background: {{ entry.badge_bg }}; color: {{ entry.badge_color }};">
                                 <i class="fa-solid {{ entry.icon_class }}"></i> {{ entry.payment_type_label }}
                             </span>
+                            {% endif %}
                         </td>
                         <td style="padding: 16px; text-align: right; font-weight: 700; {% if entry.entry_type == 'Credit' %}color: #16a34a;{% else %}color: #dc2626;{% endif %}">
                             {% if entry.entry_type == 'Credit' %}+{% else %}-{% endif %}₹{{ "%.2f"|format(entry.amount) }}
@@ -143,7 +156,82 @@
     </div>
 </div>
 
+<!-- One shared "Milk View" popover; fixed-positioned so the table's scroll box never clips it -->
+<div id="milk-popover" role="dialog" aria-label="Milk details" hidden>
+    <div class="milk-popover-title"><i class="fa-solid fa-cow"></i> Milk Details</div>
+    <div class="milk-popover-grid">
+        <div><span>Quantity</span><strong data-field="qty"></strong></div>
+        <div><span>FAT</span><strong data-field="fat"></strong></div>
+        <div><span>SNF</span><strong data-field="snf"></strong></div>
+        <div><span>Rate</span><strong data-field="rate"></strong></div>
+    </div>
+</div>
+
 <script>
+    // ---- Milk View popover: opens on hover / focus / click (tap on phones) ----
+    (function () {
+        const popover = document.getElementById('milk-popover');
+        // Live directly under <body>: a transformed ancestor (fade-in animation) would
+        // otherwise make `position: fixed` relative to it instead of the viewport
+        document.body.appendChild(popover);
+        let current = null;
+        let hideTimer = null;
+
+        function place(badge) {
+            const r = badge.getBoundingClientRect();
+            const width = popover.offsetWidth;
+            const height = popover.offsetHeight;
+            let left = r.left + r.width / 2 - width / 2;
+            left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+            // Below the badge, or above it when there is no room
+            let top = r.bottom + 8;
+            if (top + height > window.innerHeight - 8) top = r.top - height - 8;
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+        }
+
+        function show(badge) {
+            clearTimeout(hideTimer);
+            if (current && current !== badge) current.setAttribute('aria-expanded', 'false');
+            current = badge;
+            for (const key of ['qty', 'fat', 'snf', 'rate']) {
+                popover.querySelector(`[data-field="${key}"]`).textContent = badge.dataset[key];
+            }
+            popover.hidden = false;
+            badge.setAttribute('aria-expanded', 'true');
+            place(badge);
+        }
+
+        function hide() {
+            popover.hidden = true;
+            if (current) current.setAttribute('aria-expanded', 'false');
+            current = null;
+        }
+
+        function hideSoon() {
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(hide, 120);
+        }
+
+        document.querySelectorAll('.milk-view-badge').forEach(function (badge) {
+            badge.addEventListener('mouseenter', () => show(badge));
+            badge.addEventListener('mouseleave', hideSoon);
+            badge.addEventListener('focus', () => show(badge));
+            badge.addEventListener('blur', hideSoon);
+            // Click / tap opens it (hover already may have); outside click or Escape closes it
+            badge.addEventListener('click', function (e) {
+                e.stopPropagation();
+                show(badge);
+            });
+        });
+        popover.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+        popover.addEventListener('mouseleave', hideSoon);
+        document.addEventListener('click', (e) => { if (!popover.contains(e.target)) hide(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+        window.addEventListener('scroll', hide, true);
+        window.addEventListener('resize', hide);
+    })();
+
     let searchDebounceTimeout = null;
 
     function onUserSearchInput() {
@@ -255,6 +343,66 @@
 </script>
 
 <style>
+    .milk-view-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        border: 1px solid transparent;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: box-shadow .15s ease, border-color .15s ease;
+    }
+    .milk-view-badge:hover,
+    .milk-view-badge[aria-expanded="true"] {
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, .15);
+    }
+    .milk-view-badge:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+    #milk-popover {
+        position: fixed;
+        z-index: 2000;
+        width: 230px;
+        padding: 12px 14px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 12px 28px -6px rgba(15, 23, 42, .22), 0 4px 8px -4px rgba(15, 23, 42, .08);
+        animation: milkPopIn .12s ease-out;
+    }
+    #milk-popover[hidden] { display: none; }
+    .milk-popover-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #1e40af;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .milk-popover-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .milk-popover-grid div {
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 8px;
+        padding: 6px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+    .milk-popover-grid span { font-size: 10.5px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .milk-popover-grid strong { font-size: 14px; color: #0f172a; }
+    @keyframes milkPopIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { #milk-popover { animation: none; } }
+
     @media (max-width: 768px) {
         .subadmin-container { padding: 12px !important; }
         .page-header { flex-direction: column; align-items: flex-start !important; }

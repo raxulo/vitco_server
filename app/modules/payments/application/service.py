@@ -1,4 +1,5 @@
-from app.modules.payments.application.dto import PaymentCollectionSummaryViaPeriodDto
+from app.modules.payments.application.dto import MilkPaymentDetailDto, PaymentCollectionSummaryViaPeriodDto
+from app.modules.payments.domain.enums import PaymentSourceType
 from datetime import datetime
 from app.core.database.manager import DatabaseManager
 from app.modules.payments.application.command import PaymentPostingResult
@@ -83,6 +84,16 @@ class PaymentPostingService:
             end_date=end_date,
             limit=limit,
         )
+
+    async def milk_details_for(self, entries) -> dict[UUID, MilkPaymentDetailDto]:
+        """Collection details (qty / FAT / SNF / rate) of the milk payments among `entries`."""
+        collection_ids = {
+            entry.source_id
+            for entry in entries
+            if getattr(entry, "source_id", None) is not None
+            and int(getattr(entry, "source_type", 0) or 0) == PaymentSourceType.MILK_COLLECTION
+        }
+        return await self._ledger_repo.get_milk_collection_details(collection_ids)
 
     async def get_user_balance(self, user_id: UUID) -> Decimal:
         return await self._account_repo.get_balance(user_id)

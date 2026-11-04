@@ -11,6 +11,25 @@ class PaymentsController:
     __slots__ = ()
 
     @staticmethod
+    def _milk_view(entry, milk_details: dict) -> dict | None:
+        """Qty / FAT / SNF / rate for a Milk Payment row's "Milk View" popover (truncated, never rounded)."""
+        source_id = getattr(entry, "source_id", None)
+        detail = milk_details.get(source_id) if source_id is not None else None
+        if detail is None:
+            return None
+        from app.core.numeric import fixed
+
+        def show(value):
+            return fixed(value) if value is not None else "—"
+
+        return {
+            "quantity": show(detail.quantity),
+            "fat": show(detail.fat),
+            "snf": show(detail.snf),
+            "rate": show(detail.rate),
+        }
+
+    @staticmethod
     async def overview_page(request: Request):
         user = request.state.user
         service = GetHandler.payment_posting_service(request)
@@ -138,6 +157,9 @@ class PaymentsController:
         if is_farmer:
             entries = [e for e in entries if e.entry_type == 2]
 
+        # Qty / FAT / SNF of the collections behind milk payments (one batch lookup)
+        milk_details = await service.milk_details_for(entries)
+
         # Format items for UI
         formatted_entries = []
         for entry in entries:
@@ -188,6 +210,11 @@ class PaymentsController:
                 badge_color = "#475569"
                 icon_class = "fa-receipt"
 
+            milk = PaymentsController._milk_view(entry, milk_details)
+            if milk is not None:
+                # The badge opens the milk details (qty / FAT / SNF) of this payment
+                payment_type_label = "Milk View"
+
             formatted_entries.append({
                 "id": str(entry.id),
                 "transfer_id": str(entry.transfer_id),
@@ -201,8 +228,9 @@ class PaymentsController:
                 "badge_color": badge_color,
                 "icon_class": icon_class,
                 "created_at": entry.created_at.strftime("%Y-%m-%d %H:%M") if entry.created_at else "-",
+                "milk": milk,
             })
-            
+
         return Renderer.page(
             request=request,
             template="pages/payments/history.html",

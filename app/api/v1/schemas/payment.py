@@ -18,6 +18,15 @@ class CounterpartyBalanceSchema(BaseModel):
     updated_at: Optional[str] = Field(None, description="Formatted last update date")
 
 
+class MilkPaymentDetailsSchema(BaseModel):
+    """Milk behind a Milk Payment entry (the collection it paid for)."""
+    collection_id: str = Field(..., description="Collection UUID the payment was for")
+    quantity: Optional[float] = Field(None, description="Milk quantity")
+    fat: Optional[float] = Field(None, description="FAT %")
+    snf: Optional[float] = Field(None, description="SNF %")
+    rate: Optional[float] = Field(None, description="Rate per unit")
+
+
 class PaymentRecentEntrySchema(BaseModel):
     """Schema for individual payment ledger entry."""
     id: str = Field(..., description="Ledger Entry UUID")
@@ -33,6 +42,9 @@ class PaymentRecentEntrySchema(BaseModel):
     badge_color: Optional[str] = Field(None, description="Suggested UI badge text color")
     icon_class: Optional[str] = Field(None, description="Suggested UI icon class")
     created_at: str = Field(..., description="Formatted timestamp")
+    milk_details: Optional[MilkPaymentDetailsSchema] = Field(
+        None, description="Quantity / FAT / SNF / rate — only on Milk Payment entries"
+    )
 
 
 class PaymentsOverviewData(BaseModel):
