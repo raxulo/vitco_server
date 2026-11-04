@@ -221,7 +221,8 @@ class DashboardHandler:
         amount = Kpi("Collection Value", current.amount, "money", "fa-solid fa-indian-rupee-sign", "green", previous.amount)
 
         if role in _NETWORK_ROLES:
-            mcc_source = repo.mcc_collections(owner)
+            # "MCC Received" leaves out milk received at weight-type MCCs
+            mcc_source = repo.mcc_collections(owner, exclude_weight=True)
             received = await repo.totals(mcc_source, start, end)
             received_prev = await repo.totals(mcc_source, prev_start, start)
             return (

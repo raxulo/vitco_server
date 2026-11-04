@@ -39,6 +39,7 @@ from app.modules.dashboard.application.dto import (
 )
 from app.modules.farmer.infrastructure.models import FarmerModel
 from app.modules.farmer.infrastructure.repository import FarmerAccessScope
+from app.modules.mcc.domain.enums import MccType
 from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.mcc.infrastructure.repository import MccAccessScope
 from app.modules.vlcc.infrastructure.models import VlccModel
@@ -80,12 +81,15 @@ class DashboardRepository:
         )
 
     @staticmethod
-    def mcc_collections(owner: CurrentUser) -> CollectionSource:
+    def mcc_collections(owner: CurrentUser, *, exclude_weight: bool = False) -> CollectionSource:
         m = MccCollectionModel
-        return CollectionSource(
-            model=m,
-            conditions=(m.is_deleted.is_(False), MccCollectionAccessScope.condition(owner)),
-        )
+        conditions = [m.is_deleted.is_(False), MccCollectionAccessScope.condition(owner)]
+        if exclude_weight:
+            # Weight MCCs only weigh milk (no FAT / SNF); their quantity is kept out of the total
+            conditions.append(
+                m.mcc_id.not_in(select(MccModel.id).where(MccModel.mcc_type == MccType.WEIGHT))
+            )
+        return CollectionSource(model=m, conditions=tuple(conditions))
 
     # =========================================================
     # Collection aggregates
