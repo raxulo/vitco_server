@@ -146,7 +146,10 @@ class RecycleBinRepository(IRecycleBinRepository):
                     UserModel.is_deleted.is_(True),
                     UserModel.role == _USER_ROLE[entity_type],
                 )
-                .order_by(UserModel.deleted_at.desc().nulls_last(), UserModel.name)
+                # Portable "NULLS LAST" (SQLite < 3.30 has no NULLS LAST syntax)
+                .order_by(
+                    UserModel.deleted_at.is_(None), UserModel.deleted_at.desc(), UserModel.name
+                )
             )
 
         if entity_type == DeletedEntityType.MCC:
@@ -163,6 +166,8 @@ class RecycleBinRepository(IRecycleBinRepository):
             parent_join = (VlccModel, VlccModel.id == FarmerModel.vlcc_id)
 
         name = UserModel.name if master is FarmerModel else master.name
+        # Portable "NULLS LAST" (SQLite < 3.30 has no NULLS LAST syntax)
+        deleted_at = func.coalesce(master.deleted_at, UserModel.deleted_at)
         return (
             select(
                 master.id.label("id"),
@@ -180,7 +185,7 @@ class RecycleBinRepository(IRecycleBinRepository):
             .outerjoin(*parent_join)
             .outerjoin(deleter, deleter.id == func.coalesce(master.deleted_by, UserModel.deleted_by))
             .where(master.is_deleted.is_(True))
-            .order_by(func.coalesce(master.deleted_at, UserModel.deleted_at).desc().nulls_last(), name)
+            .order_by(deleted_at.is_(None), deleted_at.desc(), name)
         )
 
     @staticmethod

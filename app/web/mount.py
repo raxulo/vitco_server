@@ -13,7 +13,31 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
 from starlette.templating import Jinja2Templates
+from starlette.types import Scope
+
+
+class CachedStaticFiles(StaticFiles):
+    """
+    Static files with explicit browser caching.
+
+    vendor/<name>/<version>/... never changes in place (a new version is a new
+    folder), so it is cached for a year without revalidation. Our own CSS / JS
+    change between deploys, so the browser revalidates them (ETag -> 304).
+    """
+
+    _VENDOR_CACHE = "public, max-age=31536000, immutable"
+    _APP_CACHE = "no-cache"
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 304):
+            is_vendor = path.replace("\\", "/").startswith("vendor/")
+            response.headers["Cache-Control"] = (
+                self._VENDOR_CACHE if is_vendor else self._APP_CACHE
+            )
+        return response
 
 
 class WebMount:
@@ -37,7 +61,7 @@ class WebMount:
         # Static Files
         # -------------------------
 
-        app.mount("/static",StaticFiles(directory=base / "static",), name="static",)
+        app.mount("/static", CachedStaticFiles(directory=base / "static"), name="static")
 
         # -------------------------
         # Templates
