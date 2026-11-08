@@ -117,6 +117,8 @@ class ListVlccQuery:
     size: int = 20
     keyword: str | None = None
     owner: CurrentUser | None = None
+    # Optional filter: only VLCCs in this Admin / Sub Admin's line (on top of the owner's scope)
+    manager: CurrentUser | None = None
 
     @property
     def offset(self) -> int:

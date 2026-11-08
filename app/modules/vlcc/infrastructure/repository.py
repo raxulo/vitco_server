@@ -333,6 +333,7 @@ class VlccRepository(IVlccRepository):
         offset: int,
         limit: int,
         owner: CurrentUser,
+        manager: CurrentUser | None = None,
     ) -> list[Vlcc]:
         from sqlalchemy.orm import aliased
         creator_alias = aliased(UserModel)
@@ -354,6 +355,7 @@ class VlccRepository(IVlccRepository):
             .where(
                 VlccModel.is_deleted.is_(False),
                 VlccAccessScope.condition(owner),
+                *self._manager_conditions(manager),
             )
             .order_by(VlccModel.created_at.desc())
             .offset(offset)
@@ -382,26 +384,34 @@ class VlccRepository(IVlccRepository):
         offset: int,
         limit: int,
         owner: CurrentUser,
+        manager: CurrentUser | None = None,
     ) -> list[Vlcc]:
         keyword = keyword.strip()
         if not keyword:
-            return await self.list(offset=offset, limit=limit, owner=owner)
+            return await self.list(offset=offset, limit=limit, owner=owner, manager=manager)
 
         pattern = f"%{keyword}%"
+        creator = aliased(UserModel, name="creator")
         can_modify = VlccAccessScope.can_modify(owner, VlccModel.created_by)
         stmt = (
-            select(VlccModel, UserModel.profile_url, can_modify.label("can_modify"), AddressModel.city.label("city"))
+            select(
+                VlccModel,
+                SettingsModel,
+                creator.name.label("owner_name"),
+                UserModel.profile_url,
+                can_modify.label("can_modify"),
+                AddressModel.city.label("city"),
+            )
             .outerjoin(UserModel, UserModel.id == VlccModel.user_id)
+            .outerjoin(creator, creator.id == VlccModel.created_by)
+            .outerjoin(SettingsModel, SettingsModel.id == VlccModel.settings_id)
             .outerjoin(AddressModel, or_(AddressModel.user_id == VlccModel.user_id, AddressModel.id == VlccModel.address_id))
             .where(
                 VlccModel.is_deleted.is_(False),
                 UserModel.is_deleted.is_(False),
                 VlccAccessScope.condition(owner),
-            )
-            .where(
-                VlccModel.vlcc_code.ilike(pattern)
-                | VlccModel.uic_code.ilike(pattern)
-                | VlccModel.name.ilike(pattern)
+                self._search_condition(pattern, creator),
+                *self._manager_conditions(manager),
             )
             .order_by(VlccModel.name.asc())
             .offset(offset)
@@ -410,27 +420,48 @@ class VlccRepository(IVlccRepository):
         result = await self._session.execute(stmt)
         return [
             VlccMapper.to_entity(
-                row.VlccModel, 
+                row.VlccModel,
+                row.owner_name,
+                row.SettingsModel,
                 profile_image=row.profile_url,
                 can_modify=getattr(row, "can_modify", False),
                 city=getattr(row, "city", None),
-            ) 
+            )
             for row in result.all()
         ]
+
+    @staticmethod
+    def _search_condition(pattern: str, creator):
+        """VLCC search matches its name, VLCC / UIC code, or the name of the user who created it."""
+        return or_(
+            VlccModel.vlcc_code.ilike(pattern),
+            VlccModel.uic_code.ilike(pattern),
+            VlccModel.name.ilike(pattern),
+            creator.name.ilike(pattern),
+        )
 
     # =========================================================
     # COUNT
     # =========================================================
 
-    async def count(self, owner: CurrentUser) -> int:
+    async def count(self, owner: CurrentUser, manager: CurrentUser | None = None) -> int:
         stmt = (
             select(func.count(VlccModel.id))
             .where(
                 VlccModel.is_deleted.is_(False),
                 VlccAccessScope.condition(owner),
+                *self._manager_conditions(manager),
             )
         )
         return await self._session.scalar(stmt) or 0
+
+    @staticmethod
+    def _manager_conditions(manager: CurrentUser | None) -> list:
+        """Filter to one Admin / Sub Admin's line of VLCCs (the `Hierarchy` rules)."""
+        if manager is None:
+            return []
+        vlcc_ids = Hierarchy.vlcc_ids(manager)
+        return [] if vlcc_ids is None else [VlccModel.id.in_(vlcc_ids)]
 
     # =========================================================
     # COUNT SEARCH
@@ -440,19 +471,22 @@ class VlccRepository(IVlccRepository):
         self,
         keyword: str,
         owner: CurrentUser,
+        manager: CurrentUser | None = None,
     ) -> int:
         keyword = keyword.strip()
         pattern = f"%{keyword}%"
+        creator = aliased(UserModel, name="creator")
+        # Same joins / conditions as `search`, so the page count matches the rows shown
         stmt = (
             select(func.count(VlccModel.id))
+            .outerjoin(UserModel, UserModel.id == VlccModel.user_id)
+            .outerjoin(creator, creator.id == VlccModel.created_by)
             .where(
                 VlccModel.is_deleted.is_(False),
+                UserModel.is_deleted.is_(False),
                 VlccAccessScope.condition(owner),
-            )
-            .where(
-                VlccModel.vlcc_code.ilike(pattern)
-                | VlccModel.uic_code.ilike(pattern)
-                | VlccModel.name.ilike(pattern)
+                self._search_condition(pattern, creator),
+                *self._manager_conditions(manager),
             )
         )
         return await self._session.scalar(stmt) or 0

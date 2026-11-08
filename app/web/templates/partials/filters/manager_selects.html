@@ -1,0 +1,69 @@
+{# Admin / Sub Admin dropdowns for list filter bars. Needs `filters` (app.web.shared.manager_filter.ManagerFilter). #}
+{% if filters and filters.combined %}
+{% if filters.show_admin %}
+<div class="filter-select-wrapper filter-select-wide">
+    <i class="fa-solid fa-user-shield filter-select-icon" aria-hidden="true"></i>
+    <select name="manager_id" class="filter-select-control" aria-label="Filter by Admin or Sub Admin" data-filter-auto>
+        <option value="">{{ 'All Admins & Sub Admins' if filters.admins else 'All Sub Admins' }}</option>
+        {% if filters.admins %}
+        <optgroup label="Admins">
+            {% for option in filters.admins %}
+            <option value="{{ option.id }}" {{ 'selected' if option.id == filters.manager_id else '' }}>{{ option.name }}</option>
+            {% endfor %}
+        </optgroup>
+        {% endif %}
+        {% if filters.sub_admins %}
+        <optgroup label="Sub Admins">
+            {% for option in filters.sub_admins %}
+            <option value="{{ option.id }}" {{ 'selected' if option.id == filters.manager_id else '' }}>
+                {{ option.name }}{% if option.parent_name %} · {{ option.parent_name }}{% endif %}
+            </option>
+            {% endfor %}
+        </optgroup>
+        {% endif %}
+    </select>
+</div>
+{% endif %}
+{% elif filters and filters.show_admin %}
+<div class="filter-select-wrapper">
+    <i class="fa-solid fa-user-shield filter-select-icon" aria-hidden="true"></i>
+    <select name="admin_id" class="filter-select-control" aria-label="Filter by Admin"
+            data-filter-auto data-filter-reset="sub_admin_id">
+        <option value="">All Admins</option>
+        {% for option in filters.admins %}
+        <option value="{{ option.id }}" {{ 'selected' if option.id == filters.admin_id else '' }}>{{ option.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if filters and filters.show_sub_admin and not filters.combined %}
+<div class="filter-select-wrapper">
+    <i class="fa-solid fa-user-gear filter-select-icon" aria-hidden="true"></i>
+    <select name="sub_admin_id" class="filter-select-control" aria-label="Filter by Sub Admin" data-filter-auto
+            {{ 'disabled' if not filters.sub_admins else '' }}>
+        <option value="">{{ 'All Sub Admins' if filters.sub_admins else 'No Sub Admins' }}</option>
+        {% for option in filters.sub_admins %}
+        <option value="{{ option.id }}" {{ 'selected' if option.id == filters.sub_admin_id else '' }}>{{ option.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if filters and (filters.show_admin or filters.show_sub_admin) %}
+<script>
+    // Dropdown filters apply at once; changing the Admin clears the Sub Admin (it may not belong to it)
+    document.querySelectorAll('select[data-filter-auto]').forEach(function (select) {
+        if (select.dataset.bound) return;
+        select.dataset.bound = '1';
+        select.addEventListener('change', function () {
+            const reset = select.dataset.filterReset;
+            if (reset) {
+                const other = select.form.querySelector('[name="' + reset + '"]');
+                if (other) other.value = '';
+            }
+            select.form.submit();
+        });
+    });
+</script>
+{% endif %}

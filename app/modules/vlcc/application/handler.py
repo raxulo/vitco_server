@@ -238,12 +238,14 @@ class VlccHandler:
                 offset=query.offset,
                 limit=query.size,
                 owner=query.owner,
+                manager=query.manager,
             )
         else:
             entities = await self._vlcc_repository.list(
                 offset=query.offset,
                 limit=query.size,
                 owner=query.owner,
+                manager=query.manager,
             )
 
         return [
@@ -251,12 +253,17 @@ class VlccHandler:
             for entity in entities
         ]
 
-    async def count(self, keyword: str | None = None, owner: CurrentUser | None = None) -> int:
+    async def count(
+        self,
+        keyword: str | None = None,
+        owner: CurrentUser | None = None,
+        manager: CurrentUser | None = None,
+    ) -> int:
         if owner is None:
             raise PermissionError("Owner context is required")
         if keyword:
-            return await self._vlcc_repository.count_search(keyword, owner)
-        return await self._vlcc_repository.count(owner)
+            return await self._vlcc_repository.count_search(keyword, owner, manager=manager)
+        return await self._vlcc_repository.count(owner, manager=manager)
 
     # =========================================================
     # HELPERS & MAPPING

@@ -44,16 +44,28 @@
                     type="search"
                     name="search"
                     class="filter-search-control"
-                    placeholder="Search by farmer code or name..."
+                    placeholder="Search farmer name, code or VLCC..."
+                    title="Search by farmer name, farmer code or VLCC name"
                     value="{{ search or '' }}"
                     autocomplete="off"
                 >
+            </div>
+            <div class="filter-select-wrapper">
+                <i class="fa-solid fa-building filter-select-icon"></i>
+                <select name="vlcc_id" class="filter-select-control" aria-label="Filter by VLCC" onchange="this.form.submit()">
+                    <option value="">All VLCCs</option>
+                    {% for vlcc in vlccs %}
+                    <option value="{{ vlcc.id }}" {{ 'selected' if selected_vlcc_id == vlcc.id|string else '' }}>
+                        {{ vlcc.vlcc_code }} - {{ vlcc.name }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="filter-actions">
                 <button type="submit" class="btn-filter-submit">
                     <i class="fa-solid fa-filter"></i> Apply Filter
                 </button>
-                {% if search %}
+                {% if search or selected_vlcc_id %}
                 <a href="/farmer" class="btn-filter-clear">
                     <i class="fa-solid fa-circle-xmark"></i> Clear
                 </a>
@@ -187,7 +199,7 @@
                 
                 <!-- Previous Button -->
                 {% if page > 1 %}
-                <a href="/farmer?page={{ page - 1 }}&limit={{ limit }}&search={{ search or '' }}" class="btn-page">
+                <a href="/farmer?page={{ page - 1 }}&limit={{ limit }}&search={{ (search or '')|urlencode }}&vlcc_id={{ selected_vlcc_id }}" class="btn-page">
                     <i class="fa-solid fa-chevron-left"></i> Previous
                 </a>
                 {% else %}
@@ -198,7 +210,7 @@
                 <div class="page-numbers">
                     {% for p in range(1, total_pages + 1) %}
                     <a
-                        href="/farmer?page={{ p }}&limit={{ limit }}&search={{ search or '' }}"
+                        href="/farmer?page={{ p }}&limit={{ limit }}&search={{ (search or '')|urlencode }}&vlcc_id={{ selected_vlcc_id }}"
                         class="page-num {{ 'active' if p == page else '' }}"
                     >
                         {{ p }}
@@ -208,7 +220,7 @@
 
                 <!-- Next Button -->
                 {% if page < total_pages %}
-                <a href="/farmer?page={{ page + 1 }}&limit={{ limit }}&search={{ search or '' }}" class="btn-page">
+                <a href="/farmer?page={{ page + 1 }}&limit={{ limit }}&search={{ (search or '')|urlencode }}&vlcc_id={{ selected_vlcc_id }}" class="btn-page">
                     Next <i class="fa-solid fa-chevron-right"></i>
                 </a>
                 {% else %}

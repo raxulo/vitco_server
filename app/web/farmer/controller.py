@@ -37,22 +37,35 @@ class FarmerController:
         page: int = 1,
         limit: int = 10,
         search: str = "",
+        vlcc_id: str = "",
     ):
         WebHelper.deny_farmer_vlcc(request)
         handler = GetHandler.farmer_handler(request)
         current_user: CurrentUser = request.state.user
 
+        # VLCC filter: only the VLCCs this user can see are offered (and honoured)
+        vlccs = await GetHandler.vlcc_handler(request).list(ListVlccQuery(size=1000, owner=current_user))
+        selected_vlcc: UUID | None = None
+        if vlcc_id.strip():
+            try:
+                selected_vlcc = UUID(vlcc_id.strip())
+            except ValueError:
+                selected_vlcc = None
+            if selected_vlcc not in {vlcc.id for vlcc in vlccs}:
+                selected_vlcc = None
+
         # Fetch count for pagination
         if search.strip():
-            total_items = await handler.count_search(keyword=search.strip(), owner=current_user)
+            total_items = await handler.count_search(keyword=search.strip(), vlcc_id=selected_vlcc, owner=current_user)
         else:
-            total_items = await handler.count(owner=current_user)
+            total_items = await handler.count(vlcc_id=selected_vlcc, owner=current_user)
 
         total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
 
         result = await handler.list(
             ListFarmerQuery(
                 keyword=search.strip(),
+                vlcc_id=selected_vlcc,
                 offset=(page - 1) * limit,
                 limit=limit,
                 owner=current_user
@@ -68,6 +81,8 @@ class FarmerController:
                 "limit": limit,
                 "total_pages": total_pages,
                 "search": search,
+                "vlccs": vlccs,
+                "selected_vlcc_id": str(selected_vlcc) if selected_vlcc else "",
                 "can_create": await handler.can_manage(current_user),
             },
         )

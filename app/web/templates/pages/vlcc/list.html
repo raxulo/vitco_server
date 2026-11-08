@@ -47,16 +47,18 @@
                     type="search"
                     name="search"
                     class="filter-search-control"
-                    placeholder="Search by code, center name, or representative..."
+                    placeholder="Search name, code or creator..."
+                    title="Search by VLCC name, VLCC / UIC code or created by"
                     value="{{ search or '' }}"
                     autocomplete="off"
                 >
             </div>
+            {% include "partials/filters/manager_selects.html" %}
             <div class="filter-actions">
                 <button type="submit" class="btn-filter-submit">
                     <i class="fa-solid fa-filter"></i> Apply Filter
                 </button>
-                {% if search %}
+                {% if search or filters.active %}
                 <a href="/vlcc" class="btn-filter-clear">
                     <i class="fa-solid fa-circle-xmark"></i> Clear
                 </a>
@@ -208,7 +210,7 @@
                 
                 <!-- Previous Button -->
                 {% if page > 1 %}
-                <a href="/vlcc?page={{ page - 1 }}&limit={{ limit }}&search={{ search or '' }}" class="btn-page">
+                <a href="/vlcc?page={{ page - 1 }}&limit={{ limit }}&search={{ (search or '')|urlencode }}{{ filters.query_string }}" class="btn-page">
                     <i class="fa-solid fa-chevron-left"></i> Previous
                 </a>
                 {% else %}
@@ -219,7 +221,7 @@
                 <div class="page-numbers">
                     {% for p in range(1, total_pages + 1) %}
                     <a
-                        href="/vlcc?page={{ p }}&limit={{ limit }}&search={{ search or '' }}"
+                        href="/vlcc?page={{ p }}&limit={{ limit }}&search={{ (search or '')|urlencode }}{{ filters.query_string }}"
                         class="page-num {{ 'active' if p == page else '' }}"
                     >
                         {{ p }}
@@ -229,7 +231,7 @@
 
                 <!-- Next Button -->
                 {% if page < total_pages %}
-                <a href="/vlcc?page={{ page + 1 }}&limit={{ limit }}&search={{ search or '' }}" class="btn-page">
+                <a href="/vlcc?page={{ page + 1 }}&limit={{ limit }}&search={{ (search or '')|urlencode }}{{ filters.query_string }}" class="btn-page">
                     Next <i class="fa-solid fa-chevron-right"></i>
                 </a>
                 {% else %}

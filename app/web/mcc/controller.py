@@ -22,33 +22,45 @@ from app.web.framework.helpers import WebHelper
 from fastapi import Request
 
 from app.web.framework.renderer import Renderer
+from app.web.shared.manager_filter import resolve_manager_filter
 
 
 class MccController:
 
     @staticmethod
-    async def page(request: Request, page: int = 1, limit: int = 10, search: str = ""):
+    async def page(
+        request: Request,
+        page: int = 1,
+        limit: int = 10,
+        search: str = "",
+        manager_id: str = "",
+    ):
         user:CurrentUser = request.state.user
         # An MCC user sees only its own MCC (view-only); VLCC and farmer have no access
         if int(user.role) > Role.MCC.value:
             raise ForbiddenException("You are not authorized to access this page")
         handler = GetHandler.mcc_handler(request)
+
+        # One dropdown of Admins + Sub Admins: an Admin means its MCCs and its Sub Admins'
+        filters = await resolve_manager_filter(request, manager_id=manager_id, combined=True)
+
         query: ListMccQuery = ListMccQuery(
-            page=page, size=limit, keyword=search, owner=user
-        )   
+            page=page, size=limit, keyword=search, owner=user, manager=filters.manager
+        )
         items = await handler.list(query=query)
-        total_items = await handler.count(search, owner=user)
+        total_items = await handler.count(search, owner=user, manager=filters.manager)
         total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
-        
+
         return Renderer.page(
-            request=request, 
-            template="pages/mcc/list.html", 
+            request=request,
+            template="pages/mcc/list.html",
             model={
                 "items": items,
                 "page": page,
                 "limit": limit,
                 "total_pages": total_pages,
                 "search": search,
+                "filters": filters,
             }
         )
     

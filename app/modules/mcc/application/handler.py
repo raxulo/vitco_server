@@ -706,7 +706,8 @@ class MccHandler:
             offset=query.offset,
             limit=query.size,
             keyword=query.keyword,
-            owner= query.owner
+            owner=query.owner,
+            manager=query.manager,
         )
         return entities
 
@@ -722,10 +723,15 @@ class MccHandler:
         )
         return entities
 
-    async def count(self, keyword: str | None = None, owner: CurrentUser | None = None) -> int:
+    async def count(
+        self,
+        keyword: str | None = None,
+        owner: CurrentUser | None = None,
+        manager: CurrentUser | None = None,
+    ) -> int:
         if keyword:
-            return await self._mcc_repository.count_search(keyword, owner)
-        return await self._mcc_repository.count(owner)
+            return await self._mcc_repository.count_search(keyword, owner, manager=manager)
+        return await self._mcc_repository.count(owner, manager=manager)
 
     async def validate_code(self, code: str, owner: CurrentUser) -> bool:
         """Live form check: same rule as create (code free in the owner's line)."""

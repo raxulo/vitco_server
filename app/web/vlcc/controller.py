@@ -25,6 +25,7 @@ from app.modules.vlcc.application.command import (
 from app.modules.vlcc.domain.dto import VlccDetailDto
 
 from app.web.framework.renderer import Renderer
+from app.web.shared.manager_filter import resolve_manager_filter
 from app.web.vlcc.assembler import VlccAssembler
 
 
@@ -42,20 +43,30 @@ class VlccController:
         page: int = 1,
         limit: int = 10,
         search: str = "",
+        admin_id: str = "",
+        sub_admin_id: str = "",
     ):
         WebHelper.deny_farmer_vlcc(request)
         handler = GetHandler.vlcc_handler(request)
+
+        # Super Admin: Admin + Sub Admin dropdowns; Admin: its Sub Admins
+        filters = await resolve_manager_filter(
+            request, admin_id=admin_id, sub_admin_id=sub_admin_id, with_sub_admins=True
+        )
 
         result = await handler.list(
             ListVlccQuery(
                 page=page,
                 size=limit,
                 keyword=search.strip(),
-                owner=request.state.user
+                owner=request.state.user,
+                manager=filters.manager,
             )
         )
 
-        total_items = await handler.count(keyword=search.strip(), owner=request.state.user)
+        total_items = await handler.count(
+            keyword=search.strip(), owner=request.state.user, manager=filters.manager
+        )
         total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
 
         return Renderer.page(
@@ -67,6 +78,7 @@ class VlccController:
                 "limit": limit,
                 "total_pages": total_pages,
                 "search": search,
+                "filters": filters,
             },
         )
 

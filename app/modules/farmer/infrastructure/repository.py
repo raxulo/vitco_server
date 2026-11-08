@@ -298,7 +298,7 @@ class FarmerRepository():
             .join(VlccModel, FarmerModel.vlcc_id == VlccModel.id)
             .where(
                 *conditions,
-                FarmerModel.farmer_code.ilike(pattern) | UserModel.name.ilike(pattern)
+                self._search_condition(pattern),
             )
             .order_by(UserModel.name.asc())
             .offset(offset)
@@ -346,12 +346,22 @@ class FarmerRepository():
         stmt = (
             select(func.count(FarmerModel.id))
             .join(UserModel, FarmerModel.user_id == UserModel.id)
+            .join(VlccModel, FarmerModel.vlcc_id == VlccModel.id)
             .where(
                 *conditions,
-                FarmerModel.farmer_code.ilike(pattern) | UserModel.name.ilike(pattern)
+                self._search_condition(pattern),
             )
         )
         return await self._session.scalar(stmt) or 0
+
+    @staticmethod
+    def _search_condition(pattern: str):
+        """Farmer search matches the farmer's name or code, or its VLCC's name."""
+        return or_(
+            FarmerModel.farmer_code.ilike(pattern),
+            UserModel.name.ilike(pattern),
+            VlccModel.name.ilike(pattern),
+        )
 
 
     async def get_relations(self, farmer_id: UUID) -> FarmerRelations | None:

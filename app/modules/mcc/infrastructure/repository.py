@@ -350,6 +350,7 @@ class MccRepository(IMccRepository):
     async def count(
         self,
         owner: CurrentUser | None = None,
+        manager: CurrentUser | None = None,
     ) -> int:
 
         from sqlalchemy import func
@@ -358,12 +359,21 @@ class MccRepository(IMccRepository):
             select(func.count(MccModel.id))
             .where(
                 MccModel.is_deleted.is_(False),
+                *self._manager_conditions(manager),
             )
         )
         if owner:
             stmt = stmt.where(MccAccessScope.condition(owner))
 
         return await self._database.session.scalar(stmt) or 0
+
+    @staticmethod
+    def _manager_conditions(manager: CurrentUser | None) -> list:
+        """Filter to one Admin / Sub Admin's line of MCCs (the `Hierarchy` rules)."""
+        if manager is None:
+            return []
+        mcc_ids = Hierarchy.mcc_ids(manager)
+        return [] if mcc_ids is None else [MccModel.id.in_(mcc_ids)]
 
     # =========================================================
     # COUNT SEARCH
@@ -373,6 +383,7 @@ class MccRepository(IMccRepository):
         self,
         keyword: str,
         owner: CurrentUser | None = None,
+        manager: CurrentUser | None = None,
     ) -> int:
 
         from sqlalchemy import func
@@ -380,22 +391,32 @@ class MccRepository(IMccRepository):
         keyword = keyword.strip()
 
         pattern = f"%{keyword}%"
+        creator = aliased(UserModel, name="creator")
 
+        # Same joins / conditions as `list_mcc_with_user`, so the page count matches the rows shown
         stmt = (
             select(func.count(MccModel.id))
+            .join(UserModel, UserModel.id == MccModel.user_id)
+            .outerjoin(creator, creator.id == MccModel.created_by)
             .where(
                 MccModel.is_deleted.is_(False),
-                (
-                    MccModel.code.ilike(pattern)
-                    |
-                    MccModel.name.ilike(pattern)
-                ),
+                self._search_condition(pattern, creator),
+                *self._manager_conditions(manager),
             )
         )
         if owner:
             stmt = stmt.where(MccAccessScope.condition(owner))
 
         return await self._database.session.scalar(stmt) or 0
+
+    @staticmethod
+    def _search_condition(pattern: str, creator):
+        """MCC search matches its name, its code, or the name of the user who created it."""
+        return or_(
+            MccModel.code.ilike(pattern),
+            MccModel.name.ilike(pattern),
+            creator.name.ilike(pattern),
+        )
 
 
     async def list_mcc_with_user(
@@ -404,6 +425,7 @@ class MccRepository(IMccRepository):
         limit: int,
         keyword: str | None = None,
         owner: CurrentUser | None = None,
+        manager: CurrentUser | None = None,
     ) -> list[MccListDto]:
 
         CreatorModel = aliased(UserModel, name="creator")
@@ -431,17 +453,14 @@ class MccRepository(IMccRepository):
             .outerjoin(CreatorModel, CreatorModel.id == MccModel.created_by)
             .where(
                 MccModel.is_deleted.is_(False),
+                *self._manager_conditions(manager),
             )
         )
         if owner:
             stmt = stmt.where(MccAccessScope.condition(owner))
                 
         if keyword:
-            pattern = f"%{keyword.strip()}%"
-            stmt = stmt.where(
-                MccModel.code.ilike(pattern)
-                | MccModel.name.ilike(pattern)
-            )
+            stmt = stmt.where(self._search_condition(f"%{keyword.strip()}%", CreatorModel))
 
         stmt = stmt.order_by(MccModel.created_at.desc()).offset(offset).limit(limit)
 
@@ -507,11 +526,7 @@ class MccRepository(IMccRepository):
             stmt = stmt.where(MccAccessScope.condition(owner))
                 
         if keyword:
-            pattern = f"%{keyword.strip()}%"
-            stmt = stmt.where(
-                MccModel.code.ilike(pattern)
-                | MccModel.name.ilike(pattern)
-            )
+            stmt = stmt.where(self._search_condition(f"%{keyword.strip()}%", CreatorModel))
 
         stmt = stmt.order_by(MccModel.created_at.desc()).offset(offset).limit(limit)
 
