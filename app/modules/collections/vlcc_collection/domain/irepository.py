@@ -9,6 +9,7 @@ from app.modules.collections.vlcc_collection.domain.dto import (
     VlccCollectionSummaryDto,
     VlccDetailedCollectionDto,
 )
+from app.modules.collections.mcc_collection.domain.listing import CollectionTotals, VlccCollectionFilters
 from app.middleware.authentication import CurrentUser
 
 
@@ -93,6 +94,10 @@ class IVlccCollectionRepository(ABC):
         keyword: str,
         owner: CurrentUser,
     ) -> int:
+        ...
+
+    @abstractmethod
+    async def totals(self, owner: CurrentUser, filters: VlccCollectionFilters | None = None) -> CollectionTotals:
         ...
 
     @abstractmethod

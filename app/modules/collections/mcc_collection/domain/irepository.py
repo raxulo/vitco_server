@@ -9,6 +9,7 @@ from app.modules.collections.mcc_collection.domain.dto import (
     MccCollectionSummaryDto,
     MccDetailedCollectionDto,
 )
+from app.modules.collections.mcc_collection.domain.listing import CollectionTotals, MccCollectionFilters
 
 
 class IMccCollectionRepository(ABC):
@@ -84,7 +85,11 @@ class IMccCollectionRepository(ABC):
         ...
 
     @abstractmethod
-    async def get_vlcc_user_id(self, vlcc_id: UUID) -> UUID | None:
+    async def totals(self, owner: Any, filters: MccCollectionFilters | None = None) -> CollectionTotals:
+        ...
+
+    @abstractmethod
+    async def get_vlcc_user_id(self, vlcc_id:UUID) -> UUID | None:
         ...
 
     @abstractmethod

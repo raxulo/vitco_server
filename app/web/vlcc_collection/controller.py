@@ -2,7 +2,7 @@
 VLCC Collection Web Controller
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -19,6 +19,17 @@ from app.modules.vlcc.application.command import ListVlccQuery, GetVlccQuery
 from app.modules.farmer.application.command import ListFarmerQuery, GetFarmerQuery
 from app.modules.ratechart.application.command import GetAssignmentsByOwnerQuery
 from app.modules.common.milk_quality.application.command import GetMilkQualityConfigQuery
+from app.modules.collections.mcc_collection.domain.listing import VlccCollectionFilters
+from app.web.framework.collection_list import (
+    clean_limit,
+    clean_search,
+    filter_query,
+    page_window,
+    parse_milk_type,
+    parse_period,
+    parse_uuid,
+    period_model,
+)
 from app.web.framework.renderer import Renderer
 from app.web.vlcc_collection.assembler import VlccCollectionAssembler
 from app.modules.collections.vlcc_collection.presentation.requests import (
@@ -43,8 +54,12 @@ class VlccCollectionController:
         page: int = 1,
         limit: int = 10,
         search: str = "",
+        vlcc_id: str = "",
+        milk_type: str = "",
         date_from: str = "",
         date_to: str = "",
+        start_shift: str = "",
+        end_shift: str = "",
     ):
         user = getattr(request.state, "user", None)
         if getattr(user, "is_farmer_vlcc", False):
@@ -52,48 +67,28 @@ class VlccCollectionController:
 
         handler = GetHandler.vlcc_collection_handler(request)
 
-        # Search: VLCC name / farmer name / farmer code; dates (yyyy-mm-dd) are whole days
-        keyword = search.strip()
-        start = VlccCollectionController._parse_day(date_from)
-        end = VlccCollectionController._parse_day(date_to)
-        if start and end and start > end:
-            start, end = end, start
-        end_exclusive = end + timedelta(days=1) if end else None
-
-        total_items = await handler.count(owner=user, keyword=keyword, date_from=start, date_to=end_exclusive)
-        total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
-
-        result = await handler.list(
-            ListVlccCollectionsQuery(
-                page=page,
-                size=limit,
-                keyword=keyword,
-                date_from=start,
-                date_to=end_exclusive,
-            ),
-            owner=user
+        page, limit = max(page, 1), clean_limit(limit)
+        search = clean_search(search)
+        selected_vlcc = parse_uuid(vlcc_id)
+        selected_milk = parse_milk_type(milk_type)
+        period = parse_period(date_from, date_to, start_shift, end_shift)
+        filters = VlccCollectionFilters(
+            farmer_search=search or None, vlcc_id=selected_vlcc, milk_type=selected_milk, period=period,
         )
 
-        user = request.state.user
-        detailed_items = []
-        # for item in result:
-        #     vlcc = None
-        #     try:
-        #         vlcc = await vlcc_handler.get(GetVlccQuery(id=item.vlcc_id, owner=user))
-        #     except Exception:
-        #         pass
+        total_items = await handler.count(owner=user, filters=filters)
+        total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
+        totals = await handler.totals(owner=user, filters=filters)
 
-        #     farmer = None
-        #     try:
-        #         farmer = await farmer_handler.get(GetFarmerQuery(id=item.farmer_id, owner=user))
-        #     except Exception:
-        #         pass
+        result = await handler.list(
+            ListVlccCollectionsQuery(page=page, size=limit, filters=filters),
+            owner=user,
+        )
 
-            # detailed_items.append({
-            #     "collection": item,
-            #     "vlcc": vlcc,
-            #     "farmer": farmer,
-            # })
+        # A VLCC sees only its own shop and a farmer only their own entries, so neither needs to choose one
+        can_pick_vlcc = user.role_type not in (Role.VLCC, Role.FARMER)
+        vlccs = await GetHandler.vlcc_handler(request).list(ListVlccQuery(size=1000, owner=user)) if can_pick_vlcc else []
+        chosen = period_model(period)
 
         return Renderer.page(
             request=request,
@@ -103,20 +98,22 @@ class VlccCollectionController:
                 "page": page,
                 "limit": limit,
                 "total_pages": total_pages,
-                "search": search,
-                "date_from": start.strftime("%Y-%m-%d") if start else "",
-                "date_to": end.strftime("%Y-%m-%d") if end else "",
+                "page_numbers": page_window(page, total_pages),
                 "total_items": total_items,
+                "totals": totals,
+                "search": search,
+                "vlcc_options": list({vlcc.id: vlcc.name for vlcc in vlccs}.items()),
+                "can_pick_vlcc": can_pick_vlcc,
+                "selected_vlcc": str(selected_vlcc) if selected_vlcc else "",
+                "selected_milk": "" if selected_milk is None else int(selected_milk),
+                "has_filters": bool(search or selected_vlcc or selected_milk is not None or any(value != "" for value in chosen.values())),
+                "query": filter_query(
+                    limit=limit if limit != 10 else None, search=search, vlcc_id=selected_vlcc,
+                    milk_type=None if selected_milk is None else int(selected_milk), **chosen,
+                ),
+                **chosen,
             },
         )
-
-    @staticmethod
-    def _parse_day(value: str) -> datetime | None:
-        """yyyy-mm-dd (native date input) -> start of that day; None when empty / invalid."""
-        try:
-            return datetime.strptime((value or "").strip(), "%Y-%m-%d")
-        except ValueError:
-            return None
 
     # =========================================================
     # CREATE PAGE

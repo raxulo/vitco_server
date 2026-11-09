@@ -1,0 +1,58 @@
+/* VLCC and MCC collection lists: same sizes and colours as the rest of these pages. */
+
+/* ----- Header ----- */
+.cl-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.cl-title { margin: 0; color: #1e293b; font-size: 20px; font-weight: 700; }
+.cl-head-side { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.cl-count { padding: 6px 12px; border-radius: 6px; background: #eff6ff; color: #2563eb; font-size: 13px; font-weight: 600; }
+.cl-btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; background: #2563eb; color: #fff !important; font-size: 13px; font-weight: 600; text-decoration: none; }
+.cl-btn-primary:hover { background: #1d4ed8; }
+
+/* ----- Totals ----- */
+.cl-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.cl-total { min-width: 0; padding: 12px 16px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
+.cl-total-label { color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.cl-total-value { margin-top: 2px; color: #1e293b; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.cl-total-note { color: #64748b; font-size: 11px; }
+
+/* ----- Filters ----- */
+.cl-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; align-items: end; margin-bottom: 16px; padding: 16px; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
+.cl-field { display: block; min-width: 0; margin: 0; }
+.cl-label { display: block; margin-bottom: 4px; color: #475569; font-size: 13px; font-weight: 600; }
+.cl-filters input[type="search"], .cl-filters input[type="date"], .cl-filters select {
+    display: block; width: 100%; height: 36px; margin: 0; padding: 0 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+    background-color: #fff; color: #1e293b; font: inherit; font-size: 14px; box-shadow: none;
+}
+.cl-filters input:focus, .cl-filters select:focus { outline: 0; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, .2); }
+.cl-search { position: relative; display: block; }
+.cl-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; }
+.cl-filters .cl-search input { padding-left: 30px; }
+.cl-search input::placeholder { color: #64748b; }
+.cl-actions { display: flex; gap: 8px; }
+.cl-btn-filter, .cl-btn-clear { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border: 1px solid #cbd5e1; border-radius: 6px; color: #475569 !important; font-size: 14px; font-weight: 500; white-space: nowrap; text-decoration: none; cursor: pointer; }
+.cl-btn-filter { background: #f1f5f9; color: #334155 !important; }
+.cl-btn-filter:hover { background: #e2e8f0; }
+.cl-btn-clear { background: #fff; }
+.cl-btn-clear:hover { background: #f8fafc; }
+
+.cl-btn-primary:focus-visible, .cl-btn-filter:focus-visible, .cl-btn-clear:focus-visible, .cl-page:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+/* ----- Pager ----- */
+.cl-pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 16px; border-top: 1px solid #e2e8f0; background: #fafcff; }
+.cl-pager-summary { color: #64748b; font-size: 13px; font-weight: 500; }
+.cl-pager-links { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.cl-page { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155 !important; font-size: 13px; font-weight: 600; text-decoration: none; }
+a.cl-page:hover { background: #f8fafc; }
+.cl-page-current { border-color: #2563eb; background: #2563eb; color: #fff !important; }
+.cl-page-off { border-color: #e2e8f0; background: #f8fafc; color: #64748b !important; cursor: not-allowed; }
+.cl-page-gap { padding: 0 4px; color: #64748b; }
+
+/* ----- Phone ----- */
+@media (max-width: 640px) {
+    .cl-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cl-total:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .cl-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cl-filters .cl-field-search { grid-column: 1 / -1; }
+    .cl-filters input[type="date"] { padding: 0 6px; font-size: 13px; }
+    .cl-actions { grid-column: 1 / -1; }
+}

@@ -7,13 +7,14 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 16 - Control Center & Store Visual Refresh
-**Status:** ✅ Complete (verified 2026-11-09); all phases of v1.2.0 are done and nothing is committed yet
-**Plan:** Next is the user's final look at the pages and approval of the milestone commit message
-**Branch:** `feature/marketplace-revamp`; commit after `/verify` and user approval
+**Phase:** 17 - Collection Totals & Filters
+**Status:** ✅ Complete (verified 2026-11-09); not committed yet. v1.2.0 phases 8 to 16 are committed (`90d47af`, `0011e8e`)
+**Plan:** Next is the user's review and approval of the commit message
+**Branch:** `feature/collection-summary-filters`, from `feature/marketplace-revamp`; commit after `/verify` and user approval
 
 ## Last Action
 
+- 2026-11-09: Phase 17 executed and verified: totals and fuller filters on the VLCC and MCC collection lists. Totals match direct SQL; axe clean on the new parts.
 - 2026-11-09: Phase 16 executed and verified: Control Center refresh with tab counts and latest orders. The store redesign was undone at the user's request, so the store keeps its earlier look. Added `scripts/seed_marketplace_demo.py` and seeded the local database after a backup. axe clean on 52 of 52 checks.
 - 2026-11-09: Phase 15 executed and verified: public API, rate limits, SEO, axe and keyboard audits, real-server load runs, release checklist. Audit also stopped SQL values reaching the logs (DECISION-024). Full suite including the throughput test: 831 passed, and the 1 failure also occurs on `a345c6f`.
 - 2026-11-09: Phase 14 executed and verified in real Chrome: cart, guest COD checkout, tracking, seller orders, parallel order tests. Full suite without the throughput test: 764 passed, and the 1 failure also occurs on `a345c6f`.

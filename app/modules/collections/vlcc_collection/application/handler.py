@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from fastapi.exceptions import ValidationException
 
 from app.core.database.manager import DatabaseManager
+from app.modules.collections.mcc_collection.domain.listing import CollectionTotals, VlccCollectionFilters
 from app.modules.collections.vlcc_collection.domain.entities import VlccCollection
 from app.modules.collections.vlcc_collection.domain.exceptions import (
     InvalidVlccCollectionException,
@@ -217,6 +218,7 @@ class VlccCollectionHandler:
             keyword=query.keyword,
             date_from=query.date_from,
             date_to=query.date_to,
+            filters=query.filters,
         )
 
     async def count(
@@ -225,9 +227,13 @@ class VlccCollectionHandler:
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: VlccCollectionFilters | None = None,
     ) -> int:
         """Rows matching the same filters as `list` (for pagination)."""
-        return await self._repository.count(owner, keyword=keyword, date_from=date_from, date_to=date_to)
+        return await self._repository.count(owner, keyword=keyword, date_from=date_from, date_to=date_to, filters=filters)
+
+    async def totals(self, owner: CurrentUser, filters: VlccCollectionFilters | None = None) -> CollectionTotals:
+        return await self._repository.totals(owner, filters=filters)
 
     async def count_search(self, keyword: str, owner: CurrentUser) -> int:
         return await self._repository.count_search(keyword, owner)

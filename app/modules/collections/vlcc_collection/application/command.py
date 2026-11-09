@@ -12,6 +12,7 @@ from app.modules.collections.mcc_collection.domain.enums import (
     MeasurementMode,
     CollectionStatus,
 )
+from app.modules.collections.mcc_collection.domain.listing import VlccCollectionFilters
 from app.modules.masters.advanced.domain.enums import PaymentMode
 
 
@@ -89,6 +90,7 @@ class ListVlccCollectionsQuery:
     # collected_at range: from inclusive, to exclusive
     date_from: datetime | None = None
     date_to: datetime | None = None
+    filters: VlccCollectionFilters | None = None
 
     @property
     def offset(self) -> int:

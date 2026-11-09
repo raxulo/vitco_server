@@ -12,6 +12,7 @@ from app.modules.collections.mcc_collection.domain.enums import (
     MeasurementMode,
     CollectionStatus,
 )
+from app.modules.collections.mcc_collection.domain.listing import MccCollectionFilters
 from app.modules.masters.advanced.domain.enums import PaymentMode
 
 
@@ -100,6 +101,7 @@ class ListMccCollectionsQuery:
     # collected_at range: from inclusive, to exclusive
     date_from: datetime | None = None
     date_to: datetime | None = None
+    filters: MccCollectionFilters | None = None
 
     @property
     def offset(self) -> int:

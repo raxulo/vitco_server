@@ -6,6 +6,7 @@ from app.middleware.authentication import CurrentUser
 from app.modules.mcc.domain.enums import MccType
 from app.modules.collections.mcc_collection.domain.dto import MccSampleResult
 from app.modules.collections.mcc_collection.domain.dto import MccCollectionResult
+from app.modules.collections.mcc_collection.domain.listing import CollectionTotals, MccCollectionFilters
 from app.modules.collections.mcc_collection.application.command import (
     GetCollectionBySampleNumberQuery,
     GetNextSampleNumberQuery,
@@ -226,6 +227,7 @@ class MccCollectionHandler:
             keyword=query.keyword,
             date_from=query.date_from,
             date_to=query.date_to,
+            filters=query.filters,
         )
 
     async def count(
@@ -234,9 +236,13 @@ class MccCollectionHandler:
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: MccCollectionFilters | None = None,
     ) -> int:
         """Rows matching the same filters as `list` (for pagination)."""
-        return await self._repository.count(owner, keyword=keyword, date_from=date_from, date_to=date_to)
+        return await self._repository.count(owner, keyword=keyword, date_from=date_from, date_to=date_to, filters=filters)
+
+    async def totals(self, owner: CurrentUser, filters: MccCollectionFilters | None = None) -> CollectionTotals:
+        return await self._repository.totals(owner, filters=filters)
 
     async def count_search(self, keyword: str, owner: CurrentUser) -> int:
         return await self._repository.count_search(keyword, owner)

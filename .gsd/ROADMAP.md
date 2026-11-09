@@ -158,6 +158,16 @@ updated: 2026-11-08T00:00:00+05:30
 
 **Verification:** [VERIFICATION.md](phases/16/VERIFICATION.md)
 
+### Phase 17: Collection Totals & Filters
+**Status:** ✅ Complete (2026-11-09), on branch `feature/collection-summary-filters`
+**Objective:** Totals and fuller filters on the VLCC and MCC collection lists, requested by the user. Not part of the marketplace milestone's goal.
+**Depends on:** Nothing in the marketplace
+
+**Plans:**
+- [x] Plan 17.1: Collection totals & filters — [1-PLAN.md](phases/17/1-PLAN.md)
+
+**Verification:** [VERIFICATION.md](phases/17/VERIFICATION.md)
+
 ---
 
 ## Progress Summary
@@ -173,6 +183,7 @@ updated: 2026-11-08T00:00:00+05:30
 | 14 | ✅ | 2/2 | 100% |
 | 15 | ✅ | 2/2 | 100% |
 | 16 | ✅ | 1/1 | 100% |
+| 17 | ✅ | 1/1 | 100% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

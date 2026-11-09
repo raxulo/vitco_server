@@ -16,7 +16,7 @@ from app.modules.collections.mcc_collection.domain.dto import MccSampleResult
 from app.modules.mcc.domain.enums import MccType
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
 from app.modules.collections.mcc_collection.application.command import GetNextSampleNumberQuery
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.modules.mcc.application.command import GetMccQuery
 from app.core.database.manager import DatabaseManager
 from app.modules.vlcc.application.command import GetVlccQuery
@@ -32,6 +32,17 @@ from app.modules.collections.mcc_collection.application.command import (
 )
 from app.modules.mcc.application.command import ListMccQuery
 from app.modules.vlcc.application.command import ListVlccQuery
+from app.modules.collections.mcc_collection.domain.listing import MccCollectionFilters
+from app.web.framework.collection_list import (
+    clean_limit,
+    clean_search,
+    filter_query,
+    page_window,
+    parse_milk_type,
+    parse_period,
+    parse_uuid,
+    period_model,
+)
 from app.web.framework.renderer import Renderer
 from app.web.mcc_collection.assembler import MccCollectionAssembler
 from app.core.clock import now_naive_ist
@@ -61,33 +72,42 @@ class MccCollectionController:
         page: int = 1,
         limit: int = 10,
         search: str = "",
+        mcc_id: str = "",
+        vlcc_id: str = "",
+        milk_type: str = "",
         date_from: str = "",
         date_to: str = "",
+        start_shift: str = "",
+        end_shift: str = "",
     ):
         handler = GetHandler.mcc_collection_handler(request)
         user = request.state.user
 
-        # Search: MCC name / code or VLCC name / code; dates (yyyy-mm-dd) are whole days
-        keyword = search.strip()
-        start = MccCollectionController._parse_day(date_from)
-        end = MccCollectionController._parse_day(date_to)
-        if start and end and start > end:
-            start, end = end, start
-        end_exclusive = end + timedelta(days=1) if end else None
+        page, limit = max(page, 1), clean_limit(limit)
+        search = clean_search(search)
+        selected_mcc = parse_uuid(mcc_id)
+        selected_vlcc = parse_uuid(vlcc_id)
+        selected_milk = parse_milk_type(milk_type)
+        period = parse_period(date_from, date_to, start_shift, end_shift)
+        filters = MccCollectionFilters(
+            vlcc_search=search or None, mcc_id=selected_mcc, vlcc_id=selected_vlcc, milk_type=selected_milk, period=period,
+        )
 
-        total_items = await handler.count(owner=user, keyword=keyword, date_from=start, date_to=end_exclusive)
+        total_items = await handler.count(owner=user, filters=filters)
         total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
+        totals = await handler.totals(owner=user, filters=filters)
 
         result = await handler.list(
-            ListMccCollectionsQuery(
-                page=page,
-                size=limit,
-                keyword=keyword,
-                date_from=start,
-                date_to=end_exclusive,
-            ),
-            owner=user
+            ListMccCollectionsQuery(page=page, size=limit, filters=filters),
+            owner=user,
         )
+
+        # A VLCC sees only its own supply, and an MCC only its own center, so they don't choose those
+        is_vlcc = user.role_type in (Role.VLCC, Role.VLCC_FARMER)
+        can_pick_mcc = not is_vlcc and user.role_type != Role.MCC
+        mccs = await GetHandler.mcc_handler(request).list(ListMccQuery(size=1000, owner=user)) if can_pick_mcc else []
+        vlccs = [] if is_vlcc else await GetHandler.vlcc_handler(request).list(ListVlccQuery(size=1000, owner=user))
+        chosen = period_model(period)
 
         return Renderer.page(
             request=request,
@@ -97,20 +117,28 @@ class MccCollectionController:
                 "page": page,
                 "limit": limit,
                 "total_pages": total_pages,
-                "search": search,
-                "date_from": start.strftime("%Y-%m-%d") if start else "",
-                "date_to": end.strftime("%Y-%m-%d") if end else "",
+                "page_numbers": page_window(page, total_pages),
                 "total_items": total_items,
+                "totals": totals,
+                "search": search,
+                "mcc_options": list({mcc.id: mcc.name for mcc in mccs}.items()),
+                "vlcc_options": list({vlcc.id: vlcc.name for vlcc in vlccs}.items()),
+                "can_pick_mcc": can_pick_mcc,
+                "can_pick_vlcc": not is_vlcc,
+                "selected_mcc": str(selected_mcc) if selected_mcc else "",
+                "selected_vlcc": str(selected_vlcc) if selected_vlcc else "",
+                "selected_milk": "" if selected_milk is None else int(selected_milk),
+                "has_filters": bool(
+                    search or selected_mcc or selected_vlcc or selected_milk is not None
+                    or any(value != "" for value in chosen.values())
+                ),
+                "query": filter_query(
+                    limit=limit if limit != 10 else None, search=search, mcc_id=selected_mcc, vlcc_id=selected_vlcc,
+                    milk_type=None if selected_milk is None else int(selected_milk), **chosen,
+                ),
+                **chosen,
             },
         )
-
-    @staticmethod
-    def _parse_day(value: str) -> datetime | None:
-        """yyyy-mm-dd (native date input) -> start of that day; None when empty / invalid."""
-        try:
-            return datetime.strptime((value or "").strip(), "%Y-%m-%d")
-        except ValueError:
-            return None
 
     # =========================================================
     # CREATE PAGE

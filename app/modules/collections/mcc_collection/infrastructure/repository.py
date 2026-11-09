@@ -1,5 +1,11 @@
 from typing import Any
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.modules.collections.mcc_collection.domain.listing import CollectionTotals, MccCollectionFilters
+from app.modules.collections.mcc_collection.infrastructure.listing_sql import (
+    period_conditions,
+    totals_columns,
+    totals_from_row,
+)
 from app.modules.admin.infrastructure import models
 from app.modules.administration.domain.enums import Role
 from app.middleware.authentication import CurrentUser
@@ -224,11 +230,13 @@ class MccCollectionRepository(IMccCollectionRepository):
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: MccCollectionFilters | None = None,
     ) -> list:
         """
         Collection list filters (MccModel joined, VlccModel outer-joined):
         - keyword: MCC name / code or VLCC name / code (any of them, case-insensitive)
         - date_from / date_to: collected_at range (date_to is exclusive)
+        - filters: the list page's filters, always inside the owner's access scope
         """
         conditions = [
             MccCollectionAccessScope.condition(owner),
@@ -248,6 +256,17 @@ class MccCollectionRepository(IMccCollectionRepository):
             conditions.append(MccCollectionModel.collected_at >= date_from)
         if date_to:
             conditions.append(MccCollectionModel.collected_at < date_to)
+        if filters is not None:
+            if filters.vlcc_search:
+                pattern = f"%{filters.vlcc_search}%"
+                conditions.append(or_(VlccModel.name.ilike(pattern), VlccModel.vlcc_code.ilike(pattern)))
+            if filters.mcc_id:
+                conditions.append(MccCollectionModel.mcc_id == filters.mcc_id)
+            if filters.vlcc_id:
+                conditions.append(MccCollectionModel.vlcc_id == filters.vlcc_id)
+            if filters.milk_type is not None:
+                conditions.append(MccCollectionModel.milk_type == filters.milk_type)
+            conditions.extend(period_conditions(MccCollectionModel, filters.period))
         return conditions
 
     async def list(
@@ -258,6 +277,7 @@ class MccCollectionRepository(IMccCollectionRepository):
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: MccCollectionFilters | None = None,
     ) -> list[MccCollectionListDto]:
         stmt = (
             select(
@@ -288,7 +308,7 @@ class MccCollectionRepository(IMccCollectionRepository):
             .select_from(MccCollectionModel)
             .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
             .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
-            .where(*self._list_conditions(owner, keyword, date_from, date_to))
+            .where(*self._list_conditions(owner, keyword, date_from, date_to, filters))
             .order_by(MccCollectionModel.collected_at.desc())
             .offset(offset)
             .limit(limit)
@@ -328,15 +348,27 @@ class MccCollectionRepository(IMccCollectionRepository):
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: MccCollectionFilters | None = None,
     ) -> int:
         stmt = (
             select(func.count(MccCollectionModel.id))
             .select_from(MccCollectionModel)
             .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
             .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
-            .where(*self._list_conditions(owner, keyword, date_from, date_to))
+            .where(*self._list_conditions(owner, keyword, date_from, date_to, filters))
         )
         return await self._session.scalar(stmt) or 0
+
+    async def totals(self, owner: CurrentUser, filters: MccCollectionFilters | None = None) -> CollectionTotals:
+        """Totals of every entry `list` would return with these filters, on any page."""
+        stmt = (
+            select(*totals_columns(MccCollectionModel))
+            .select_from(MccCollectionModel)
+            .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
+            .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
+            .where(*self._list_conditions(owner, filters=filters))
+        )
+        return totals_from_row((await self._session.execute(stmt)).one())
 
     # =========================================================
     # COUNT SEARCH

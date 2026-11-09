@@ -8,6 +8,12 @@ from app.middleware.authentication import CurrentUser
 from app.modules.farmer.infrastructure.models import FarmerModel
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.modules.collections.mcc_collection.domain.listing import CollectionTotals, VlccCollectionFilters
+from app.modules.collections.mcc_collection.infrastructure.listing_sql import (
+    period_conditions,
+    totals_columns,
+    totals_from_row,
+)
 from app.modules.collections.vlcc_collection.domain.dto import (
     VlccCollectionListDto,
     VlccCollectionSummaryDto,
@@ -209,11 +215,13 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: VlccCollectionFilters | None = None,
     ) -> list:
         """
         Collection list filters:
         - keyword: VLCC name, farmer name or farmer code (any of them, case-insensitive)
         - date_from / date_to: collected_at range (date_to is exclusive)
+        - filters: the list page's filters, always inside the owner's access scope
         """
         conditions = [
             VlccCollectionAccessScope.condition(owner),
@@ -232,6 +240,15 @@ class VlccCollectionRepository(IVlccCollectionRepository):
             conditions.append(VlccCollectionModel.collected_at >= date_from)
         if date_to:
             conditions.append(VlccCollectionModel.collected_at < date_to)
+        if filters is not None:
+            if filters.farmer_search:
+                pattern = f"%{filters.farmer_search}%"
+                conditions.append(or_(UserModel.name.ilike(pattern), FarmerModel.farmer_code.ilike(pattern)))
+            if filters.vlcc_id:
+                conditions.append(VlccCollectionModel.vlcc_id == filters.vlcc_id)
+            if filters.milk_type is not None:
+                conditions.append(VlccCollectionModel.milk_type == filters.milk_type)
+            conditions.extend(period_conditions(VlccCollectionModel, filters.period))
         return conditions
 
     async def list(
@@ -242,6 +259,7 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: VlccCollectionFilters | None = None,
     ) -> list[VlccCollectionListDto]:
 
         stmt = (
@@ -253,7 +271,7 @@ class VlccCollectionRepository(IVlccCollectionRepository):
                     FarmerModel.farmer_code.label("farmer_code"),
                 )
             )
-            .where(*self._list_conditions(owner, keyword, date_from, date_to))
+            .where(*self._list_conditions(owner, keyword, date_from, date_to, filters))
             .order_by(
                 VlccCollectionModel.collected_at.desc(),
             )
@@ -318,11 +336,19 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         keyword: str | None = None,
         date_from: datetime | None = None,
         date_to: datetime | None = None,
+        filters: VlccCollectionFilters | None = None,
     ) -> int:
         stmt = self._with_list_joins(select(func.count(VlccCollectionModel.id))).where(
-            *self._list_conditions(owner, keyword, date_from, date_to)
+            *self._list_conditions(owner, keyword, date_from, date_to, filters)
         )
         return await self._session.scalar(stmt) or 0
+
+    async def totals(self, owner: CurrentUser, filters: VlccCollectionFilters | None = None) -> CollectionTotals:
+        """Totals of every entry `list` would return with these filters, on any page."""
+        stmt = self._with_list_joins(select(*totals_columns(VlccCollectionModel))).where(
+            *self._list_conditions(owner, filters=filters)
+        )
+        return totals_from_row((await self._session.execute(stmt)).one())
 
     # =========================================================
     # COUNT SEARCH
