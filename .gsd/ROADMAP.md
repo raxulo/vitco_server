@@ -9,8 +9,8 @@ updated: 2026-11-08T00:00:00+05:30
 > **Current Milestone:** v1.2.0 — Marketplace Revamp
 > **Goal:** Replace the old marketplace with a professional e-commerce store for dairy animals and dairy products,
 > with a clean, polished storefront and a Control Center that lets the Super Admin run everything without code changes.
-> **Current Phase:** 15 - Public API, SEO & Launch Hardening
-> **Status:** Phases 8 to 15 verified; final visual sign-off and the one milestone commit await the user
+> **Current Phase:** 16 - Control Center & Store Visual Refresh
+> **Status:** Phases 8 to 16 verified; final visual sign-off and the one milestone commit await the user
 > **Branch:** `feature/marketplace-revamp` (from the tip of `bugfix/static-asset-loading`, see DECISION-021)
 > **Previous milestone:** [v1.1.0 — Excel Data Exchange](milestones/v1.1.0/ROADMAP.md)
 
@@ -147,6 +147,17 @@ updated: 2026-11-08T00:00:00+05:30
 
 **Verification:** [VERIFICATION.md](phases/15/VERIFICATION.md) · **Release checklist:** [RELEASE.md](phases/15/RELEASE.md)
 
+### Phase 16: Control Center & Store Visual Refresh
+**Status:** ✅ Complete (2026-11-09)
+**Objective:** A more professional, modern Control Center, requested by the user after Phase 15, plus removable demo data. A store redesign was tried and undone at the user's request. No change to URLs or buying rules.
+**Requirements:** NFR-15
+**Depends on:** Phase 15
+
+**Plans:**
+- [x] Plan 16.1: Control Center & store visual refresh — [1-PLAN.md](phases/16/1-PLAN.md)
+
+**Verification:** [VERIFICATION.md](phases/16/VERIFICATION.md)
+
 ---
 
 ## Progress Summary
@@ -161,6 +172,7 @@ updated: 2026-11-08T00:00:00+05:30
 | 13 | ✅ | 2/2 | 100% |
 | 14 | ✅ | 2/2 | 100% |
 | 15 | ✅ | 2/2 | 100% |
+| 16 | ✅ | 1/1 | 100% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

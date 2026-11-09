@@ -98,7 +98,7 @@
             {% if category.image_url %}
             <img src="{{ category.image_url }}" alt="" loading="lazy" width="160" height="160">
             {% else %}
-            <span class="st-tile-letter" aria-hidden="true">{{ category.name[:1] }}</span>
+            <span class="st-tile-letter" aria-hidden="true"><i class="fa-solid {{ cards.category_icon(category.name)|trim }}"></i></span>
             {% endif %}
             <span>{{ category.name }}</span>
         </a>

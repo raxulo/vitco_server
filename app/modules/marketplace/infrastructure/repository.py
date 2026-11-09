@@ -214,22 +214,28 @@ class MarketplaceRepository(IMarketplaceRepository):
                 self._animals(viewer).where(MarketplaceAnimalModel.status == AnimalStatus.PUBLISHED)
             ),
             low_stock_variants=await self._count(self._low_stock(viewer)),
-            new_orders=await self._count(
-                select(MarketplaceOrderModel.id).where(
-                    MarketplaceOrderModel.status == OrderStatus.PLACED,
-                    MarketplaceOrderModel.id.in_(
-                        select(MarketplaceOrderItemModel.order_id).where(
-                            MarketplaceAccessScope.condition(viewer, MarketplaceOrderItemModel.seller_user_id)
-                        )
-                    ),
-                )
-            ),
-            new_enquiries=await self._count(
-                select(MarketplaceEnquiryModel.id).where(
-                    MarketplaceEnquiryModel.status == EnquiryStatus.NEW,
-                    MarketplaceAccessScope.condition(viewer, MarketplaceEnquiryModel.seller_user_id),
-                )
-            ),
+            new_orders=await self.count_new_orders(viewer),
+            new_enquiries=await self.count_new_enquiries(viewer),
+        )
+
+    async def count_new_orders(self, viewer: ListingViewer) -> int:
+        return await self._count(
+            select(MarketplaceOrderModel.id).where(
+                MarketplaceOrderModel.status == OrderStatus.PLACED,
+                MarketplaceOrderModel.id.in_(
+                    select(MarketplaceOrderItemModel.order_id).where(
+                        MarketplaceAccessScope.condition(viewer, MarketplaceOrderItemModel.seller_user_id)
+                    )
+                ),
+            )
+        )
+
+    async def count_new_enquiries(self, viewer: ListingViewer) -> int:
+        return await self._count(
+            select(MarketplaceEnquiryModel.id).where(
+                MarketplaceEnquiryModel.status == EnquiryStatus.NEW,
+                MarketplaceAccessScope.condition(viewer, MarketplaceEnquiryModel.seller_user_id),
+            )
         )
 
     async def low_stock(self, viewer: ListingViewer, limit: int) -> list[LowStockItem]:

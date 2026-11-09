@@ -111,4 +111,10 @@
     renumberVariants();
     filterBreeds();
     applyVisibility();
+
+    // On phones the tabs scroll sideways: keep the current one in view
+    var currentTab = document.querySelector('.mk-tab[aria-current="page"]');
+    if (currentTab) {
+        currentTab.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
 })();

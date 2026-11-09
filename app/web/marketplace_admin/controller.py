@@ -84,6 +84,9 @@ def _not_found() -> HTTPException:
     return HTTPException(status_code=404, detail="Not found")
 
 
+_LATEST_ORDERS = 5
+
+
 def _seller(request: Request):
     user = getattr(request.state, "user", None)
     if user is None or not SellerPolicy.can_sell(user.role_type):
@@ -96,6 +99,14 @@ def _super_admin(request: Request):
     if user.role_type != Role.SUPER_ADMIN:
         raise ForbiddenException("Only the Super Admin can change categories and animal types")
     return user
+
+
+async def load_waiting_counts(request: Request) -> None:
+    """Runs before every Control Center route, so each page's tabs can show what is waiting."""
+    user = getattr(request.state, "user", None)
+    if user is None or not SellerPolicy.can_sell(user.role_type):
+        return  # the route itself refuses this visitor
+    request.state.mk_waiting = await GetHandler.marketplace_catalog_handler(request).waiting_counts(user)
 
 
 def _page(request: Request, template: str, section: str, model: dict[str, Any], status_code: int = 200) -> Response:
@@ -244,7 +255,10 @@ class MarketplaceAdminController:
     async def overview_page(request: Request) -> Response:
         user = _seller(request)
         overview, low_stock = await GetHandler.marketplace_catalog_handler(request).overview(user)
-        return _page(request, "overview.html", "overview", {"overview": overview, "low_stock": low_stock})
+        latest_orders, _ = await GetHandler.marketplace_order_handler(request).list_orders(user, None, None, 0, _LATEST_ORDERS)
+        return _page(request, "overview.html", "overview", {
+            "overview": overview, "low_stock": low_stock, "latest_orders": latest_orders,
+        })
 
     # =========================================================
     # PRODUCTS

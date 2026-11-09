@@ -87,6 +87,14 @@ class MarketplaceCatalogHandler:
             await self._repository.low_stock(seller, _LOW_STOCK_LIST_SIZE),
         )
 
+    async def waiting_counts(self, owner: ListingViewer | None) -> tuple[int, int]:
+        """New orders and new enquiries, shown on the Control Center tabs."""
+        seller = self._seller(owner)
+        return (
+            await self._repository.count_new_orders(seller),
+            await self._repository.count_new_enquiries(seller),
+        )
+
     # =========================================================
     # CATEGORIES
     # =========================================================

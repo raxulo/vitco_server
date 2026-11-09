@@ -24,6 +24,7 @@ For whoever deploys this branch. Nothing here has been done on the server, and i
 
 ## After deploying
 
+- [ ] Don't copy a development database to the server with demo data in it. To clear it, run `python scripts/seed_marketplace_demo.py --remove`. Its phone numbers aren't real.
 - [ ] Replace the starter data in the Control Center: store name, phone and WhatsApp numbers, delivery charge, policy pages.
 - [ ] Add real listings and photos. Check that banner text is readable over the real photos, which the accessibility tool can't judge.
 - [ ] Open `/robots.txt` and `/sitemap.xml` and confirm the links use the real address, then submit the sitemap to search engines.

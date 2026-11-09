@@ -2,13 +2,18 @@
 Marketplace Control Center routes (DECISION-019: outside the public /marketplace prefix).
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.web.marketplace_admin.controller import MarketplaceAdminController as Controller
+from app.web.marketplace_admin.controller import load_waiting_counts
 from app.web.marketplace_admin.merchandising_controller import MerchandisingController as Merchandising
 from app.web.marketplace_admin.order_controller import OrderController
 
-router = APIRouter(prefix="/admin/marketplace", tags=["Web Marketplace Control Center"])
+router = APIRouter(
+    prefix="/admin/marketplace",
+    tags=["Web Marketplace Control Center"],
+    dependencies=[Depends(load_waiting_counts)],
+)
 
 _ROUTES = (
     ("", Controller.overview_page, "GET"),

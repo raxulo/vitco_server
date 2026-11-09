@@ -8,24 +8,49 @@
 
 {% block content %}
 <div class="mk">
+    {% set waiting = request.state.mk_waiting if request.state.mk_waiting is defined else (0, 0) %}
+    <div class="mk-bar">
+        <div class="mk-bar-top">
+            <div class="mk-bar-brand">
+                <span class="mk-bar-mark"><i class="fa-solid fa-store" aria-hidden="true"></i></span>
+                <div>
+                    <div class="mk-bar-name">Control Center</div>
+                    <div class="mk-bar-sub">Marketplace</div>
+                </div>
+            </div>
+            <a class="mk-btn mk-btn-sm" href="/marketplace" target="_blank" rel="noopener">View store <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><span class="mk-vh"> (opens in a new tab)</span></a>
+        </div>
+
+        <nav class="mk-tabs" aria-label="Control Center sections">
+            {% set groups = [
+                [('overview', 'Overview', '', 'fa-gauge-high', 0, false)],
+                [('orders', 'Orders', '/orders', 'fa-receipt', waiting[0], false), ('enquiries', 'Enquiries', '/enquiries', 'fa-comments', waiting[1], false)],
+                [('products', 'Products', '/products', 'fa-bottle-droplet', 0, false), ('animals', 'Animals', '/animals', 'fa-cow', 0, false), ('categories', 'Categories', '/categories', 'fa-layer-group', 0, true), ('animal_types', 'Animal types', '/animal-types', 'fa-tags', 0, true)],
+                [('banners', 'Banners', '/banners', 'fa-images', 0, true), ('home', 'Home page', '/home', 'fa-table-columns', 0, true), ('settings', 'Settings', '/settings', 'fa-gear', 0, true)],
+            ] %}
+            {% for group in groups %}
+            {% if can_edit_masters or group|rejectattr(5)|list %}
+            {% if not loop.first %}<span class="mk-tab-sep" aria-hidden="true"></span>{% endif %}
+            {% for key, label, path, icon, count, masters_only in group %}
+            {% if can_edit_masters or not masters_only %}
+            <a class="mk-tab" href="/admin/marketplace{{ path }}" {% if section == key %}aria-current="page"{% endif %}>
+                <i class="fa-solid {{ icon }}" aria-hidden="true"></i>{{ label }}
+                {% if count %}<span class="mk-count">{{ '99+' if count > 99 else count }}<span class="mk-vh"> new</span></span>{% endif %}
+            </a>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            {% endfor %}
+        </nav>
+    </div>
+
     <div class="mk-head">
         <div>
-            <div class="mk-eyebrow">Marketplace Control Center</div>
             <h1 class="mk-title">{% block heading %}{% endblock %}</h1>
             {% block subheading %}{% endblock %}
         </div>
         {% block head_actions %}{% endblock %}
     </div>
-
-    <nav class="mk-tabs" aria-label="Control Center sections">
-        {% set tabs = [('overview', 'Overview', ''), ('products', 'Products', '/products'), ('animals', 'Animals', '/animals'), ('orders', 'Orders', '/orders'), ('enquiries', 'Enquiries', '/enquiries')] %}
-        {% if can_edit_masters %}
-            {% set tabs = tabs + [('categories', 'Categories', '/categories'), ('animal_types', 'Animal types', '/animal-types'), ('banners', 'Banners', '/banners'), ('home', 'Home page', '/home'), ('settings', 'Store settings', '/settings')] %}
-        {% endif %}
-        {% for key, label, path in tabs %}
-        <a class="mk-tab" href="/admin/marketplace{{ path }}" {% if section == key %}aria-current="page"{% endif %}>{{ label }}</a>
-        {% endfor %}
-    </nav>
 
     {% if notice %}
     <div class="mk-notice mk-notice-ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> {{ notice }}</div>

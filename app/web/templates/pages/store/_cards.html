@@ -1,5 +1,16 @@
 {# Store cards, used by the home page and the listing pages. #}
 
+{# A category without its own picture gets an icon that suits its name. #}
+{% macro category_icon(name) %}
+{% set text = name|lower %}
+{% if 'milk' in text %}fa-glass-water
+{% elif 'ghee' in text or 'butter' in text %}fa-jar
+{% elif 'curd' in text or 'paneer' in text or 'cheese' in text %}fa-cheese
+{% elif 'coconut' in text or 'oil' in text %}fa-bottle-droplet
+{% else %}fa-basket-shopping
+{% endif %}
+{% endmacro %}
+
 {% macro pager(page, pages, total, query, base) %}
 {% if pages > 1 %}
 <nav class="st-pager" aria-label="Pages">

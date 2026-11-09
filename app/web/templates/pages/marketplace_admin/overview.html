@@ -3,71 +3,92 @@
 {% block heading %}Overview{% endblock %}
 {% block subheading %}<p class="mk-sub">What needs attention in your store today.</p>{% endblock %}
 
+{% macro tile(label, value, note, icon, href=none, attention=false, warn=false) %}
+{% if href %}<a class="mk-tile" href="{{ href }}">{% else %}<div class="mk-tile">{% endif %}
+    <div class="mk-tile-top">
+        <span class="mk-tile-label">{{ label }}</span>
+        <span class="mk-tile-icon {{ 'mk-tile-icon-on' if attention and value }}"><i class="fa-solid {{ icon }}" aria-hidden="true"></i></span>
+    </div>
+    <div class="mk-tile-value">{{ value }}</div>
+    <div class="mk-tile-note {{ 'mk-tile-note-warn' if warn }}">{% if warn %}<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> {% endif %}{{ note }}</div>
+{% if href %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
 {% block mk_content %}
 <div class="mk-tiles">
-    <a class="mk-tile" href="/admin/marketplace/products">
-        <div class="mk-tile-label">Products live</div>
-        <div class="mk-tile-value">{{ overview.products_published }}</div>
-        <div class="mk-tile-note">of {{ overview.products_total }} total</div>
-    </a>
-    <a class="mk-tile" href="/admin/marketplace/animals">
-        <div class="mk-tile-label">Animals live</div>
-        <div class="mk-tile-value">{{ overview.animals_live }}</div>
-        <div class="mk-tile-note">of {{ overview.animals_total }} total</div>
-    </a>
-    <div class="mk-tile">
-        <div class="mk-tile-label">Low stock sizes</div>
-        <div class="mk-tile-value">{{ overview.low_stock_variants }}</div>
-        {% if overview.low_stock_variants %}
-        <div class="mk-tile-note mk-tile-note-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Needs restocking</div>
-        {% else %}
-        <div class="mk-tile-note">Everything is in stock</div>
-        {% endif %}
-    </div>
-    <a class="mk-tile" href="/admin/marketplace/orders?status=PLACED">
-        <div class="mk-tile-label">New orders</div>
-        <div class="mk-tile-value">{{ overview.new_orders }}</div>
-        <div class="mk-tile-note">Waiting for confirmation</div>
-    </a>
-    <a class="mk-tile" href="/admin/marketplace/enquiries?status=NEW">
-        <div class="mk-tile-label">New enquiries</div>
-        <div class="mk-tile-value">{{ overview.new_enquiries }}</div>
-        <div class="mk-tile-note">Animal buyers to call</div>
-    </a>
+    {{ tile('New orders', overview.new_orders, 'Waiting for confirmation', 'fa-receipt', '/admin/marketplace/orders?status=PLACED', true) }}
+    {{ tile('New enquiries', overview.new_enquiries, 'Animal buyers to call', 'fa-comments', '/admin/marketplace/enquiries?status=NEW', true) }}
+    {{ tile('Low stock sizes', overview.low_stock_variants, 'Needs restocking' if overview.low_stock_variants else 'Everything is in stock', 'fa-boxes-stacked', none, true, overview.low_stock_variants > 0) }}
+    {{ tile('Products live', overview.products_published, 'of ' ~ overview.products_total ~ ' total', 'fa-bottle-droplet', '/admin/marketplace/products') }}
+    {{ tile('Animals live', overview.animals_live, 'of ' ~ overview.animals_total ~ ' total', 'fa-cow', '/admin/marketplace/animals') }}
 </div>
 
 <div class="mk-overview">
-    <section class="mk-card" aria-labelledby="low-stock-title">
-        <div class="mk-card-pad">
-            <h2 class="mk-card-title" id="low-stock-title">Low stock</h2>
-            <p class="mk-card-hint">Published sizes at or below their low stock level.</p>
-        </div>
-        {% if low_stock %}
-        <table class="mk-table">
-            <thead><tr><th>Product</th><th>Size</th><th>Stock</th><th><span class="mk-vh">Action</span></th></tr></thead>
-            <tbody>
-                {% for item in low_stock %}
-                <tr>
-                    <td class="mk-cell-main"><span class="mk-item-title">{{ item.product_title }}</span></td>
-                    <td data-label="Size">{{ item.variant_name }}</td>
-                    <td data-label="Stock" class="mk-num">{{ item.stock }}</td>
-                    <td><div class="mk-row-actions"><a class="mk-btn mk-btn-sm" href="/admin/marketplace/products/{{ item.product_id }}">Update</a></div></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="mk-empty"><i class="fa-solid fa-box-open" aria-hidden="true"></i>No published size is running low.</div>
-        {% endif %}
-    </section>
+    <div class="mk-stack">
+        <section class="mk-card" aria-labelledby="latest-title">
+            <div class="mk-card-pad mk-card-bar">
+                <div>
+                    <h2 class="mk-card-title" id="latest-title">Latest orders</h2>
+                    <p class="mk-card-hint">The newest orders from the store.</p>
+                </div>
+                {% if latest_orders %}<a class="mk-text-link" href="/admin/marketplace/orders">View all <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+            </div>
+            {% if latest_orders %}
+            <table class="mk-table">
+                <thead><tr><th>Order</th><th>Buyer</th><th>Total</th><th>Status</th><th><span class="mk-vh">Action</span></th></tr></thead>
+                <tbody>
+                    {% for order in latest_orders %}
+                    <tr>
+                        <td class="mk-cell-main">
+                            <div class="mk-item-title">{{ order.order_ref }}</div>
+                            <div class="mk-item-meta">{{ order.created_at.strftime('%d %b, %I:%M %p') if order.created_at }}</div>
+                        </td>
+                        <td data-label="Buyer">{{ order.buyer_name }}</td>
+                        <td data-label="Total" class="mk-num">{{ order.total|inr }}</td>
+                        <td data-label="Status"><span class="mk-pill {{ {'PLACED': 'mk-pill-reserved', 'DELIVERED': 'mk-pill-published', 'CANCELLED': 'mk-pill-off'}.get(order.status.value, 'mk-pill-sold') }}">{{ order.status.value|replace('_', ' ')|capitalize }}</span></td>
+                        <td><div class="mk-row-actions"><a class="mk-btn mk-btn-sm" href="/admin/marketplace/orders/{{ order.id }}">Open</a></div></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="mk-empty"><i class="fa-solid fa-receipt" aria-hidden="true"></i>No orders yet. They will appear here as soon as a customer buys.</div>
+            {% endif %}
+        </section>
+
+        <section class="mk-card" aria-labelledby="low-stock-title">
+            <div class="mk-card-pad">
+                <h2 class="mk-card-title" id="low-stock-title">Low stock</h2>
+                <p class="mk-card-hint">Published sizes at or below their low stock level.</p>
+            </div>
+            {% if low_stock %}
+            <table class="mk-table">
+                <thead><tr><th>Product</th><th>Size</th><th>Stock</th><th><span class="mk-vh">Action</span></th></tr></thead>
+                <tbody>
+                    {% for item in low_stock %}
+                    <tr>
+                        <td class="mk-cell-main"><span class="mk-item-title">{{ item.product_title }}</span></td>
+                        <td data-label="Size">{{ item.variant_name }}</td>
+                        <td data-label="Stock" class="mk-num">{{ item.stock }}</td>
+                        <td><div class="mk-row-actions"><a class="mk-btn mk-btn-sm" href="/admin/marketplace/products/{{ item.product_id }}">Update</a></div></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="mk-empty"><i class="fa-solid fa-box-open" aria-hidden="true"></i>No published size is running low.</div>
+            {% endif %}
+        </section>
+    </div>
 
     <section class="mk-card mk-card-pad" aria-labelledby="quick-title">
-        <h2 class="mk-card-title" id="quick-title" style="margin-bottom:12px">Quick actions</h2>
+        <h2 class="mk-card-title mk-card-title-spaced" id="quick-title">Quick actions</h2>
         <div class="mk-actions-list">
-            <a class="mk-action" href="/admin/marketplace/products/new"><i class="fa-solid fa-bottle-droplet" aria-hidden="true"></i> Add a product</a>
-            <a class="mk-action" href="/admin/marketplace/animals/new"><i class="fa-solid fa-cow" aria-hidden="true"></i> Add an animal</a>
+            <a class="mk-action" href="/admin/marketplace/products/new"><i class="fa-solid fa-bottle-droplet" aria-hidden="true"></i><span>Add a product</span><i class="fa-solid fa-chevron-right mk-action-go" aria-hidden="true"></i></a>
+            <a class="mk-action" href="/admin/marketplace/animals/new"><i class="fa-solid fa-cow" aria-hidden="true"></i><span>Add an animal</span><i class="fa-solid fa-chevron-right mk-action-go" aria-hidden="true"></i></a>
             {% if can_edit_masters %}
-            <a class="mk-action" href="/admin/marketplace/categories"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Manage categories</a>
+            <a class="mk-action" href="/admin/marketplace/banners"><i class="fa-solid fa-images" aria-hidden="true"></i><span>Change banners</span><i class="fa-solid fa-chevron-right mk-action-go" aria-hidden="true"></i></a>
+            <a class="mk-action" href="/admin/marketplace/categories"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><span>Manage categories</span><i class="fa-solid fa-chevron-right mk-action-go" aria-hidden="true"></i></a>
             {% endif %}
         </div>
     </section>
