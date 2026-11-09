@@ -1,0 +1,41 @@
+{#
+    Page links for every list. Links keep the current search and filters.
+    standalone: the list has no table card around this spot, so the bar gets its own card.
+#}
+{% macro pager(request, page, total_pages, summary='', standalone=false) %}
+{% if total_pages > 1 %}
+{% set page = [[page, 1]|max, total_pages]|min %}
+<nav class="table-footer pager {{ 'pager-standalone' if standalone }}" aria-label="Pages">
+    <div class="pagination-summary">
+        Showing page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong>{% if summary %} · {{ summary }}{% endif %}
+    </div>
+    <div class="pagination-controls">
+        {% if page > 1 %}
+        <a class="btn-page" href="{{ page_url(request, 1) }}" title="First page"><i class="fa-solid fa-angles-left" aria-hidden="true"></i> First</a>
+        <a class="btn-page" href="{{ page_url(request, page - 1) }}" rel="prev"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Prev</a>
+        {% else %}
+        <span class="btn-page disabled" aria-disabled="true"><i class="fa-solid fa-angles-left" aria-hidden="true"></i> First</span>
+        <span class="btn-page disabled" aria-disabled="true"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Prev</span>
+        {% endif %}
+
+        <div class="page-numbers">
+            {% for number in page_numbers(page, total_pages) %}
+            {% if number == page %}
+            <span class="page-num active" aria-current="page">{{ number }}</span>
+            {% else %}
+            <a class="page-num" href="{{ page_url(request, number) }}" aria-label="Page {{ number }}">{{ number }}</a>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if page < total_pages %}
+        <a class="btn-page" href="{{ page_url(request, page + 1) }}" rel="next">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>
+        <a class="btn-page" href="{{ page_url(request, total_pages) }}" title="Last page">Last <i class="fa-solid fa-angles-right" aria-hidden="true"></i></a>
+        {% else %}
+        <span class="btn-page disabled" aria-disabled="true">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></span>
+        <span class="btn-page disabled" aria-disabled="true">Last <i class="fa-solid fa-angles-right" aria-hidden="true"></i></span>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}
+{% endmacro %}

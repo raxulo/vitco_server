@@ -26,7 +26,7 @@ from app.modules.mcc.domain.enums import MccType
 from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.ratechart.domain.enums import MilkType
 from app.modules.vlcc.infrastructure.models import VlccModel
-from app.web.framework.collection_list import filter_query, page_window, parse_period
+from app.web.framework.collection_list import parse_period
 from tests.dataexchange.factories import create_farmers, create_user, create_vlcc
 
 VLCC_URL = "/vlcc-collections"
@@ -238,10 +238,12 @@ async def test_pager_keeps_filters_and_stays_short(api, database, admin, headers
 
     page = (await api.get(VLCC_URL, params={"vlcc_id": str(vlcc.id), "limit": 1, "page": 12, "milk_type": "0", "start_shift": "0"}, headers=headers)).text
 
-    links = re.findall(r'class="cl-page"[^>]*href="([^"]+)"', page)
+    pager = page.split('aria-label="Pages"')[1].split("</nav>")[0]
+    links = [link.replace("&amp;", "&") for link in re.findall(r'href="([^"]+)"', pager)]
     assert links and all(f"vlcc_id={vlcc.id}" in link and "milk_type=0" in link and "start_shift=0" in link and "limit=1" in link for link in links)
-    assert len(links) < 12  # not one link for each of the 25 pages
-    assert 'aria-current="page">12<' in page
+    numbers = re.findall(r'class="page-num[^"]*"[^>]*>(\d+)<', pager)
+    assert numbers == ["10", "11", "12", "13", "14"]  # current page in the middle, two either side
+    assert 'aria-current="page">12<' in pager
 
 
 @pytest.mark.parametrize(
@@ -389,19 +391,3 @@ def test_period_with_one_end_is_left_alone():
     assert (period.start_day, period.start_shift, period.end_day, period.end_shift) == (date(2026, 1, 5), EVENING, None, None)
 
 
-@pytest.mark.parametrize(
-    ("page", "total", "expected"),
-    [
-        (1, 1, [1]),
-        (1, 5, [1, 2, 3, None, 5]),
-        (3, 5, [1, 2, 3, 4, 5]),
-        (500, 1136, [1, None, 498, 499, 500, 501, 502, None, 1136]),
-        (1136, 1136, [1, None, 1134, 1135, 1136]),
-    ],
-)
-def test_page_window(page, total, expected):
-    assert page_window(page, total) == expected
-
-
-def test_filter_query_leaves_out_empty_values_but_keeps_zero():
-    assert filter_query(search="", milk_type=0, vlcc_id=None, start_shift="") == "milk_type=0"

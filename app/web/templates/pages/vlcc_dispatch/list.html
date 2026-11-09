@@ -659,25 +659,8 @@
     <!-- =========================================================
          PAGINATION
     ========================================================== -->
-    {% if total_pages > 1 or page > 1 %}
-        <div class="pagination-wrapper" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 10px 0;">
-            <div style="font-size: 13px; color: #64748b;">
-                Page <span style="font-weight: 600; color: #334155;">{{ page }}</span> of <span style="font-weight: 600; color: #334155;">{{ total_pages }}</span>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                {% if page > 1 %}
-                    <a href="/vlcc-dispatches?tab={{ active_tab }}&page={{ page - 1 }}&vlcc_id={{ selected_vlcc_id or '' }}&shift={{ selected_shift if selected_shift is not none else '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
-                        Previous
-                    </a>
-                {% endif %}
-                {% if page < total_pages %}
-                    <a href="/vlcc-dispatches?tab={{ active_tab }}&page={{ page + 1 }}&vlcc_id={{ selected_vlcc_id or '' }}&shift={{ selected_shift if selected_shift is not none else '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}" class="btn btn-ghost" style="border: 1px solid #cbd5e1; background: white; color: #475569; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;">
-                        Next
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-    {% endif %}
+    {% from "components/pagination.html" import pager %}
+    {{ pager(request, page, total_pages, standalone=true) }}
 
 </div>
 {% endblock %}

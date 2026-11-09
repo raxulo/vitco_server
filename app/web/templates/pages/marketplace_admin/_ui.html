@@ -81,10 +81,23 @@
 {% if total_pages > 1 %}
 <div class="mk-pager">
     <span>Page {{ page }} of {{ total_pages }} · {{ total }} records</span>
-    <div class="mk-pager-links">
-        {% if page > 1 %}<a class="mk-btn mk-btn-sm" href="?page={{ page - 1 }}{{ query }}">Previous</a>{% endif %}
-        {% if page < total_pages %}<a class="mk-btn mk-btn-sm" href="?page={{ page + 1 }}{{ query }}">Next</a>{% endif %}
-    </div>
+    <nav class="mk-pager-links" aria-label="Pages">
+        {% if page > 1 %}
+        <a class="mk-btn mk-btn-sm" href="?page=1{{ query }}">First</a>
+        <a class="mk-btn mk-btn-sm" href="?page={{ page - 1 }}{{ query }}" rel="prev">Prev</a>
+        {% endif %}
+        {% for number in page_numbers(page, total_pages) %}
+        {% if number == page %}
+        <span class="mk-btn mk-btn-sm mk-page-current" aria-current="page">{{ number }}</span>
+        {% else %}
+        <a class="mk-btn mk-btn-sm" href="?page={{ number }}{{ query }}" aria-label="Page {{ number }}">{{ number }}</a>
+        {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+        <a class="mk-btn mk-btn-sm" href="?page={{ page + 1 }}{{ query }}" rel="next">Next</a>
+        <a class="mk-btn mk-btn-sm" href="?page={{ total_pages }}{{ query }}">Last</a>
+        {% endif %}
+    </nav>
 </div>
 {% endif %}
 {% endmacro %}

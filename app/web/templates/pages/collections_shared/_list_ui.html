@@ -84,32 +84,3 @@
     {% endif %}
 </div>
 {% endmacro %}
-
-{% macro pager(base, page, total_pages, page_numbers, query) %}
-{% if total_pages > 1 %}
-<nav class="cl-pager" aria-label="Pages">
-    <div class="cl-pager-summary">Showing page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong></div>
-    <div class="cl-pager-links">
-        {% if page > 1 %}
-        <a class="cl-page" rel="prev" href="{{ base }}?page={{ page - 1 }}{% if query %}&{{ query }}{% endif %}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Previous</a>
-        {% else %}
-        <span class="cl-page cl-page-off"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Previous</span>
-        {% endif %}
-        {% for number in page_numbers %}
-            {% if number is none %}
-            <span class="cl-page-gap" aria-hidden="true">…</span>
-            {% elif number == page %}
-            <span class="cl-page cl-page-current" aria-current="page">{{ number }}</span>
-            {% else %}
-            <a class="cl-page" href="{{ base }}?page={{ number }}{% if query %}&{{ query }}{% endif %}">{{ number }}</a>
-            {% endif %}
-        {% endfor %}
-        {% if page < total_pages %}
-        <a class="cl-page" rel="next" href="{{ base }}?page={{ page + 1 }}{% if query %}&{{ query }}{% endif %}">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>
-        {% else %}
-        <span class="cl-page cl-page-off">Next <i class="fa-solid fa-chevron-right" aria-hidden="true"></i></span>
-        {% endif %}
-    </div>
-</nav>
-{% endif %}
-{% endmacro %}

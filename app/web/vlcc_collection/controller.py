@@ -23,8 +23,6 @@ from app.modules.collections.mcc_collection.domain.listing import VlccCollection
 from app.web.framework.collection_list import (
     clean_limit,
     clean_search,
-    filter_query,
-    page_window,
     parse_milk_type,
     parse_period,
     parse_uuid,
@@ -98,7 +96,6 @@ class VlccCollectionController:
                 "page": page,
                 "limit": limit,
                 "total_pages": total_pages,
-                "page_numbers": page_window(page, total_pages),
                 "total_items": total_items,
                 "totals": totals,
                 "search": search,
@@ -107,10 +104,6 @@ class VlccCollectionController:
                 "selected_vlcc": str(selected_vlcc) if selected_vlcc else "",
                 "selected_milk": "" if selected_milk is None else int(selected_milk),
                 "has_filters": bool(search or selected_vlcc or selected_milk is not None or any(value != "" for value in chosen.values())),
-                "query": filter_query(
-                    limit=limit if limit != 10 else None, search=search, vlcc_id=selected_vlcc,
-                    milk_type=None if selected_milk is None else int(selected_milk), **chosen,
-                ),
                 **chosen,
             },
         )

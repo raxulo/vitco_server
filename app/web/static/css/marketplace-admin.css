@@ -171,7 +171,8 @@ a.mk-tile:hover { border-color: var(--mk-line-strong); box-shadow: 0 4px 14px rg
 .mk-empty .mk-btn { margin-top: 16px; }
 
 .mk-pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--mk-line); color: var(--mk-muted); font-size: 13px; flex-wrap: wrap; }
-.mk-pager-links { display: flex; gap: 8px; }
+.mk-pager-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.mk-btn.mk-page-current { border-color: var(--mk-accent); background: var(--mk-accent); color: #fff; cursor: default; }
 
 /* ----- Forms ----- */
 .mk-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }

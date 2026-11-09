@@ -184,7 +184,8 @@
         <!-- =========================================================
              PAGINATION FOOTER
         ========================================================== -->
-        {{ ui.pager('/vlcc-collections', page, total_pages, page_numbers, query) }}
+        {% from "components/pagination.html" import pager %}
+        {{ pager(request, page, total_pages) }}
     </div>
 </div>
 

@@ -116,19 +116,8 @@
     </div>
 
     <!-- Pagination -->
-    {% if total_pages > 1 %}
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; background: white; padding: 14px 20px; border-radius: 12px; border: 1px solid #e2e8f0; flex-wrap: wrap; gap: 12px;">
-        <span style="font-size: 13px; color: #64748b;">Page {{ page }} of {{ total_pages }} · {{ total }} records</span>
-        <div style="display: flex; gap: 8px;">
-            {% if page > 1 %}
-            <a class="rb-page-btn" href="?type={{ active_type }}&page={{ page - 1 }}&search={{ search|urlencode }}">Previous</a>
-            {% endif %}
-            {% if page < total_pages %}
-            <a class="rb-page-btn" href="?type={{ active_type }}&page={{ page + 1 }}&search={{ search|urlencode }}">Next</a>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
+    {% from "components/pagination.html" import pager %}
+    {{ pager(request, page, total_pages, total ~ ' records', standalone=true) }}
 
     <!-- Confirm modal (content loaded from the impact endpoint) -->
     <div id="rb-modal" class="rb-modal" role="dialog" aria-modal="true" aria-labelledby="rb-modal-title" style="display: none;">

@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope
+from app.web.framework.pagination import page_numbers, page_url
 
 
 class CachedStaticFiles(StaticFiles):
@@ -127,3 +128,5 @@ class WebMount:
         env.filters["cart_count"] = cart_count
         from app.web.storefront.seo import store_url
         env.globals["store_url"] = store_url
+        env.globals["page_numbers"] = page_numbers
+        env.globals["page_url"] = page_url

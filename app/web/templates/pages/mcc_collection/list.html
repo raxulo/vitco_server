@@ -82,6 +82,7 @@
                         <th style="padding: 12px 16px;">MCC Code</th>
                         <th style="padding: 12px 16px;">Entry Details</th>
                         <th style="padding: 12px 16px;">VLCC Info</th>
+                        <th style="padding: 12px 16px;">Milk Specs</th>
                         <th style="padding: 12px 16px;">Weight Info</th>
                         <th style="padding: 12px 16px;">Billing</th>
                         <th style="padding: 12px 16px;">Owner Info</th>
@@ -128,6 +129,16 @@
                                 {{ item.vlcc_name or '—' }}
                             </a>
                             <div style="color: {{ '#b91c1c' if item.is_deleted else '#94a3b8' }}; font-size: 11px;">UIC: {{ item.vlcc_uic_code or '—' }}</div>
+                        </td>
+
+                        <!-- Milk Specs -->
+                        <td style="padding: 16px; line-height: 1.4;">
+                            <div style="font-weight: 600;">{{ milk_types[item.milk_type|int] if item.milk_type is not none else '—' }}</div>
+                            {% if (item.fat_percent and item.fat_percent|float > 0) or (item.snf_percent and item.snf_percent|float > 0) %}
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#64748b' }}; font-size: 11px;">FAT {{ item.fat_percent|fixed }}% • SNF {{ item.snf_percent|fixed }}%</div>
+                            {% else %}
+                            <div style="color: {{ '#b91c1c' if item.is_deleted else '#64748b' }}; font-size: 11px;">—</div>
+                            {% endif %}
                         </td>
 
                         <!-- Weight Info -->
@@ -184,7 +195,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="{{ '6' if is_vlcc else '8' }}" class="table-empty-state" style="text-align: center; padding: 32px; color: #64748b;">
+                        <td colspan="{{ '7' if is_vlcc else '9' }}" class="table-empty-state" style="text-align: center; padding: 32px; color: #64748b;">
                             <i class="fa-solid fa-circle-info" style="font-size: 24px; margin-bottom: 8px;"></i>
                             <p>No bulk collection records found. Please adjust filters or record a new supply.</p>
                         </td>
@@ -197,7 +208,8 @@
         <!-- =========================================================
              PAGINATION FOOTER
         ========================================================== -->
-        {{ ui.pager('/mcc-collections', page, total_pages, page_numbers, query) }}
+        {% from "components/pagination.html" import pager %}
+        {{ pager(request, page, total_pages) }}
 
     </div>
 

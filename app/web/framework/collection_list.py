@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any
-from urllib.parse import urlencode
 from uuid import UUID
 
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
@@ -20,7 +19,6 @@ from app.modules.ratechart.domain.enums import MilkType
 
 _MAX_LIMIT = 100
 _SEARCH_LENGTH = 100
-_PAGES_AROUND_CURRENT = 2
 
 
 def clean_limit(limit: int) -> int:
@@ -78,20 +76,3 @@ def period_model(period: CollectionPeriod) -> dict[str, Any]:
         "end_shift": "" if period.end_shift is None else int(period.end_shift),
     }
 
-
-def filter_query(**values: Any) -> str:
-    """Current filters for the pager links; empty ones are left out so URLs stay short."""
-    return urlencode({key: value for key, value in values.items() if value not in (None, "")})
-
-
-def page_window(page: int, total_pages: int) -> list[int | None]:
-    """Page numbers around the current one plus both ends; None marks a gap."""
-    shown = {1, total_pages, *range(page - _PAGES_AROUND_CURRENT, page + _PAGES_AROUND_CURRENT + 1)}
-    window: list[int | None] = []
-    previous = 0
-    for number in sorted(n for n in shown if 1 <= n <= total_pages):
-        if number - previous > 1:
-            window.append(None)
-        window.append(number)
-        previous = number
-    return window

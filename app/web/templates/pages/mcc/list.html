@@ -196,38 +196,8 @@
         <!-- =========================================================
              PAGINATION
         ========================================================== -->
-        {% if total_pages > 1 %}
-        <div class="pagination-section">
-            <span class="pagination-counter">Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong></span>
-            
-            <div class="pagination-controls">
-                {% if page > 1 %}
-                <a href="?page={{ page - 1 }}{% if search %}&search={{ search|urlencode }}{% endif %}{{ filters.query_string }}" class="pagination-btn-nav">
-                    <i class="fa-solid fa-chevron-left"></i> Previous
-                </a>
-                {% endif %}
-
-                <div class="pagination-numbers">
-                    {% set start_page = [1, page - 2]|max %}
-                    {% set end_page = [total_pages, page + 2]|min %}
-                    {% for p in range(start_page, end_page + 1) %}
-                    <a
-                        href="?page={{ p }}{% if search %}&search={{ search|urlencode }}{% endif %}{{ filters.query_string }}"
-                        class="pagination-num-btn {{ 'active' if p == page else '' }}"
-                    >
-                        {{ p }}
-                    </a>
-                    {% endfor %}
-                </div>
-
-                {% if page < total_pages %}
-                <a href="?page={{ page + 1 }}{% if search %}&search={{ search|urlencode }}{% endif %}{{ filters.query_string }}" class="pagination-btn-nav">
-                    Next <i class="fa-solid fa-chevron-right"></i>
-                </a>
-                {% endif %}
-            </div>
-        </div>
-        {% endif %}
+        {% from "components/pagination.html" import pager %}
+        {{ pager(request, page, total_pages) }}
     </div>
 
 </div>
