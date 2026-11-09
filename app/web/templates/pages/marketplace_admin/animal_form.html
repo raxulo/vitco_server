@@ -1,0 +1,114 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}{{ 'Edit animal' if animal_id else 'New animal' }}{% endblock %}
+{% block heading %}{{ form.get('title') if animal_id and form.get('title') else 'New animal' }}{% endblock %}
+{% block head_actions %}<a class="mk-btn" href="/admin/marketplace/animals"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> All animals</a>{% endblock %}
+
+{% block mk_content %}
+<form method="post" enctype="multipart/form-data" action="/admin/marketplace/animals/{{ animal_id or 'new' }}" novalidate>
+    <div class="mk-form-grid">
+        <div>
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head"><h2 class="mk-card-title">Animal</h2></div>
+                <div class="mk-fields">
+                    {{ ui.input('title', 'Listing title', form, errors, required=true, span=true, hint='For example: Gir cow, second lactation, 14 L per day') }}
+                    <label class="mk-field {{ 'mk-invalid' if errors.get('animal_type_id') }}">
+                        <span class="mk-label">Animal type<span class="mk-req" aria-hidden="true">*</span></span>
+                        <select name="animal_type_id">
+                            <option value="">Choose a type</option>
+                            {% for item in animal_types %}
+                            <option value="{{ item.id }}" {% if form.get('animal_type_id')|string == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.get('animal_type_id') %}<span class="mk-error" role="alert">{{ errors.animal_type_id }}</span>{% endif %}
+                    </label>
+                    <label class="mk-field {{ 'mk-invalid' if errors.get('breed_id') }}">
+                        <span class="mk-label">Breed</span>
+                        <select name="breed_id">
+                            <option value="">Not specified</option>
+                            {% for item in animal_breeds %}
+                            <option value="{{ item.id }}" data-type="{{ item.animal_type_id }}" {% if form.get('breed_id')|string == item.id|string %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.get('breed_id') %}<span class="mk-error" role="alert">{{ errors.breed_id }}</span>{% endif %}
+                    </label>
+                    {{ ui.enum_select('gender', 'Gender', form, errors, genders) }}
+                    {{ ui.input('age_months', 'Age in months', form, errors, type='number', step='1', min=0) }}
+                </div>
+            </section>
+
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head"><h2 class="mk-card-title">Price</h2></div>
+                <div class="mk-fields">
+                    {{ ui.input('price', 'Price ₹', form, errors, type='number', step='0.01', min=0, required=true) }}
+                    <div class="mk-field" style="align-self:end">{{ ui.checkbox('is_negotiable', 'Price is negotiable', form) }}</div>
+                </div>
+            </section>
+
+            <section class="mk-card mk-card-pad" data-show-if="gender=FEMALE">
+                <div class="mk-card-head">
+                    <div>
+                        <h2 class="mk-card-title">Milk and lactation</h2>
+                        <p class="mk-card-hint">Buyers compare these first. Lactation and milk per day are required to publish.</p>
+                    </div>
+                </div>
+                <div class="mk-fields mk-fields-3">
+                    {{ ui.input('lactation_number', 'Lactation number', form, errors, type='number', step='1', min=0) }}
+                    {{ ui.input('milk_litres_per_day', 'Milk litres per day', form, errors, type='number', step='0.1', min=0) }}
+                    {{ ui.input('fat_percent', 'FAT %', form, errors, type='number', step='0.1', min=0) }}
+                    {{ ui.enum_select('pregnancy_status', 'Pregnancy', form, errors, pregnancy_statuses) }}
+                    {{ ui.input('pregnancy_months', 'Months pregnant', form, errors, type='number', step='1', min=0, show_if='pregnancy_status=PREGNANT') }}
+                    {{ ui.input('calf_details', 'Calf details', form, errors, span=true, hint='For example: female calf, 3 months, sold with the mother') }}
+                </div>
+            </section>
+
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head">
+                    <div>
+                        <h2 class="mk-card-title">Images</h2>
+                        <p class="mk-card-hint">Clear photos from the side and front build trust. Use the arrows to change the order.</p>
+                    </div>
+                </div>
+                {{ ui.gallery(images, errors, max_images) }}
+            </section>
+
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head"><h2 class="mk-card-title">Full details</h2></div>
+                <div class="mk-fields">
+                    {{ ui.textarea('description', 'Description', form, errors, rows=6) }}
+                    {{ ui.textarea('health_notes', 'Health', form, errors, rows=3) }}
+                    {{ ui.textarea('vaccination_notes', 'Vaccination', form, errors, rows=3) }}
+                </div>
+            </section>
+
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head"><h2 class="mk-card-title">Location</h2></div>
+                <div class="mk-fields mk-fields-3">
+                    {{ ui.input('state', 'State', form, errors) }}
+                    {{ ui.input('district', 'District', form, errors) }}
+                    {{ ui.input('village', 'Village', form, errors) }}
+                </div>
+            </section>
+        </div>
+
+        <aside class="mk-side">
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head"><h2 class="mk-card-title">Publishing</h2></div>
+                <div class="mk-fields" style="grid-template-columns:minmax(0,1fr)">
+                    {{ ui.enum_select('status', 'Status', form, errors, statuses) }}
+                    {{ ui.input('sort_order', 'Display order', form, errors, type='number', step='1', hint='Lower numbers appear first.') }}
+                </div>
+                <div style="margin:12px 0 16px">
+                    {{ ui.checkbox('is_featured', 'Featured', form, 'Show in featured animals on the home page.') }}
+                    {{ ui.checkbox('is_trending', 'Trending', form, 'Show in the trending section.') }}
+                </div>
+                <div class="mk-form-actions">
+                    <button class="mk-btn mk-btn-primary">Save animal</button>
+                    <a class="mk-btn" href="/admin/marketplace/animals">Cancel</a>
+                </div>
+            </section>
+        </aside>
+    </div>
+</form>
+{% endblock %}

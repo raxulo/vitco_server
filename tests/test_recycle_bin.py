@@ -7,7 +7,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 
 from app.core.clock import now_naive_ist
 from app.core.exceptions.base import ForbiddenException
@@ -23,6 +23,17 @@ from app.modules.collections.vlcc_collection.infrastructure.models import Dispat
 from app.modules.common.address.infrastructure.models import AddressModel
 from app.modules.dashboard.presentation.navigation import build_navigation
 from app.modules.farmer.infrastructure.models import FarmerModel
+from app.modules.marketplace.infrastructure.models import (
+    MarketplaceAnimalModel,
+    MarketplaceAnimalTypeModel,
+    MarketplaceCategoryModel,
+    MarketplaceEnquiryModel,
+    MarketplaceOrderItemModel,
+    MarketplaceOrderModel,
+    MarketplaceProductImageModel,
+    MarketplaceProductModel,
+    MarketplaceProductVariantModel,
+)
 from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.payments.domain.enums import (
     LedgerEntryType,
@@ -274,6 +285,141 @@ async def test_purge_admin_removes_whole_tree_but_never_super_admin(database, su
     assert await _count(database, FarmerModel, FarmerModel.vlcc_id == vlcc.id) == 0
     assert await _count(database, UserModel, UserModel.id == super_admin.id) == 1
     assert await _count(database, VlccModel, VlccModel.id == outside.id) == 1
+
+
+# =========================================================
+# LEGACY MARKETPLACE TABLES (DECISION-015)
+# =========================================================
+
+
+_LEGACY_OWNERS = (
+    ("animals", "seller_user_id"),
+    ("product_offers", "seller_user_id"),
+    ("marketplace_orders", "buyer_id"),
+)
+
+
+@pytest.fixture
+async def legacy_tables(database):
+    """The old tables as an upgraded database still has them: restricted links to users."""
+    async with database.transaction() as session:
+        for name, owner in _LEGACY_OWNERS:
+            nullability = "NULL" if owner == "buyer_id" else "NOT NULL"
+            await session.execute(text(
+                f"CREATE TABLE {name} (id CHAR(32) PRIMARY KEY, "
+                f"{owner} CHAR(32) {nullability} REFERENCES users(id) ON DELETE RESTRICT)"
+            ))
+    yield
+    async with database.transaction() as session:
+        for name, _ in _LEGACY_OWNERS:
+            await session.execute(text(f"DROP TABLE {name}"))
+
+
+async def _add_legacy_rows(database, user_id: UUID) -> None:
+    async with database.transaction() as session:
+        for name, owner in _LEGACY_OWNERS:
+            await session.execute(
+                text(f"INSERT INTO {name} (id, {owner}) VALUES (:id, :owner)"),
+                {"id": uuid4().hex, "owner": user_id.hex},
+            )
+
+
+async def _legacy_row_counts(database, user_id: UUID) -> list[int]:
+    async with database.transaction() as session:
+        return [
+            await session.scalar(
+                text(f"SELECT count(*) FROM {name} WHERE {owner} = :owner"), {"owner": user_id.hex}
+            )
+            for name, owner in _LEGACY_OWNERS
+        ]
+
+
+async def test_purge_removes_legacy_rows_of_the_tree_only(database, super_admin, bin_handler, legacy_tables):
+    admin_id = await create_user(database, role=Role.ADMIN, created_by=super_admin.id)
+    survivor = await create_user(database, role=Role.ADMIN, created_by=super_admin.id)
+    await _add_legacy_rows(database, admin_id)
+    await _add_legacy_rows(database, survivor)
+    await _soft_delete_user(database, admin_id)
+
+    impact = await bin_handler.impact(
+        GetPurgeImpactQuery(entity_type=DeletedEntityType.ADMIN, record_id=admin_id, owner=super_admin)
+    )
+    assert impact.marketplace_listings == 2  # one animal and one offer
+
+    await bin_handler.purge(PurgeRecordCommand(entity_type=DeletedEntityType.ADMIN, record_id=admin_id, owner=super_admin))
+
+    assert await _count(database, UserModel, UserModel.id == admin_id) == 0
+    assert await _legacy_row_counts(database, admin_id) == [0, 0, 0]
+    assert await _legacy_row_counts(database, survivor) == [1, 1, 1]
+
+
+async def test_purge_works_without_legacy_tables(database, super_admin, bin_handler):
+    admin_id = await create_user(database, role=Role.ADMIN, created_by=super_admin.id)
+    await _soft_delete_user(database, admin_id)
+
+    impact = await bin_handler.impact(
+        GetPurgeImpactQuery(entity_type=DeletedEntityType.ADMIN, record_id=admin_id, owner=super_admin)
+    )
+    assert impact.marketplace_listings == 0
+
+    await bin_handler.purge(PurgeRecordCommand(entity_type=DeletedEntityType.ADMIN, record_id=admin_id, owner=super_admin))
+
+    assert await _count(database, UserModel, UserModel.id == admin_id) == 0
+
+
+async def test_purge_removes_new_listings_but_keeps_others_history(database, super_admin, bin_handler):
+    admin_id = await create_user(database, role=Role.ADMIN, created_by=super_admin.id)
+    other_seller = await create_user(database, role=Role.ADMIN, created_by=super_admin.id)
+    suffix = uuid4().hex
+    category_id, type_id = uuid4(), uuid4()
+    product_id, variant_id, image_id, animal_id, other_product_id = uuid4(), uuid4(), uuid4(), uuid4(), uuid4()
+    order_id, line_id, enquiry_id = uuid4(), uuid4(), uuid4()
+
+    async with database.transaction() as session:
+        session.add(MarketplaceCategoryModel(id=category_id, name="Ghee", slug=f"ghee-{suffix}"))
+        session.add(MarketplaceAnimalTypeModel(id=type_id, name=f"Cow {suffix}", slug=f"cow-{suffix}"))
+        await session.flush()
+        session.add(MarketplaceProductModel(id=product_id, seller_user_id=admin_id, category_id=category_id,
+                                            title="Ghee", slug=f"own-{suffix}"))
+        session.add(MarketplaceProductModel(id=other_product_id, seller_user_id=other_seller, category_id=category_id,
+                                            title="Other", slug=f"other-{suffix}"))
+        session.add(MarketplaceAnimalModel(id=animal_id, seller_user_id=admin_id, animal_type_id=type_id, title="Gir",
+                                           slug=f"gir-{suffix}", price=Decimal("85000")))
+        session.add(MarketplaceOrderModel(id=order_id, order_ref=f"R{suffix[:12]}", buyer_name="Asha",
+                                          buyer_phone="9000000000", address_line="Village", pincode="302001",
+                                          subtotal=Decimal("500"), total=Decimal("500")))
+        await session.flush()
+        session.add(MarketplaceProductVariantModel(id=variant_id, product_id=product_id, name="1 L",
+                                                   mrp=Decimal("600"), price=Decimal("500"), stock=3))
+        session.add(MarketplaceProductImageModel(id=image_id, product_id=product_id, url="/api/v1/media/product/a.jpg"))
+        session.add(MarketplaceEnquiryModel(id=enquiry_id, animal_id=animal_id, seller_user_id=admin_id,
+                                            animal_title="Gir", buyer_name="Asha", buyer_phone="9000000000"))
+        await session.flush()
+        session.add(MarketplaceOrderItemModel(id=line_id, order_id=order_id, product_id=product_id, variant_id=variant_id,
+                                              seller_user_id=admin_id, product_title="Ghee", variant_name="1 L",
+                                              mrp=Decimal("600"), unit_price=Decimal("500"), quantity=1,
+                                              line_total=Decimal("500")))
+    await _soft_delete_user(database, admin_id)
+
+    impact = await bin_handler.impact(
+        GetPurgeImpactQuery(entity_type=DeletedEntityType.ADMIN, record_id=admin_id, owner=super_admin)
+    )
+    assert impact.marketplace_listings == 2  # one product and one animal
+
+    await bin_handler.purge(PurgeRecordCommand(entity_type=DeletedEntityType.ADMIN, record_id=admin_id, owner=super_admin))
+
+    assert await _count(database, UserModel, UserModel.id == admin_id) == 0
+    assert await _count(database, MarketplaceProductModel, MarketplaceProductModel.id == product_id) == 0
+    assert await _count(database, MarketplaceProductVariantModel, MarketplaceProductVariantModel.id == variant_id) == 0
+    assert await _count(database, MarketplaceProductImageModel, MarketplaceProductImageModel.id == image_id) == 0
+    assert await _count(database, MarketplaceAnimalModel, MarketplaceAnimalModel.id == animal_id) == 0
+    assert await _count(database, MarketplaceProductModel, MarketplaceProductModel.id == other_product_id) == 1
+
+    async with database.transaction() as session:
+        line = await session.get(MarketplaceOrderItemModel, line_id)
+        enquiry = await session.get(MarketplaceEnquiryModel, enquiry_id)
+        assert (line.product_title, line.product_id, line.variant_id, line.seller_user_id) == ("Ghee", None, None, None)
+        assert (enquiry.animal_title, enquiry.animal_id, enquiry.seller_user_id) == ("Gir", None, None)
 
 
 async def test_purge_twice_is_refused(database, super_admin, bin_handler):

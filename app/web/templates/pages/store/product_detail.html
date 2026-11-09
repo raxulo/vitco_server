@@ -1,0 +1,91 @@
+{% extends "layouts/store.html" %}
+{% import "pages/store/_cards.html" as cards %}
+
+{% block title %}{{ product.title }} · {{ frame.settings.store_name }}{% endblock %}
+{% block description %}{{ product.short_description or product.title }}{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_image %}{{ store_url(request, product.images[0].url if product.images else (frame.settings.logo_url or '/static/images/logo.png')) }}{% endblock %}
+{% block head %}<script type="application/ld+json">{{ json_ld|tojson }}</script>{% endblock %}
+
+{% block content %}
+{% set chosen = product.default_size %}
+<div class="st-wrap st-detail-page">
+    <nav class="st-crumbs" aria-label="Breadcrumb">
+        <a href="/marketplace">Home</a> <span aria-hidden="true">/</span>
+        <a href="/marketplace/products?category={{ product.category_slug }}">{{ product.category_name }}</a> <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ product.title }}</span>
+    </nav>
+
+    <div class="st-detail-grid">
+        {{ cards.gallery(product.images, 'fa-bottle-droplet') }}
+
+        <div class="st-detail-info">
+            {% if product.brand %}<div class="st-eyebrow">{{ product.brand }}</div>{% endif %}
+            <h1>{{ product.title }}</h1>
+            {% if product.short_description %}<p class="st-lead">{{ product.short_description }}</p>{% endif %}
+
+            <div class="st-detail-price" aria-live="polite">
+                <span class="st-price st-price-lg" data-size-price>{{ chosen.price|inr }}</span>
+                <s class="st-mrp" data-size-mrp {% if not chosen.discount_percent %}hidden{% endif %}>{{ chosen.mrp|inr }}</s>
+                <span class="st-off" data-size-off {% if not chosen.discount_percent %}hidden{% endif %}>{{ chosen.discount_percent }}% off</span>
+            </div>
+            <p class="st-tax-note">Pay on delivery.</p>
+
+            <form method="post" action="/marketplace/cart/add">
+                <fieldset class="st-sizes">
+                    <legend>Size</legend>
+                    {% for size in product.sizes %}
+                    <label class="st-size-option {{ 'st-size-out' if not size.in_stock }}">
+                        <input type="radio" name="variant_id" value="{{ size.variant_id }}" {% if size is sameas chosen %}checked{% endif %}
+                            data-price="{{ size.price|inr }}" data-mrp="{{ size.mrp|inr }}" data-off="{{ size.discount_percent }}"
+                            data-in-stock="{{ '1' if size.in_stock else '0' }}"
+                            data-stock="{% if not size.in_stock %}Out of stock{% elif size.few_left %}Only {{ size.few_left }} left{% else %}In stock{% endif %}">
+                        <span>{{ size.name }}</span>
+                        <small>{{ size.price|inr }}</small>
+                    </label>
+                    {% endfor %}
+                </fieldset>
+
+                <p class="st-stock" data-size-stock aria-live="polite">{% if not chosen.in_stock %}Out of stock{% elif chosen.few_left %}Only {{ chosen.few_left }} left{% else %}In stock{% endif %}</p>
+
+                {% if frame.settings.is_store_open %}
+                <div class="st-buy">
+                    <label class="st-qty">
+                        <span>Quantity</span>
+                        <input type="number" name="quantity" value="1" min="1" max="50" inputmode="numeric">
+                    </label>
+                    <button class="st-btn st-btn-forest" data-buy {% if not chosen.in_stock %}disabled{% endif %}><i class="fa-solid fa-cart-plus" aria-hidden="true"></i> Add to cart</button>
+                    <button class="st-btn st-btn-gold" name="buy_now" value="1" data-buy {% if not chosen.in_stock %}disabled{% endif %}>Buy now</button>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% if product.description or product.specifications %}
+    <div class="st-detail-more">
+        {% if product.description %}
+        <section>
+            <h2>About this product</h2>
+            <p class="st-prose">{{ product.description }}</p>
+        </section>
+        {% endif %}
+        {% if product.specifications %}
+        <section>
+            <h2>Specifications</h2>
+            <dl class="st-spec-table">
+                {% for spec in product.specifications %}<div><dt>{{ spec.label }}</dt><dd>{{ spec.value }}</dd></div>{% endfor %}
+            </dl>
+        </section>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if related %}
+    <section class="st-section" aria-labelledby="related-title">
+        <div class="st-section-head"><h2 id="related-title">You may also like</h2></div>
+        <div class="st-grid st-grid-products">{% for item in related %}{{ cards.product_card(item) }}{% endfor %}</div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

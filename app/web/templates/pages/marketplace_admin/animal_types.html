@@ -1,0 +1,74 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Animal types{% endblock %}
+{% block heading %}Animal types and breeds{% endblock %}
+{% block subheading %}<p class="mk-sub">The choices sellers pick from when listing an animal.</p>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-form-grid">
+    <div>
+        {% for item in animal_types %}
+        <section class="mk-card mk-card-pad">
+            <div class="mk-card-head">
+                <div class="mk-item">
+                    {% if item.image_url %}
+                    <img class="mk-thumb" src="{{ item.image_url }}" alt="" loading="lazy" width="48" height="48">
+                    {% else %}
+                    <span class="mk-thumb mk-thumb-empty"><i class="fa-solid fa-cow" aria-hidden="true"></i></span>
+                    {% endif %}
+                    <div>
+                        <h2 class="mk-card-title">{{ item.name }}</h2>
+                        <span class="mk-pill {{ 'mk-pill-published' if item.is_active else 'mk-pill-off' }}">{{ 'Active' if item.is_active else 'Inactive' }}</span>
+                    </div>
+                </div>
+                <div class="mk-row-actions" style="width:auto;padding:0">
+                    <a class="mk-btn mk-btn-sm" href="?edit={{ item.id }}">Edit</a>
+                    <form method="post" action="/admin/marketplace/animal-types/{{ item.id }}/delete" data-confirm="Delete the animal type “{{ item.name }}”?">
+                        <button class="mk-btn mk-btn-sm mk-btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="mk-chips">
+                {% for breed in breeds_by_type[item.id] %}
+                <form class="mk-chip" method="post" action="/admin/marketplace/animal-breeds/{{ breed.id }}/delete" data-confirm="Delete the breed “{{ breed.name }}”?">
+                    {{ breed.name }}
+                    <button aria-label="Delete {{ breed.name }}"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                </form>
+                {% else %}
+                <span class="mk-hint">No breeds yet.</span>
+                {% endfor %}
+            </div>
+
+            <form class="mk-inline-form" method="post" enctype="multipart/form-data" action="/admin/marketplace/animal-breeds">
+                <input type="hidden" name="animal_type_id" value="{{ item.id }}">
+                <input type="hidden" name="is_active" value="on">
+                <input type="text" name="name" placeholder="Add a breed" aria-label="New breed of {{ item.name }}">
+                <button class="mk-btn">Add</button>
+            </form>
+            {% if breed_errors.get(item.id|string) %}<span class="mk-error" role="alert">{{ breed_errors[item.id|string] }}</span>{% endif %}
+        </section>
+        {% else %}
+        <div class="mk-card"><div class="mk-empty"><i class="fa-solid fa-cow" aria-hidden="true"></i><div class="mk-empty-title">No animal types yet</div>Add your first type using the form.</div></div>
+        {% endfor %}
+    </div>
+
+    <aside class="mk-side">
+        <form class="mk-card mk-card-pad" method="post" enctype="multipart/form-data" action="/admin/marketplace/animal-types" novalidate>
+            <div class="mk-card-head"><h2 class="mk-card-title">{{ 'Edit ' ~ editing.name if editing else 'Add an animal type' }}</h2></div>
+            {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+            <div class="mk-fields" style="grid-template-columns:minmax(0,1fr)">
+                {{ ui.input('name', 'Name', form, errors, required=true) }}
+                {{ ui.image_field(form if editing else {}, errors) }}
+                {{ ui.input('sort_order', 'Display order', form, errors, type='number', step='1') }}
+                {{ ui.checkbox('is_active', 'Show in the store', form) }}
+            </div>
+            <div class="mk-form-actions" style="margin-top:16px">
+                <button class="mk-btn mk-btn-primary">{{ 'Save changes' if editing else 'Add type' }}</button>
+                {% if editing %}<a class="mk-btn" href="/admin/marketplace/animal-types">Cancel</a>{% endif %}
+            </div>
+        </form>
+    </aside>
+</div>
+{% endblock %}

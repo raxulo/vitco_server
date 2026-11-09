@@ -79,6 +79,14 @@ class SQLiteDriver(BaseDatabaseDriver):
                             # Nullable: older / guest orders have no buyer
                             cur.execute("ALTER TABLE marketplace_orders ADD COLUMN buyer_id UUID REFERENCES users(id);")
                             cur.execute("CREATE INDEX IF NOT EXISTS ix_marketplace_orders_buyer_id ON marketplace_orders (buyer_id);")
+                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mkt_orders';")
+                    if cur.fetchone():
+                        cur.execute("PRAGMA table_info(mkt_orders);")
+                        cols = [c[1] for c in cur.fetchall()]
+                        if "checkout_token" not in cols:
+                            # SQLite cannot add a UNIQUE column, so uniqueness comes from the index
+                            cur.execute("ALTER TABLE mkt_orders ADD COLUMN checkout_token VARCHAR(36);")
+                            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_mkt_orders_checkout_token ON mkt_orders (checkout_token);")
                     cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='vlcc_master';")
                     if cur.fetchone():
                         cur.execute("PRAGMA table_info(vlcc_master);")

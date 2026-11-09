@@ -1,0 +1,48 @@
+{% extends "layouts/store.html" %}
+{% import "pages/store/_cards.html" as cards %}
+
+{% block title %}Search: {{ search_query }} · {{ frame.settings.store_name }}{% endblock %}
+{% block seo %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<div class="st-wrap st-list-page">
+    <header class="st-list-head">
+        <div>
+            <h1>Results for “{{ search_query }}”</h1>
+            <p>{{ animal_total }} animal{{ '' if animal_total == 1 else 's' }} and {{ product_total }} product{{ '' if product_total == 1 else 's' }}</p>
+        </div>
+    </header>
+
+    {% if animals %}
+    <section class="st-section st-section-first" aria-labelledby="animals-title">
+        <div class="st-section-head">
+            <h2 id="animals-title">Animals</h2>
+            {% if animal_total > animals|length %}<a class="st-more" href="/marketplace/animals?{{ query }}">View all {{ animal_total }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+        </div>
+        <div class="st-grid st-grid-animals">{% for animal in animals %}{{ cards.animal_card(animal) }}{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    {% if products %}
+    <section class="st-section {{ 'st-section-first' if not animals }}" aria-labelledby="products-title">
+        <div class="st-section-head">
+            <h2 id="products-title">Products</h2>
+            {% if product_total > products|length %}<a class="st-more" href="/marketplace/products?{{ query }}">View all {{ product_total }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+        </div>
+        <div class="st-grid st-grid-products">{% for product in products %}{{ cards.product_card(product) }}{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    {% if not animals and not products %}
+    <div class="st-empty">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <h2>Nothing found</h2>
+        <p>Check the spelling, or browse everything we have.</p>
+        <div class="st-empty-links">
+            <a class="st-btn st-btn-forest" href="/marketplace/animals">Browse animals</a>
+            <a class="st-btn st-btn-plain" href="/marketplace/products">Browse products</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

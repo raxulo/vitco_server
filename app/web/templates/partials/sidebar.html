@@ -56,7 +56,7 @@
 
         <div class="menu-group">
 
-            <div class="menu-group-header {{ group.css_class }}" aria-expanded="true">
+            <div class="menu-group-header {{ group.css_class }}" role="button" tabindex="0" aria-expanded="false">
                 <span>{{ group.label }}</span>
                 <i class="fa-solid fa-chevron-right toggle-icon"></i>
             </div>
@@ -194,7 +194,7 @@
     /* Light rail that matches the white header; the app's primary indigo carries the accents */
     .sidebar {
         --nav-bg: #ffffff;
-        --nav-label: #94a3b8;
+        --nav-label: #64748b;
         --nav-text: #475569;
         --nav-icon: #64748b;
         --nav-chip: #f1f5f9;
@@ -240,7 +240,8 @@
         height: 1px;
         background: var(--nav-rule);
     }
-    .sidebar .menu-group-header:hover { color: #64748b; background: transparent; }
+    .sidebar .menu-group-header:hover { color: #475569; background: transparent; }
+    .sidebar .menu-group-header:focus-visible { outline: 2px solid #4f6ef7; outline-offset: 2px; border-radius: 6px; }
     .sidebar .menu-group.expanded .menu-group-header { font-weight: 700; }
     .sidebar .menu-group-header .toggle-icon { font-size: 9px; color: #cbd5e1; opacity: 1; margin-left: 8px; }
     .sidebar .menu-group-header:hover .toggle-icon { color: #94a3b8; }

@@ -284,4 +284,167 @@ frees email / mobile with a `del_<hex6>_` prefix, like farmers. Deleted users ar
 
 ---
 
-*Last updated: 2026-10-25*
+## [DECISION-015] Remove legacy marketplace code, keep its tables, build on new `mkt_*` tables
+
+**Date**: 2026-11-08
+**Status**: Accepted (user decision, Phase 8)
+
+### Decision
+Old marketplace code, API and pages are deleted. Its tables (`animals`, `product_offers`,
+`marketplace_orders` and the rest) stay untouched in existing databases. The new module uses only new
+`mkt_*` tables. Dropping legacy tables is a separate, explicit step after the server data is checked.
+
+### Why
+- The server's data cannot be inspected from this workspace, so dropping tables could lose data for good.
+- New table names let the new schema be designed freely; `create_all` never alters existing tables.
+
+### Consequence
+`animals`, `product_offers` and `marketplace_orders` reference `users` with `ON DELETE RESTRICT` and
+SQLite runs with `foreign_keys=ON`. The Recycle Bin purge must keep deleting legacy rows, using table
+definitions that do not depend on the removed models and that tolerate absent tables on fresh installs.
+
+---
+
+## [DECISION-016] Super Admin is the only seller now, with a seam for Admin / Sub Admin
+
+**Date**: 2026-11-08
+**Status**: Accepted (user decision, Phase 9)
+
+### Decision
+Every listing and order line stores `seller_user_id`. One `SellerPolicy` in the marketplace domain lists
+the roles allowed to sell, currently only `SUPER_ADMIN`. Repository scope gives Super Admin every record
+and any other seller only their own. Handlers call the policy and the scope; routers do not check seller
+roles themselves.
+
+### Why
+The user wants Admin and Sub Admin able to sell later. Keeping that rule in one place means no schema
+change and no rewrite. Tests run the scope with a non-Super-Admin seller so the seam stays proven.
+
+---
+
+## [DECISION-017] Animals are bought through enquiry, not the cart
+
+**Date**: 2026-11-08
+**Status**: Accepted (user decision, Phase 13)
+
+### Decision
+Animal detail pages offer Call, WhatsApp and an enquiry form. Animals never enter the cart or an order.
+Enquiries are stored and worked in the Control Center; sold or reserved animals are controlled by listing status.
+
+### Why
+Buyers usually inspect an animal and negotiate before purchase.
+
+---
+
+## [DECISION-018] Guest checkout with Cash on Delivery first
+
+**Date**: 2026-11-08
+**Status**: Accepted (user decision, Phase 14)
+
+### Decision
+Orders need name, phone, address and pincode, with no account. Payment is COD. Orders store
+`payment_method` and `payment_status`, and `buyer_user_id` stays nullable, so online payment and customer
+accounts can be added later. The server computes prices and totals and ignores client amounts. Stock is
+reduced with a guarded atomic `UPDATE ... WHERE stock >= quantity` inside the order transaction. Tracking
+needs both the reference and the phone number.
+
+### Why
+This needs no SMS or payment provider now and leaves room for both later.
+
+---
+
+## [DECISION-019] Marketplace URLs are deny-by-default
+
+**Date**: 2026-11-08
+**Status**: Accepted (Phase 10)
+
+### Decision
+- Public storefront: `/marketplace/...`
+- Public API: `/api/v1/marketplace/...`
+- Control Center: `/admin/marketplace/...`
+- Admin API: `/api/v1/admin/marketplace/...`
+
+### Why
+`AuthenticationMiddleware` treats `/marketplace` and `/api/v1/marketplace` as public prefixes through
+`startswith`, so the old `/marketplace/setup` relied only on per-route checks, and a name like
+`/marketplace-admin` would also be public. Admin routes live outside those prefixes and also enforce the role.
+
+---
+
+## [DECISION-020] Standalone storefront layout and design system
+
+**Date**: 2026-11-08
+**Status**: Accepted (Phase 12)
+
+### Decision
+The store gets its own `layouts/store.html` and token-based stylesheet instead of extending the dashboard
+layout. It stays server-rendered with Jinja, HTMX and small vanilla JS modules, all self-hosted. Logged-in
+users see the same store, with a link back to their dashboard.
+
+### Why
+A customer-facing shop needs its own navigation and visual language. No build step is added, and pages
+do not depend on a CDN.
+
+---
+
+## [DECISION-021] Branch from the current work line, not `develop`
+
+**Date**: 2026-11-08
+**Status**: Accepted (user to confirm when reviewing the plan)
+
+### Decision
+`feature/marketplace-revamp` starts at commit `a345c6f`, the tip of `bugfix/static-asset-loading`.
+
+### Why
+`main` and `develop` are 35 commits behind that tip and lack recent work, including the Excel exchange and
+Recycle Bin changes this milestone depends on. `develop` was not changed. Bringing it up to date stays the
+user's decision.
+
+---
+
+## [DECISION-022] Marketplace images go through `MediaService`
+
+**Date**: 2026-11-08
+**Status**: Accepted (Phase 10)
+
+### Decision
+All marketplace images use the existing `MediaService` and `MediaCategory` values `PRODUCT`, `ANIMAL`,
+`BANNER` and `CATEGORY`, not files under `static/uploads/`.
+
+### Why
+It already validates and stores files and serves them with long-lived cache headers, and it keeps user
+uploads out of the source tree.
+
+---
+
+## [DECISION-023] No admin REST API in this milestone
+
+**Date**: 2026-11-09
+**Status**: Accepted (Phase 15)
+
+### Decision
+`/api/v1/admin/marketplace` from DECISION-019 is not built. The Control Center is a server-rendered website,
+and sellers use nothing else. The URL stays reserved.
+
+### Why
+REQ-46 asks only for the public API, and no client needs an admin one. An unused admin API would be more to
+secure with nothing gained.
+
+---
+
+## [DECISION-024] SQL statements stay out of the logs unless asked for
+
+**Date**: 2026-11-09
+**Status**: Accepted (Phase 15)
+
+### Decision
+`LoggerManager` sets the `sqlalchemy.*` loggers to WARNING unless `DATABASE_ECHO` is on. This applies to the whole app.
+
+### Why
+They were always at INFO, so every statement and its values reached the log files: buyer names, phones and
+addresses, and password hashes. It also cost about 18 log records per store request. Database warnings and
+errors are still logged.
+
+---
+
+*Last updated: 2026-11-08*

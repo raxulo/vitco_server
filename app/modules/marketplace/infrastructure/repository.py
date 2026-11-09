@@ -1,667 +1,436 @@
 """
-Marketplace Infrastructure Repository
+Marketplace catalog repository.
 
-Enterprise-grade repository handling database persistence and media module integration for:
-- Hero Banners (MarketplaceBannerModel)
-- Trending Tags (MarketplaceTrendingTagModel)
-- Browse Category Cards (MarketplaceBrowseCategoryModel)
-- Product Categories (ProductCategoryModel)
-- Animal Types Master (AnimalTypeModel)
-- Catalog Products & Variants (MarketplaceProductModel, ProductVariantModel)
-- Product Offers & Inventory (ProductOfferModel, InventoryModel)
-- Cattle Listings (AnimalModel / AnimalListingModel)
-
-Integrates with app.core.database.manager (DatabaseManager) and app.modules.media (MediaService).
+Python 3.13+
 """
 
-from app.modules.administration.infrastructure.models import UserModel
+from __future__ import annotations
 
-from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator
-from typing import Any
-from uuid import UUID, uuid4
-from fastapi import UploadFile
-from sqlalchemy import select, delete, update, func
+from uuid import UUID
+
+from sqlalchemy import delete, false, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.core.clock import now_naive_ist
 from app.core.database.manager import DatabaseManager
-from app.modules.media.application.services import MediaService, MediaUrlService
-from app.modules.media.domain.enums import MediaCategory
+from app.modules.administration.domain.enums import Role
+from app.modules.marketplace.domain.dto import CatalogOverview, LowStockItem
+from app.modules.marketplace.domain.entities import (
+    Animal,
+    AnimalBreed,
+    AnimalType,
+    Category,
+    Enquiry,
+    ListingViewer,
+    Product,
+)
+from app.modules.marketplace.domain.enums import (
+    AnimalStatus,
+    EnquiryStatus,
+    OrderStatus,
+    ProductStatus,
+)
+from app.modules.marketplace.domain.exceptions import (
+    AnimalNotFoundException,
+    EnquiryNotFoundException,
+    ProductNotFoundException,
+)
+from app.modules.marketplace.domain.irepository import IMarketplaceRepository
+from app.modules.marketplace.infrastructure.mapper import MarketplaceMapper
 from app.modules.marketplace.infrastructure.models import (
-    MarketplaceBannerModel,
-    MarketplaceTrendingTagModel,
-    MarketplaceBrowseCategoryModel,
-    ProductCategoryModel,
-    AnimalTypeModel,
-    MarketplaceProductModel,
-    ProductVariantModel,
-    ProductOfferModel,
-    InventoryModel,
-    AnimalModel,
-    AnimalListingModel,
+    MarketplaceAnimalBreedModel,
+    MarketplaceAnimalModel,
+    MarketplaceAnimalTypeModel,
     MarketplaceCategoryModel,
+    MarketplaceEnquiryModel,
+    MarketplaceOrderItemModel,
     MarketplaceOrderModel,
+    MarketplaceProductModel,
+    MarketplaceProductVariantModel,
 )
 
 
-def _ensure_uuid(val: UUID | str | None) -> UUID | None:
-    if val is None:
-        return None
-    if isinstance(val, UUID):
-        return val
-    try:
-        return UUID(str(val))
-    except (ValueError, TypeError, AttributeError):
-        return None
+class MarketplaceAccessScope:
+    """Super Admin reaches every listing, another seller only their own, nobody else anything."""
+
+    __slots__ = ()
+
+    @staticmethod
+    def condition(viewer: ListingViewer | None, seller_column):
+        if viewer is None:
+            return false()
+        if viewer.role_type == Role.SUPER_ADMIN:
+            return true()
+        return seller_column == viewer.id
 
 
-class MarketplaceRepository:
-    """Repository managing all Marketplace Database operations and Media file uploads."""
+class MarketplaceRepository(IMarketplaceRepository):
 
-    def __init__(self, db: DatabaseManager | None = None, media_service: MediaService | None = None) -> None:
-        self.database = db
-        self.media_service = media_service
+    __slots__ = ("_database",)
 
-    @asynccontextmanager
-    async def _get_session(self) -> AsyncIterator[tuple[AsyncSession, bool]]:
-        if not self.database:
-            raise RuntimeError("DatabaseManager is not configured.")
-        try:
-            session = self.database.session
-            yield session, False
-        except RuntimeError:
-            async with self.database.session() as session:
-                yield session, True
+    def __init__(self, database: DatabaseManager) -> None:
+        self._database = database
 
-    async def _save_changes(self, session: AsyncSession, standalone: bool, instance: Any | None = None) -> None:
-        if standalone:
-            await session.commit()
-            if instance:
-                await session.refresh(instance)
+    @property
+    def _session(self) -> AsyncSession:
+        return self._database.session
+
+    # =========================================================
+    # MASTERS
+    # =========================================================
+
+    async def save_category(self, category: Category) -> None:
+        model = await self._session.get(MarketplaceCategoryModel, category.id)
+        if model is None:
+            self._session.add(MarketplaceMapper.category_to_model(category))
         else:
-            await session.flush()
+            MarketplaceMapper.apply_category(category, model)
+
+    async def get_category(self, category_id: UUID) -> Category | None:
+        model = await self._session.get(MarketplaceCategoryModel, category_id)
+        return None if model is None else MarketplaceMapper.category_to_entity(model)
+
+    async def list_categories(self, active_only: bool = False) -> list[Category]:
+        stmt = select(MarketplaceCategoryModel).order_by(
+            MarketplaceCategoryModel.sort_order, MarketplaceCategoryModel.name
+        )
+        if active_only:
+            stmt = stmt.where(MarketplaceCategoryModel.is_active.is_(True))
+        return [MarketplaceMapper.category_to_entity(m) for m in await self._session.scalars(stmt)]
+
+    async def category_slug_taken(self, slug: str) -> bool:
+        return await self._exists(select(MarketplaceCategoryModel.id).where(MarketplaceCategoryModel.slug == slug))
+
+    async def category_usage(self, category_id: UUID) -> int:
+        products = await self._count(select(MarketplaceProductModel.id).where(MarketplaceProductModel.category_id == category_id))
+        children = await self._count(select(MarketplaceCategoryModel.id).where(MarketplaceCategoryModel.parent_id == category_id))
+        return products + children
+
+    async def delete_category(self, category_id: UUID) -> None:
+        await self._session.execute(delete(MarketplaceCategoryModel).where(MarketplaceCategoryModel.id == category_id))
+
+    async def get_animal_type(self, animal_type_id: UUID) -> AnimalType | None:
+        model = await self._session.get(MarketplaceAnimalTypeModel, animal_type_id)
+        return None if model is None else MarketplaceMapper.animal_type_to_entity(model)
+
+    async def animal_type_name_taken(self, name: str, exclude_id: UUID | None = None) -> bool:
+        stmt = select(MarketplaceAnimalTypeModel.id).where(func.lower(MarketplaceAnimalTypeModel.name) == name.lower())
+        if exclude_id is not None:
+            stmt = stmt.where(MarketplaceAnimalTypeModel.id != exclude_id)
+        return await self._exists(stmt)
+
+    async def animal_type_usage(self, animal_type_id: UUID) -> int:
+        animals = await self._count(select(MarketplaceAnimalModel.id).where(MarketplaceAnimalModel.animal_type_id == animal_type_id))
+        breeds = await self._count(select(MarketplaceAnimalBreedModel.id).where(MarketplaceAnimalBreedModel.animal_type_id == animal_type_id))
+        return animals + breeds
+
+    async def delete_animal_type(self, animal_type_id: UUID) -> None:
+        await self._session.execute(delete(MarketplaceAnimalTypeModel).where(MarketplaceAnimalTypeModel.id == animal_type_id))
+
+    async def get_animal_breed(self, breed_id: UUID) -> AnimalBreed | None:
+        model = await self._session.get(MarketplaceAnimalBreedModel, breed_id)
+        return None if model is None else MarketplaceMapper.animal_breed_to_entity(model)
+
+    async def breed_name_taken(self, animal_type_id: UUID, name: str, exclude_id: UUID | None = None) -> bool:
+        stmt = select(MarketplaceAnimalBreedModel.id).where(
+            MarketplaceAnimalBreedModel.animal_type_id == animal_type_id,
+            func.lower(MarketplaceAnimalBreedModel.name) == name.lower(),
+        )
+        if exclude_id is not None:
+            stmt = stmt.where(MarketplaceAnimalBreedModel.id != exclude_id)
+        return await self._exists(stmt)
+
+    async def animal_breed_usage(self, breed_id: UUID) -> int:
+        return await self._count(select(MarketplaceAnimalModel.id).where(MarketplaceAnimalModel.breed_id == breed_id))
+
+    async def delete_animal_breed(self, breed_id: UUID) -> None:
+        await self._session.execute(delete(MarketplaceAnimalBreedModel).where(MarketplaceAnimalBreedModel.id == breed_id))
+
+    async def _exists(self, stmt) -> bool:
+        return await self._session.scalar(stmt.limit(1)) is not None
+
+    async def _count(self, stmt) -> int:
+        return await self._session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
     # =========================================================
-    # Media Integration Helper
+    # ENQUIRIES
     # =========================================================
-    async def process_image_upload(
-        self,
-        file: UploadFile,
-        category: MediaCategory = MediaCategory.PRODUCT,
-        entity_id: UUID | None = None,
-    ) -> str | None:
-        """Uploads image file via MediaService and returns public media URL with local disk fallback."""
-        if not file or not getattr(file, "filename", None):
-            return None
-        if self.media_service:
-            try:
-                media = await self.media_service.upload_image(file=file, category=category, entity_id=entity_id)
-                if media and media.storage_key:
-                    return MediaUrlService.build(media.storage_key)
-            except Exception:
-                pass
-        try:
-            import os, uuid
-            ext = os.path.splitext(file.filename)[1] or ".jpg"
-            cat_name = category.value if hasattr(category, "value") else str(category)
-            fn = f"{cat_name}_{uuid.uuid4().hex[:10]}{ext}"
-            static_dir = os.path.join("app", "web", "static", "uploads", "marketplace")
-            os.makedirs(static_dir, exist_ok=True)
-            fp = os.path.join(static_dir, fn)
-            content = await file.read()
-            if content:
-                with open(fp, "wb") as f:
-                    f.write(content)
-                return f"/static/uploads/marketplace/{fn}"
-        except Exception:
-            pass
-        return None
 
-    # =========================================================
-    # HERO BANNERS Persistence
-    # =========================================================
-    async def get_banners(self) -> list[MarketplaceBannerModel]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceBannerModel).where(MarketplaceBannerModel.is_active == True).order_by(MarketplaceBannerModel.sort_order)
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
-
-    async def get_banner_by_id(self, banner_id: UUID | str) -> MarketplaceBannerModel | None:
-        if not self.database:
-            return None
-        bid = _ensure_uuid(banner_id)
-        if not bid:
-            return None
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceBannerModel).where(MarketplaceBannerModel.id == bid)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
-    async def save_banner(self, banner_data: dict[str, Any], banner_id: UUID | str | None = None) -> MarketplaceBannerModel:
-        bid = _ensure_uuid(banner_id)
-        if "id" in banner_data:
-            banner_data["id"] = _ensure_uuid(banner_data["id"])
-
-        if not self.database:
-            return MarketplaceBannerModel(**banner_data)
-
-        async with self._get_session() as (session, standalone):
-            target_id = bid or banner_data.get("id")
-            if target_id:
-                stmt = select(MarketplaceBannerModel).where(MarketplaceBannerModel.id == target_id)
-                res = await session.execute(stmt)
-                banner = res.scalar_one_or_none()
-                if banner:
-                    for k, v in banner_data.items():
-                        if hasattr(banner, k) and k != "id":
-                            if k == "image_url" and not v:
-                                continue
-                            setattr(banner, k, v)
-                    await self._save_changes(session, standalone, banner)
-                    return banner
-
-            banner = MarketplaceBannerModel(**banner_data)
-            session.add(banner)
-            await self._save_changes(session, standalone, banner)
-            return banner
-
-    async def delete_banner(self, banner_id: UUID | str) -> bool:
-        if not self.database:
-            return True
-        bid = _ensure_uuid(banner_id)
-        if not bid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = delete(MarketplaceBannerModel).where(MarketplaceBannerModel.id == bid)
-            await session.execute(stmt)
-            await self._save_changes(session, standalone)
-            return True
-
-    # =========================================================
-    # TRENDING TAGS Persistence
-    # =========================================================
-    async def get_trending_tags(self) -> list[MarketplaceTrendingTagModel]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceTrendingTagModel).where(MarketplaceTrendingTagModel.is_active == True).order_by(MarketplaceTrendingTagModel.sort_order)
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
-
-    async def get_trending_tag_by_id(self, tag_id: UUID | str) -> MarketplaceTrendingTagModel | None:
-        if not self.database:
-            return None
-        tid = _ensure_uuid(tag_id)
-        if not tid:
-            return None
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceTrendingTagModel).where(MarketplaceTrendingTagModel.id == tid)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
-    async def save_trending_tag(self, data: dict[str, Any], tag_id: UUID | str | None = None) -> MarketplaceTrendingTagModel:
-        tid = _ensure_uuid(tag_id)
-        if "id" in data:
-            data["id"] = _ensure_uuid(data["id"])
-
-        if not self.database:
-            return MarketplaceTrendingTagModel(**data)
-
-        async with self._get_session() as (session, standalone):
-            target_id = tid or data.get("id")
-            if target_id:
-                stmt = select(MarketplaceTrendingTagModel).where(MarketplaceTrendingTagModel.id == target_id)
-                res = await session.execute(stmt)
-                tag = res.scalar_one_or_none()
-                if tag:
-                    for k, v in data.items():
-                        if hasattr(tag, k) and k != "id":
-                            setattr(tag, k, v)
-                    await self._save_changes(session, standalone, tag)
-                    return tag
-
-            tag = MarketplaceTrendingTagModel(**data)
-            session.add(tag)
-            await self._save_changes(session, standalone, tag)
-            return tag
-
-    async def delete_trending_tag(self, tag_id: UUID | str) -> bool:
-        if not self.database:
-            return True
-        tid = _ensure_uuid(tag_id)
-        if not tid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = delete(MarketplaceTrendingTagModel).where(MarketplaceTrendingTagModel.id == tid)
-            await session.execute(stmt)
-            await self._save_changes(session, standalone)
-            return True
-
-    # =========================================================
-    # BROWSE CATEGORY CARDS Persistence
-    # =========================================================
-    async def get_browse_categories(self) -> list[MarketplaceBrowseCategoryModel]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceBrowseCategoryModel).where(MarketplaceBrowseCategoryModel.is_active == True).order_by(MarketplaceBrowseCategoryModel.sort_order)
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
-
-    async def get_browse_category_by_id(self, cat_id: UUID | str) -> MarketplaceBrowseCategoryModel | None:
-        if not self.database:
-            return None
-        cid = _ensure_uuid(cat_id)
-        if not cid:
-            return None
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceBrowseCategoryModel).where(MarketplaceBrowseCategoryModel.id == cid)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
-    async def save_browse_category(self, data: dict[str, Any], cat_id: UUID | str | None = None) -> MarketplaceBrowseCategoryModel:
-        cid = _ensure_uuid(cat_id)
-        if "id" in data:
-            data["id"] = _ensure_uuid(data["id"])
-
-        if not self.database:
-            return MarketplaceBrowseCategoryModel(**data)
-
-        async with self._get_session() as (session, standalone):
-            target_id = cid or data.get("id")
-            if target_id:
-                stmt = select(MarketplaceBrowseCategoryModel).where(MarketplaceBrowseCategoryModel.id == target_id)
-                res = await session.execute(stmt)
-                cat = res.scalar_one_or_none()
-                if cat:
-                    for k, v in data.items():
-                        if hasattr(cat, k) and k != "id":
-                            setattr(cat, k, v)
-                    await self._save_changes(session, standalone, cat)
-                    return cat
-
-            cat = MarketplaceBrowseCategoryModel(**data)
-            session.add(cat)
-            await self._save_changes(session, standalone, cat)
-            return cat
-
-    async def delete_browse_category(self, cat_id: UUID | str) -> bool:
-        if not self.database:
-            return True
-        cid = _ensure_uuid(cat_id)
-        if not cid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = delete(MarketplaceBrowseCategoryModel).where(MarketplaceBrowseCategoryModel.id == cid)
-            await session.execute(stmt)
-            await self._save_changes(session, standalone)
-            return True
-
-    # =========================================================
-    # PRODUCT CATEGORIES Persistence
-    # =========================================================
-    async def get_product_categories(self) -> list[ProductCategoryModel]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = select(ProductCategoryModel).where(ProductCategoryModel.is_active == True).order_by(ProductCategoryModel.sort_order)
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
-
-    async def get_product_category_by_id(self, cat_id: UUID | str) -> ProductCategoryModel | None:
-        if not self.database:
-            return None
-        cid = _ensure_uuid(cat_id)
-        if not cid:
-            return None
-        async with self._get_session() as (session, _):
-            stmt = select(ProductCategoryModel).where(ProductCategoryModel.id == cid)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
-    async def save_product_category(self, data: dict[str, Any], cat_id: UUID | str | None = None) -> ProductCategoryModel:
-        cid = _ensure_uuid(cat_id)
-        if "id" in data:
-            data["id"] = _ensure_uuid(data["id"])
-
-        if not self.database:
-            return ProductCategoryModel(**data)
-
-        async with self._get_session() as (session, standalone):
-            target_id = cid or data.get("id")
-            if target_id:
-                stmt = select(ProductCategoryModel).where(ProductCategoryModel.id == target_id)
-                res = await session.execute(stmt)
-                cat = res.scalar_one_or_none()
-                if cat:
-                    for k, v in data.items():
-                        if hasattr(cat, k) and k != "id":
-                            setattr(cat, k, v)
-                    await self._save_changes(session, standalone, cat)
-                    return cat
-
-            cat = ProductCategoryModel(**data)
-            session.add(cat)
-            await self._save_changes(session, standalone, cat)
-            return cat
-
-    async def delete_product_category(self, cat_id: UUID | str) -> bool:
-        if not self.database:
-            return True
-        cid = _ensure_uuid(cat_id)
-        if not cid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = delete(ProductCategoryModel).where(ProductCategoryModel.id == cid)
-            await session.execute(stmt)
-            await self._save_changes(session, standalone)
-            return True
-
-    # Backwards compatibility alias
-    get_categories = get_product_categories
-    save_category = save_product_category
-    delete_category = delete_product_category
-
-    # =========================================================
-    # ANIMAL TYPES Persistence
-    # =========================================================
-    async def get_animal_types(self) -> list[AnimalTypeModel]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = select(AnimalTypeModel).where(AnimalTypeModel.is_active == True)
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
-
-    async def save_animal_type(self, data: dict[str, Any], type_id: UUID | str | None = None) -> AnimalTypeModel:
-        tid = _ensure_uuid(type_id)
-        if "id" in data:
-            data["id"] = _ensure_uuid(data["id"])
-
-        if not self.database:
-            return AnimalTypeModel(**data)
-
-        async with self._get_session() as (session, standalone):
-            target_id = tid or data.get("id")
-            if target_id:
-                stmt = select(AnimalTypeModel).where(AnimalTypeModel.id == target_id)
-                res = await session.execute(stmt)
-                item = res.scalar_one_or_none()
-                if item:
-                    for k, v in data.items():
-                        if hasattr(item, k) and k != "id":
-                            setattr(item, k, v)
-                    await self._save_changes(session, standalone, item)
-                    return item
-
-            item = AnimalTypeModel(**data)
-            session.add(item)
-            await self._save_changes(session, standalone, item)
-            return item
-
-    # =========================================================
-    # CATTLE ANIMALS Persistence
-    # =========================================================
-    async def get_animals(self) -> list[tuple[AnimalModel, UserModel | None, AnimalTypeModel | None]]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = (
-                select(AnimalModel, UserModel, AnimalTypeModel)
-                .outerjoin(UserModel, AnimalModel.seller_user_id == UserModel.id)
-                .outerjoin(AnimalTypeModel, AnimalModel.animal_type_id == AnimalTypeModel.id)
-                .where(AnimalModel.is_active == True)
+    async def list_enquiries(
+        self, viewer: ListingViewer, keyword: str | None, status: EnquiryStatus | None, offset: int, limit: int
+    ) -> tuple[list[Enquiry], int]:
+        stmt = select(MarketplaceEnquiryModel).where(
+            MarketplaceAccessScope.condition(viewer, MarketplaceEnquiryModel.seller_user_id)
+        )
+        if status is not None:
+            stmt = stmt.where(MarketplaceEnquiryModel.status == status)
+        if keyword and keyword.strip():
+            term = keyword.strip()
+            stmt = stmt.where(or_(
+                MarketplaceEnquiryModel.buyer_name.icontains(term, autoescape=True),
+                MarketplaceEnquiryModel.buyer_phone.icontains(term, autoescape=True),
+                MarketplaceEnquiryModel.animal_title.icontains(term, autoescape=True),
+            ))
+        total = await self._count(stmt)
+        page = stmt.order_by(MarketplaceEnquiryModel.created_at.desc()).offset(offset).limit(limit)
+        return [
+            Enquiry(
+                id=model.id, animal_id=model.animal_id, seller_user_id=model.seller_user_id,
+                animal_title=model.animal_title, buyer_name=model.buyer_name, buyer_phone=model.buyer_phone,
+                location=model.location, message=model.message, status=model.status,
+                admin_notes=model.admin_notes, created_at=model.created_at,
             )
-            result = await session.execute(stmt)
-            return list(result.tuples().all())
+            for model in await self._session.scalars(page)
+        ], total
 
-    async def get_animal_by_id(self, animal_id: UUID | str) -> AnimalModel | None:
-        if not self.database:
-            return None
-        aid = _ensure_uuid(animal_id)
-        if not aid:
-            return None
-        async with self._get_session() as (session, _):
-            stmt = select(AnimalModel).where(AnimalModel.id == aid)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
-    async def save_animal(self, data: dict[str, Any], created_by: UUID | str | None = None, animal_id: UUID | str | None = None) -> AnimalModel:
-        aid = _ensure_uuid(animal_id)
-        if "id" in data:
-            data["id"] = _ensure_uuid(data["id"])
-
-        if not self.database:
-            return AnimalModel(**data)
-
-        async with self._get_session() as (session, standalone):
-            # Ensure valid seller_user_id
-            seller_id = _ensure_uuid(created_by) or _ensure_uuid(data.get("seller_user_id"))
-            if not seller_id:
-                stmt_u = select(UserModel.id).limit(1)
-                res_u = await session.execute(stmt_u)
-                seller_id = res_u.scalar_one_or_none()
-                if not seller_id:
-                    default_user = UserModel(
-                        name="System Seller",
-                        email="seller@vitco.com",
-                        password_hash="system_default",
-                    )
-                    session.add(default_user)
-                    await session.flush()
-                    seller_id = default_user.id
-            data["seller_user_id"] = seller_id
-
-            # Ensure valid animal_type_id
-            type_str = data.pop("animal_type", None) or data.pop("type", None)
-            type_id = _ensure_uuid(data.get("animal_type_id"))
-            if type_str:
-                stmt_t = select(AnimalTypeModel).where(func.lower(AnimalTypeModel.name) == str(type_str).lower())
-                res_t = await session.execute(stmt_t)
-                existing_t = res_t.scalar_one_or_none()
-                if existing_t:
-                    type_id = existing_t.id
-                else:
-                    new_t = AnimalTypeModel(
-                        name=str(type_str).capitalize(),
-                        code=str(type_str).upper(),
-                        description=f"{type_str} Master Type",
-                        is_active=True,
-                    )
-                    session.add(new_t)
-                    await session.flush()
-                    type_id = new_t.id
-
-            if not type_id:
-                stmt_t = select(AnimalTypeModel.id).limit(1)
-                res_t = await session.execute(stmt_t)
-                type_id = res_t.scalar_one_or_none()
-                if not type_id:
-                    default_type = AnimalTypeModel(
-                        name="Cow",
-                        code="COW",
-                        description="Cattle Livestock Master",
-                        is_active=True,
-                    )
-                    session.add(default_type)
-                    await session.flush()
-                    type_id = default_type.id
-            data["animal_type_id"] = type_id
-
-            target_id = aid or data.get("id")
-            if target_id:
-                stmt = select(AnimalModel).where(AnimalModel.id == target_id)
-                res = await session.execute(stmt)
-                item = res.scalar_one_or_none()
-                if item:
-                    for k, v in data.items():
-                        if hasattr(item, k) and k != "id":
-                            setattr(item, k, v)
-                    await self._save_changes(session, standalone, item)
-                    return item
-
-            item = AnimalModel(**data)
-            session.add(item)
-            await self._save_changes(session, standalone, item)
-            return item
-
-    async def delete_animal(self, animal_id: UUID | str) -> bool:
-        if not self.database:
-            return True
-        aid = _ensure_uuid(animal_id)
-        if not aid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = delete(AnimalModel).where(AnimalModel.id == aid)
-            await session.execute(stmt)
-            await self._save_changes(session, standalone)
-            return True
-
-    # Backwards compatibility alias
-    save_animal_listing = save_animal
-    delete_animal_listing = delete_animal
-
-    # =========================================================
-    # PRODUCTS Persistence
-    # =========================================================
-    async def get_products(self) -> list[tuple[MarketplaceProductModel, ProductCategoryModel | None]]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = (
-                select(MarketplaceProductModel, ProductCategoryModel)
-                .outerjoin(ProductCategoryModel, MarketplaceProductModel.category_id == ProductCategoryModel.id)
+    async def update_enquiry(
+        self, enquiry_id: UUID, viewer: ListingViewer, status: EnquiryStatus, notes: str | None
+    ) -> None:
+        model = await self._session.scalar(
+            select(MarketplaceEnquiryModel).where(
+                MarketplaceEnquiryModel.id == enquiry_id,
+                MarketplaceAccessScope.condition(viewer, MarketplaceEnquiryModel.seller_user_id),
             )
-            result = await session.execute(stmt)
-            return list(result.tuples().all())
-
-    async def get_product_by_id(self, product_id: UUID | str) -> MarketplaceProductModel | None:
-        if not self.database:
-            return None
-        pid = _ensure_uuid(product_id)
-        if not pid:
-            return None
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceProductModel).where(MarketplaceProductModel.id == pid)
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
-
-    async def save_product(self, data: dict[str, Any], product_id: UUID | str | None = None) -> MarketplaceProductModel:
-        pid = _ensure_uuid(product_id)
-        if "id" in data:
-            data["id"] = _ensure_uuid(data["id"])
-
-        if not self.database:
-            return MarketplaceProductModel(**data)
-
-        async with self._get_session() as (session, standalone):
-            # Ensure valid category_id
-            cat_id = _ensure_uuid(data.get("category_id"))
-            if not cat_id:
-                stmt_c = select(ProductCategoryModel.id).limit(1)
-                res_c = await session.execute(stmt_c)
-                cat_id = res_c.scalar_one_or_none()
-                if not cat_id:
-                    default_cat = ProductCategoryModel(
-                        name="Dairy & Feeds",
-                        slug="dairy-feeds",
-                        description="Animal Nutrition & Feeds",
-                        is_active=True,
-                    )
-                    session.add(default_cat)
-                    await session.flush()
-                    cat_id = default_cat.id
-            data["category_id"] = cat_id
-
-            if "title" in data and not data.get("slug"):
-                data["slug"] = f"{data['title'].lower().replace(' ', '-')}-{uuid4().hex[:6]}"
-
-            target_id = pid or data.get("id")
-            if target_id:
-                stmt = select(MarketplaceProductModel).where(MarketplaceProductModel.id == target_id)
-                res = await session.execute(stmt)
-                item = res.scalar_one_or_none()
-                if item:
-                    for k, v in data.items():
-                        if hasattr(item, k) and k != "id":
-                            setattr(item, k, v)
-                    await self._save_changes(session, standalone, item)
-                    return item
-
-            item = MarketplaceProductModel(**data)
-            session.add(item)
-            await self._save_changes(session, standalone, item)
-            return item
-
-    async def delete_product(self, product_id: UUID | str) -> bool:
-        if not self.database:
-            return True
-        pid = _ensure_uuid(product_id)
-        if not pid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = delete(MarketplaceProductModel).where(MarketplaceProductModel.id == pid)
-            await session.execute(stmt)
-            await self._save_changes(session, standalone)
-            return True
+        )
+        if model is None:
+            raise EnquiryNotFoundException()
+        model.status = status
+        model.admin_notes = notes
+        model.updated_by = viewer.id
 
     # =========================================================
-    # ORDERS PERSISTENCE METHODS
+    # OVERVIEW
     # =========================================================
-    async def create_order(self, data: dict[str, Any]) -> MarketplaceOrderModel:
-        if not self.database:
-            return MarketplaceOrderModel(**data)
-        async with self._get_session() as (session, standalone):
-            order = MarketplaceOrderModel(**data)
-            session.add(order)
-            await self._save_changes(session, standalone, order)
-            return order
 
-    async def get_orders(self) -> list[MarketplaceOrderModel]:
-        if not self.database:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceOrderModel).order_by(MarketplaceOrderModel.created_at.desc())
-            res = await session.execute(stmt)
-            return list(res.scalars().all())
+    async def overview(self, viewer: ListingViewer) -> CatalogOverview:
+        return CatalogOverview(
+            products_total=await self._count(self._products(viewer)),
+            products_published=await self._count(
+                self._products(viewer).where(MarketplaceProductModel.status == ProductStatus.PUBLISHED)
+            ),
+            animals_total=await self._count(self._animals(viewer)),
+            animals_live=await self._count(
+                self._animals(viewer).where(MarketplaceAnimalModel.status == AnimalStatus.PUBLISHED)
+            ),
+            low_stock_variants=await self._count(self._low_stock(viewer)),
+            new_orders=await self._count(
+                select(MarketplaceOrderModel.id).where(
+                    MarketplaceOrderModel.status == OrderStatus.PLACED,
+                    MarketplaceOrderModel.id.in_(
+                        select(MarketplaceOrderItemModel.order_id).where(
+                            MarketplaceAccessScope.condition(viewer, MarketplaceOrderItemModel.seller_user_id)
+                        )
+                    ),
+                )
+            ),
+            new_enquiries=await self._count(
+                select(MarketplaceEnquiryModel.id).where(
+                    MarketplaceEnquiryModel.status == EnquiryStatus.NEW,
+                    MarketplaceAccessScope.condition(viewer, MarketplaceEnquiryModel.seller_user_id),
+                )
+            ),
+        )
 
-    async def get_orders_by_user_id(self, user_id: UUID | str) -> list[MarketplaceOrderModel]:
-        if not self.database:
-            return []
-        uid = _ensure_uuid(user_id)
-        if not uid:
-            return []
-        async with self._get_session() as (session, _):
-            stmt = select(MarketplaceOrderModel).order_by(MarketplaceOrderModel.created_at.desc()).where(MarketplaceOrderModel.buyer_id == uid)
-            res = await session.execute(stmt)
-            return list(res.scalars().all())
+    async def low_stock(self, viewer: ListingViewer, limit: int) -> list[LowStockItem]:
+        rows = await self._session.execute(
+            self._low_stock(viewer).order_by(MarketplaceProductVariantModel.stock).limit(limit)
+        )
+        return [
+            LowStockItem(
+                product_id=row.product_id,
+                product_title=row.product_title,
+                variant_name=row.variant_name,
+                stock=row.stock,
+                low_stock_threshold=row.low_stock_threshold,
+            )
+            for row in rows
+        ]
 
-    async def update_order_status(self, order_id: UUID | str, new_status: str) -> bool:
-        if not self.database:
-            return True
-        oid = _ensure_uuid(order_id)
-        if not oid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = select(MarketplaceOrderModel).where(MarketplaceOrderModel.id == oid)
-            res = await session.execute(stmt)
-            item = res.scalar_one_or_none()
-            if item:
-                item.status = new_status
-                await self._save_changes(session, standalone, item)
-                return True
-            return False
+    @staticmethod
+    def _low_stock(viewer: ListingViewer):
+        """Active sizes of published products at or below their threshold."""
+        return (
+            select(
+                MarketplaceProductModel.id.label("product_id"),
+                MarketplaceProductModel.title.label("product_title"),
+                MarketplaceProductVariantModel.name.label("variant_name"),
+                MarketplaceProductVariantModel.stock,
+                MarketplaceProductVariantModel.low_stock_threshold,
+            )
+            .join(MarketplaceProductModel, MarketplaceProductModel.id == MarketplaceProductVariantModel.product_id)
+            .where(
+                MarketplaceProductModel.is_deleted.is_(False),
+                MarketplaceProductModel.status == ProductStatus.PUBLISHED,
+                MarketplaceProductVariantModel.is_active.is_(True),
+                MarketplaceProductVariantModel.stock <= MarketplaceProductVariantModel.low_stock_threshold,
+                MarketplaceAccessScope.condition(viewer, MarketplaceProductModel.seller_user_id),
+            )
+        )
 
-    async def delete_order(self, order_id: UUID | str) -> bool:
-        if not self.database:
-            return True
-        oid = _ensure_uuid(order_id)
-        if not oid:
-            return False
-        async with self._get_session() as (session, standalone):
-            stmt = delete(MarketplaceOrderModel).where(MarketplaceOrderModel.id == oid)
-            await session.execute(stmt)
-            await self._save_changes(session, standalone)
-            return True
+    # =========================================================
+    # ANIMAL TYPES & BREEDS
+    # =========================================================
+
+    async def save_animal_type(self, animal_type: AnimalType) -> None:
+        model = await self._session.get(MarketplaceAnimalTypeModel, animal_type.id)
+        if model is None:
+            self._session.add(MarketplaceMapper.animal_type_to_model(animal_type))
+        else:
+            MarketplaceMapper.apply_animal_type(animal_type, model)
+
+    async def list_animal_types(self, active_only: bool = False) -> list[AnimalType]:
+        stmt = select(MarketplaceAnimalTypeModel).order_by(
+            MarketplaceAnimalTypeModel.sort_order, MarketplaceAnimalTypeModel.name
+        )
+        if active_only:
+            stmt = stmt.where(MarketplaceAnimalTypeModel.is_active.is_(True))
+        return [MarketplaceMapper.animal_type_to_entity(m) for m in await self._session.scalars(stmt)]
+
+    async def save_animal_breed(self, breed: AnimalBreed) -> None:
+        model = await self._session.get(MarketplaceAnimalBreedModel, breed.id)
+        if model is None:
+            self._session.add(MarketplaceMapper.animal_breed_to_model(breed))
+        else:
+            MarketplaceMapper.apply_animal_breed(breed, model)
+
+    async def list_animal_breeds(
+        self, animal_type_id: UUID | None = None, active_only: bool = False
+    ) -> list[AnimalBreed]:
+        stmt = select(MarketplaceAnimalBreedModel).order_by(
+            MarketplaceAnimalBreedModel.sort_order, MarketplaceAnimalBreedModel.name
+        )
+        if animal_type_id is not None:
+            stmt = stmt.where(MarketplaceAnimalBreedModel.animal_type_id == animal_type_id)
+        if active_only:
+            stmt = stmt.where(MarketplaceAnimalBreedModel.is_active.is_(True))
+        return [MarketplaceMapper.animal_breed_to_entity(m) for m in await self._session.scalars(stmt)]
+
+    # =========================================================
+    # PRODUCTS
+    # =========================================================
+
+    @staticmethod
+    def _products(viewer: ListingViewer | None):
+        return select(MarketplaceProductModel).where(
+            MarketplaceProductModel.is_deleted.is_(False),
+            MarketplaceAccessScope.condition(viewer, MarketplaceProductModel.seller_user_id),
+        )
+
+    @staticmethod
+    def _with_product_children(stmt):
+        return stmt.options(
+            selectinload(MarketplaceProductModel.variants),
+            selectinload(MarketplaceProductModel.images),
+        )
+
+    async def _product_model(self, product_id: UUID, viewer: ListingViewer) -> MarketplaceProductModel | None:
+        stmt = self._with_product_children(self._products(viewer).where(MarketplaceProductModel.id == product_id))
+        return await self._session.scalar(stmt)
+
+    async def create_product(self, product: Product) -> None:
+        self._session.add(MarketplaceMapper.product_to_model(product))
+
+    async def update_product(self, product: Product, viewer: ListingViewer) -> None:
+        model = await self._product_model(product.id, viewer)
+        if model is None:
+            raise ProductNotFoundException()
+        MarketplaceMapper.apply_product(product, model)
+
+    async def get_product(self, product_id: UUID, viewer: ListingViewer) -> Product | None:
+        model = await self._product_model(product_id, viewer)
+        return None if model is None else MarketplaceMapper.product_to_entity(model)
+
+    async def product_slug_taken(self, slug: str) -> bool:
+        return await self._exists(select(MarketplaceProductModel.id).where(MarketplaceProductModel.slug == slug))
+
+    async def sku_taken(self, sku: str, exclude_variant_ids: set[UUID]) -> bool:
+        stmt = select(MarketplaceProductVariantModel.id).where(MarketplaceProductVariantModel.sku == sku)
+        if exclude_variant_ids:
+            stmt = stmt.where(MarketplaceProductVariantModel.id.not_in(exclude_variant_ids))
+        return await self._exists(stmt)
+
+    async def list_products(
+        self, viewer: ListingViewer, keyword: str | None, offset: int, limit: int, status: ProductStatus | None = None
+    ) -> tuple[list[Product], int]:
+        stmt = self._products(viewer)
+        if status is not None:
+            stmt = stmt.where(MarketplaceProductModel.status == status)
+        if keyword and keyword.strip():
+            pattern = f"%{keyword.strip()}%"
+            stmt = stmt.where(
+                or_(MarketplaceProductModel.title.ilike(pattern), MarketplaceProductModel.brand.ilike(pattern))
+            )
+        total = await self._session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+        page = self._with_product_children(stmt).order_by(
+            MarketplaceProductModel.sort_order, MarketplaceProductModel.created_at.desc()
+        ).offset(offset).limit(limit)
+        return [MarketplaceMapper.product_to_entity(m) for m in await self._session.scalars(page)], total
+
+    async def delete_product(self, product_id: UUID, viewer: ListingViewer) -> None:
+        model = await self._session.scalar(self._products(viewer).where(MarketplaceProductModel.id == product_id))
+        if model is None:
+            raise ProductNotFoundException()
+        model.is_deleted = True
+        model.deleted_at = now_naive_ist()
+        model.deleted_by = viewer.id
+
+    # =========================================================
+    # ANIMALS
+    # =========================================================
+
+    @staticmethod
+    def _animals(viewer: ListingViewer | None):
+        return select(MarketplaceAnimalModel).where(
+            MarketplaceAnimalModel.is_deleted.is_(False),
+            MarketplaceAccessScope.condition(viewer, MarketplaceAnimalModel.seller_user_id),
+        )
+
+    async def _animal_model(self, animal_id: UUID, viewer: ListingViewer) -> MarketplaceAnimalModel | None:
+        stmt = (
+            self._animals(viewer)
+            .where(MarketplaceAnimalModel.id == animal_id)
+            .options(selectinload(MarketplaceAnimalModel.images))
+        )
+        return await self._session.scalar(stmt)
+
+    async def create_animal(self, animal: Animal) -> None:
+        self._session.add(MarketplaceMapper.animal_to_model(animal))
+
+    async def update_animal(self, animal: Animal, viewer: ListingViewer) -> None:
+        model = await self._animal_model(animal.id, viewer)
+        if model is None:
+            raise AnimalNotFoundException()
+        MarketplaceMapper.apply_animal(animal, model)
+
+    async def get_animal(self, animal_id: UUID, viewer: ListingViewer) -> Animal | None:
+        model = await self._animal_model(animal_id, viewer)
+        return None if model is None else MarketplaceMapper.animal_to_entity(model)
+
+    async def animal_slug_taken(self, slug: str) -> bool:
+        return await self._exists(select(MarketplaceAnimalModel.id).where(MarketplaceAnimalModel.slug == slug))
+
+    async def list_animals(
+        self, viewer: ListingViewer, keyword: str | None, offset: int, limit: int, status: AnimalStatus | None = None
+    ) -> tuple[list[Animal], int]:
+        stmt = self._animals(viewer)
+        if status is not None:
+            stmt = stmt.where(MarketplaceAnimalModel.status == status)
+        if keyword and keyword.strip():
+            pattern = f"%{keyword.strip()}%"
+            stmt = stmt.where(
+                or_(MarketplaceAnimalModel.title.ilike(pattern), MarketplaceAnimalModel.district.ilike(pattern))
+            )
+        total = await self._session.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+        page = stmt.options(selectinload(MarketplaceAnimalModel.images)).order_by(
+            MarketplaceAnimalModel.sort_order, MarketplaceAnimalModel.created_at.desc()
+        ).offset(offset).limit(limit)
+        return [MarketplaceMapper.animal_to_entity(m) for m in await self._session.scalars(page)], total
+
+    async def delete_animal(self, animal_id: UUID, viewer: ListingViewer) -> None:
+        model = await self._session.scalar(self._animals(viewer).where(MarketplaceAnimalModel.id == animal_id))
+        if model is None:
+            raise AnimalNotFoundException()
+        model.is_deleted = True
+        model.deleted_at = now_naive_ist()
+        model.deleted_by = viewer.id

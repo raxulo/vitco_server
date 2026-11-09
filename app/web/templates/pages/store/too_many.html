@@ -1,0 +1,16 @@
+{% extends "layouts/store.html" %}
+
+{% block title %}Please wait a moment · {{ frame.settings.store_name }}{% endblock %}
+{% block seo %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<div class="st-wrap st-list-page">
+    <div class="st-empty">
+        <i class="fa-regular fa-clock" aria-hidden="true"></i>
+        <h1>Please wait a few minutes</h1>
+        <p>We received many requests from your connection. Please try again shortly.</p>
+        {% if frame.settings.support_phone %}<p>Need help now? Call <a class="st-inline-link" href="tel:{{ frame.settings.support_phone }}">{{ frame.settings.support_phone }}</a>.</p>{% endif %}
+        <div class="st-empty-links"><a class="st-btn st-btn-forest" href="/marketplace">Back to the store</a></div>
+    </div>
+</div>
+{% endblock %}

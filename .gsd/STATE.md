@@ -1,23 +1,34 @@
 ---
-updated: 2026-10-25T00:00:00+05:30
+updated: 2026-11-08T00:00:00+05:30
 ---
 
 # Project State
 
 ## Current Position
 
-**Phase:** 7 - Super Admin Recycle Bin
-**Status:** ✅ Complete (verified 2026-11-04) — awaiting commit approval
-**Plan:** 7.1 (Soft-delete admins & purge engine), 7.2 (Recycle Bin web page & tests)
-**Branch:** current working branch; commit after `/verify` and user approval
+**Milestone:** v1.2.0 - Marketplace Revamp
+**Phase:** 15 - Public API, SEO & Launch Hardening
+**Status:** ✅ Complete (verified 2026-11-09); all phases of v1.2.0 are done and nothing is committed yet
+**Plan:** Next is the user's final look at the pages and approval of the milestone commit message
+**Branch:** `feature/marketplace-revamp`; commit after `/verify` and user approval
 
 ## Last Action
 
-- 2026-11-04: Phase 7 researched, planned, executed and verified (VERIFICATION.md): recycle bin module + page, admin soft delete, who / when shown, VLCC delete now stores deleted_at / deleted_by, cleaner sidebar. 16 new tests; full suite 304 passed, 2 pre-existing failures.
+- 2026-11-09: Phase 15 executed and verified: public API, rate limits, SEO, axe and keyboard audits, real-server load runs, release checklist. Audit also stopped SQL values reaching the logs (DECISION-024). Full suite including the throughput test: 831 passed, and the 1 failure also occurs on `a345c6f`.
+- 2026-11-09: Phase 14 executed and verified in real Chrome: cart, guest COD checkout, tracking, seller orders, parallel order tests. Full suite without the throughput test: 764 passed, and the 1 failure also occurs on `a345c6f`.
+- 2026-11-09: Phase 13 executed and verified in real Chrome: listings, filters, details, search, policies, enquiries, inbox. Full suite without the throughput test: 692 passed, and the 1 failure also occurs on `a345c6f`.
+- 2026-11-09: Phase 12 verified in real Chrome and design approved by the user: store layout, design system, public home page. Full suite without the throughput test: 587 passed, and the 1 failure also occurs on `a345c6f`.
+- 2026-11-09: Phase 11 executed and verified in real Chrome: banners, home sections, trending links, store settings. Full suite without the throughput test: 555 passed, and the 1 failure also occurs on `a345c6f`.
+- 2026-11-09: Phase 10 executed and verified in real Chrome: Control Center at `/admin/marketplace` with overview, products, animals, categories, animal types and breeds. Full suite without the throughput test: 475 passed, and the 1 failure also occurs on `a345c6f`.
+- 2026-11-09: Phase 9 executed and verified: 15 `mkt_*` tables, seller policy and scope, catalog repository, starter data, Recycle Bin coverage. Full suite without the throughput test: 385 passed, and the 1 failure also occurs on `a345c6f`.
+- 2026-11-09: Phase 8 executed and verified (VERIFICATION.md). Full suite: 336 passed; the 2 failures also occur on `a345c6f`. User asked to keep implementing phase by phase.
+- 2026-11-08: Milestone v1.2.0 created: SPEC goal 5 revised, REQ-28 to REQ-47 and NFR-15 to NFR-18 added, DECISION-015 to 022 recorded, phases 8 to 15 on the roadmap, Phase 8 researched and planned. Old roadmap archived to `milestones/v1.1.0/`. No application code changed yet.
 
 ## Next Steps
 
-1. Commit Phase 7 after user approval.
+1. User looks over the real pages (final sign-off of NFR-15).
+2. Run `/verify`, then make the one milestone commit once the user approves the message.
+3. Follow `.gsd/phases/15/RELEASE.md` before deploying.
 
 ## Active Decisions
 
@@ -25,7 +36,16 @@ updated: 2026-10-25T00:00:00+05:30
 |----------|--------|------|---------|
 | DateTime Storage | `now_naive_ist()` from `app.core.clock` | 2026-10 | All database models & SQLite / Postgres comparisons |
 | API Envelopes | Standard list (`items`, `total`, `limit`, `offset`) & single (`data`) | 2026-10 | All `/api/v1/` endpoints |
-| Marketplace Access | Public for browsing catalog/products/animals; Protected for orders/selling | 2026-10 | `app/middleware/authentication.py`, `app/api/v1/routers/marketplace.py` |
+| Marketplace legacy | Code removed, tables kept, new `mkt_*` tables (DECISION-015) | 2026-11-08 | Phases 8, 9, Recycle Bin |
+| Marketplace sellers | Super Admin only now, policy and scope ready for Admin / Sub Admin (DECISION-016) | 2026-11-08 | Phases 9 to 15 |
+| Animal purchase | Call, WhatsApp, enquiry; never in cart (DECISION-017) | 2026-11-08 | Phase 13 |
+| Product checkout | Guest + COD, room for payments and accounts (DECISION-018) | 2026-11-08 | Phase 14 |
+| Marketplace URLs | Public `/marketplace`, `/api/v1/marketplace`; admin `/admin/marketplace`, `/api/v1/admin/marketplace` (DECISION-019) | 2026-11-08 | Phases 10 to 15, auth middleware |
+| Storefront UI | Standalone self-hosted design system (DECISION-020) | 2026-11-08 | Phases 12 to 15 |
+| Branch base | Current work line at `a345c6f`; `develop` is 35 commits behind (DECISION-021) | 2026-11-08 | This milestone |
+| Marketplace images | `MediaService` (DECISION-022) | 2026-11-08 | Phases 10 to 14 |
+| Admin REST API | Not built; Control Center is the website (DECISION-023) | 2026-11-09 | Phase 15 |
+| SQL logging | Only with `DATABASE_ECHO`, whole app (DECISION-024) | 2026-11-09 | Logging, privacy |
 | GSD Workflow | Active in repository under `.gsd/` | 2026-10 | Planning, execution, and state memory |
 | Excel processing | Background jobs, fresh ContextVar context, batch commits (DECISION-001) | 2026-10-25 | Phases 1–5 |
 | Excel library | openpyxl 3.1.5 read_only / write_only (DECISION-002) | 2026-10-25 | Phases 1–4 |
@@ -52,6 +72,10 @@ None.
 - Confirm the server's SQLite version is ≥ 3.35 (`claim_next` uses UPDATE … RETURNING); `.venv` has 3.50.4.
 - Pre-existing: `LoggerManager.shutdown()` leaves file handlers open; its log dir is a relative `logs/`.
 - Existing routers still use the deprecated `ORJSONResponse`.
+- The server's legacy marketplace rows and whether a mobile app calls the old `/api/v1/marketplace` cannot be checked from this workspace. Confirm both before release (`.gsd/phases/15/RELEASE.md`).
+- Log files written before DECISION-024 hold SQL values, including password hashes. Clean them up wherever the app has run.
+- New orders raise no alert; sellers only see them by opening the Control Center.
+- `develop` and `main` are 35 commits behind this work line (DECISION-021).
 - If the deployment ever runs several API processes, each would start its own exchange worker; `claim_next` is race-free so jobs never run twice, but total concurrency would multiply — set `EXCHANGE_WORKER_ENABLED=0` on all but one.
 
 ## Session Context
@@ -65,4 +89,4 @@ None.
 - Git is local only: never push to the `production` remote.
 
 ---
-*Last updated: 2026-10-25*
+*Last updated: 2026-11-08*

@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 
 from app.config.logging import LOGGER_CONFIG
+from app.config.settings import settings
 from app.core.logging.handlers import HandlerFactory
 from app.core.logging.queue import LoggerQueue
 
@@ -133,6 +134,10 @@ class LoggerManager:
 
         level = self._logger.level
 
+        # SQL lines carry their values: buyer phone numbers and addresses, password hashes.
+        # They stay out of the log files unless DATABASE_ECHO asks for them.
+        sql_level = level if settings.DATABASE_ECHO else logging.WARNING
+
         for name in names:
 
             logger = logging.getLogger(
@@ -142,7 +147,7 @@ class LoggerManager:
             logger.handlers = handlers
 
             logger.setLevel(
-                level,
+                sql_level if name.startswith("sqlalchemy") else level,
             )
 
             logger.propagate = False

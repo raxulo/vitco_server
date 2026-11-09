@@ -5,6 +5,7 @@ from enum import IntEnum
 from typing import Final
 
 from app.modules.administration.domain.enums import Role
+from app.modules.marketplace.domain.policy import SellerPolicy
 
 
 class MenuPermission(IntEnum):
@@ -289,16 +290,16 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
         css_class="market-group-header",
         items=(
             item(
-                "Marketplace Setup",
-                "/marketplace/setup",
-                "fa-solid fa-sliders",
-                SUPER_ADMIN_ONLY,
-                "/marketplace/setup",
+                "Control Center",
+                "/admin/marketplace",
+                "fa-solid fa-store",
+                SellerPolicy.SELLER_ROLES,
+                "/admin/marketplace",
             ),
             item(
-                "Marketplace",
+                "Visit store",
                 "/marketplace",
-                "fa-solid fa-store",
+                "fa-solid fa-arrow-up-right-from-square",
                 ALL_ROLES,
                 "/marketplace",
             ),

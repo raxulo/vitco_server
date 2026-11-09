@@ -1,0 +1,68 @@
+{% extends "layouts/store.html" %}
+{% import "pages/store/_cards.html" as cards %}
+
+{% block title %}{{ category_name or 'Dairy products' }} · {{ frame.settings.store_name }}{% endblock %}
+{% block canonical %}{{ store_url(request, '/marketplace/products', category=category, page=page if page > 1 else none) }}{% endblock %}
+
+{% block content %}
+<div class="st-wrap st-list-page">
+    <header class="st-list-head">
+        <div>
+            <h1>{{ category_name or 'Dairy products' }}</h1>
+            <p aria-live="polite">{{ total }} product{{ '' if total == 1 else 's' }}{% if search %} for “{{ search }}”{% endif %}</p>
+        </div>
+    </header>
+
+    <div class="st-list-grid">
+        <details class="st-filters" open data-filters>
+            <summary>Filters{% if active_filters %} ({{ active_filters }}){% endif %}</summary>
+            <form method="get" action="/marketplace/products" class="st-filter-form">
+                <label class="st-field">
+                    <span>Search</span>
+                    <input type="search" name="search" value="{{ search }}" placeholder="Name or brand">
+                </label>
+                <label class="st-field">
+                    <span>Category</span>
+                    <select name="category" data-autosubmit>
+                        <option value="">All categories</option>
+                        {% for item in frame.categories %}
+                        <option value="{{ item.slug }}" {% if category == item.slug %}selected{% endif %}>{{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <fieldset class="st-range">
+                    <legend>Price (₹)</legend>
+                    <input type="number" name="min_price" min="0" step="1" inputmode="numeric" placeholder="Min" aria-label="Minimum price" value="{{ min_price if min_price is not none else '' }}">
+                    <input type="number" name="max_price" min="0" step="1" inputmode="numeric" placeholder="Max" aria-label="Maximum price" value="{{ max_price if max_price is not none else '' }}">
+                </fieldset>
+                <label class="st-check"><input type="checkbox" name="in_stock" value="1" {% if in_stock %}checked{% endif %}> In stock only</label>
+                <label class="st-field">
+                    <span>Sort by</span>
+                    <select name="sort" data-autosubmit>
+                        {% for key, label in sorts %}<option value="{{ key }}" {% if sort == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </label>
+                <button class="st-btn st-btn-forest">Apply</button>
+                {% if active_filters %}<a class="st-clear" href="/marketplace/products">Clear all filters</a>{% endif %}
+            </form>
+        </details>
+
+        <div>
+            {% if items %}
+            <h2 class="st-vh">Products</h2>
+            <div class="st-grid st-grid-products">
+                {% for product in items %}{{ cards.product_card(product) }}{% endfor %}
+            </div>
+            {{ cards.pager(page, pages, total, query, '/marketplace/products') }}
+            {% else %}
+            <div class="st-empty">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <h2>No products found</h2>
+                <p>{% if active_filters %}Try removing a filter.{% else %}New products will appear here soon.{% endif %}</p>
+                {% if active_filters %}<a class="st-btn st-btn-forest st-empty-action" href="/marketplace/products">Clear all filters</a>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

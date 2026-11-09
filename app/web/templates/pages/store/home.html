@@ -1,0 +1,143 @@
+{% extends "layouts/store.html" %}
+{% import "pages/store/_cards.html" as cards %}
+
+{% block content %}
+{% set settings = frame.settings %}
+
+{% if frame.trending_tags %}
+<div class="st-wrap st-trending-links">
+    <span>Trending:</span>
+    {% for tag in frame.trending_tags %}<a href="{{ tag.url }}">{{ tag.label }}</a>{% endfor %}
+</div>
+{% endif %}
+
+{# ----- Hero ----- #}
+{% if hero_banners %}
+<h1 class="st-vh">{{ settings.store_name }}</h1>
+<section class="st-wrap st-hero" aria-roledescription="carousel" aria-label="Featured offers" data-carousel>
+    <ul class="st-slides" data-slides tabindex="0" aria-live="off">
+        {% for banner in hero_banners %}
+        <li class="st-slide" aria-roledescription="slide" aria-label="{{ loop.index }} of {{ hero_banners|length }}">
+            <picture>
+                {% if banner.mobile_image_url %}<source media="(max-width: 640px)" srcset="{{ banner.mobile_image_url }}">{% endif %}
+                <img src="{{ banner.image_url }}" alt="" width="1600" height="600" {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+            </picture>
+            <div class="st-slide-text">
+                <h2>{{ banner.title }}</h2>
+                {% if banner.subtitle %}<p>{{ banner.subtitle }}</p>{% endif %}
+                {% if banner.cta_label and banner.cta_url %}<a class="st-btn st-btn-gold" href="{{ banner.cta_url }}">{{ banner.cta_label }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% if hero_banners|length > 1 %}
+    <div class="st-hero-controls">
+        <button type="button" data-carousel-pause aria-label="Pause slideshow"><i class="fa-solid fa-pause" aria-hidden="true"></i></button>
+        {% for banner in hero_banners %}
+        <button type="button" class="st-dot" data-carousel-dot="{{ loop.index0 }}" aria-label="Show slide {{ loop.index }}"></button>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% else %}
+<section class="st-wrap">
+    <div class="st-hero-text">
+        <h1>{{ settings.store_name }}</h1>
+        <p>{{ settings.tagline or 'Dairy animals and fresh dairy products, sold directly.' }}</p>
+    </div>
+</section>
+{% endif %}
+
+{# ----- Two doors: the store sells two very different things ----- #}
+<section class="st-wrap st-doors" aria-label="What are you looking for?">
+    <div class="st-door st-door-animals">
+        <div>
+            <h2><a href="/marketplace/animals">Buy dairy animals</a></h2>
+            <p>Compare milk per day, lactation and price, then call the seller directly.</p>
+        </div>
+        {% if frame.animal_types %}
+        <div class="st-door-chips">
+            {% for animal_type in frame.animal_types %}<a href="/marketplace/animals?type={{ animal_type.slug }}">{{ animal_type.name }}</a>{% endfor %}
+        </div>
+        {% endif %}
+        <i class="fa-solid fa-cow st-door-art" aria-hidden="true"></i>
+    </div>
+    <div class="st-door st-door-products">
+        <div>
+            <h2><a href="/marketplace/products">Shop dairy products</a></h2>
+            <p>Milk, ghee, coconut and more, delivered to your door. Pay on delivery.</p>
+        </div>
+        {% if frame.categories %}
+        <div class="st-door-chips">
+            {% for category in frame.categories[:6] %}<a href="/marketplace/products?category={{ category.slug }}">{{ category.name }}</a>{% endfor %}
+        </div>
+        {% endif %}
+        <i class="fa-solid fa-bottle-droplet st-door-art" aria-hidden="true"></i>
+    </div>
+</section>
+
+{# ----- Sections, in the order set in the Control Center ----- #}
+{% for block in blocks %}
+{% set kind = block.section_type.value %}
+<section class="st-wrap st-section" aria-labelledby="section-{{ loop.index }}">
+    <div class="st-section-head">
+        <div>
+            <h2 id="section-{{ loop.index }}">{{ block.title }}</h2>
+            {% if block.subtitle %}<p>{{ block.subtitle }}</p>{% endif %}
+        </div>
+        {% if kind == 'FEATURED_ANIMALS' %}<a class="st-more" href="/marketplace/animals">View all <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        {% elif kind == 'FEATURED_PRODUCTS' %}<a class="st-more" href="/marketplace/products">View all <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        {% elif kind == 'CATEGORY_PRODUCTS' and block.category_slug %}<a class="st-more" href="/marketplace/products?category={{ block.category_slug }}">View all <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+        {% endif %}
+    </div>
+
+    {% if block.categories %}
+    <div class="st-tiles">
+        {% for category in block.categories %}
+        <a class="st-tile" href="/marketplace/products?category={{ category.slug }}">
+            {% if category.image_url %}
+            <img src="{{ category.image_url }}" alt="" loading="lazy" width="160" height="160">
+            {% else %}
+            <span class="st-tile-letter" aria-hidden="true">{{ category.name[:1] }}</span>
+            {% endif %}
+            <span>{{ category.name }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if block.banners %}
+    <div class="st-offers">
+        {% for banner in block.banners %}
+        {% if banner.cta_url %}<a class="st-offer" href="{{ banner.cta_url }}">{% else %}<div class="st-offer">{% endif %}
+            <img src="{{ banner.image_url }}" alt="" loading="lazy" width="800" height="300">
+            <span class="st-offer-text"><strong>{{ banner.title }}</strong>{% if banner.subtitle %}<span>{{ banner.subtitle }}</span>{% endif %}</span>
+        {% if banner.cta_url %}</a>{% else %}</div>{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if block.animals %}
+    <div class="st-grid st-grid-animals">
+        {% for animal in block.animals %}{{ cards.animal_card(animal) }}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if block.products %}
+    <div class="st-grid st-grid-products {{ 'st-grid-after' if block.animals }}">
+        {% for product in block.products %}{{ cards.product_card(product) }}{% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endfor %}
+
+{% if not blocks %}
+<section class="st-wrap st-section">
+    <div class="st-empty">
+        <i class="fa-solid fa-seedling" aria-hidden="true"></i>
+        <h2>The store is getting ready</h2>
+        <p>New animals and products will appear here soon.</p>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

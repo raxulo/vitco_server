@@ -1,0 +1,137 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Home page{% endblock %}
+{% block heading %}Home page{% endblock %}
+{% block subheading %}<p class="mk-sub">Choose what customers see and in what order. A section with nothing to show hides itself.</p>{% endblock %}
+
+{% set kinds = {
+    'CATEGORIES': 'Category tiles',
+    'TRENDING': 'Trending items',
+    'FEATURED_ANIMALS': 'Featured animals',
+    'FEATURED_PRODUCTS': 'Featured products',
+    'MIDDLE_BANNERS': 'Middle banners',
+    'CATEGORY_PRODUCTS': 'Products of a category',
+} %}
+
+{% block mk_content %}
+<div class="mk-form-grid">
+    <div class="mk-stack">
+        <section class="mk-card" aria-labelledby="sections-title">
+            <div class="mk-card-pad"><h2 class="mk-card-title" id="sections-title">Sections</h2></div>
+            <table class="mk-table">
+                <thead><tr><th>Order</th><th>Section</th><th>Items</th><th>Status</th><th><span class="mk-vh">Actions</span></th></tr></thead>
+                <tbody>
+                    {% for section in sections %}
+                    <tr>
+                        <td data-label="Order">
+                            <div class="mk-move">
+                                <form method="post" action="/admin/marketplace/home-sections/{{ section.id }}/move">
+                                    <input type="hidden" name="direction" value="up">
+                                    <button class="mk-icon-btn" aria-label="Move {{ section.title }} up" {% if loop.first %}disabled{% endif %}><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
+                                </form>
+                                <form method="post" action="/admin/marketplace/home-sections/{{ section.id }}/move">
+                                    <input type="hidden" name="direction" value="down">
+                                    <button class="mk-icon-btn" aria-label="Move {{ section.title }} down" {% if loop.last %}disabled{% endif %}><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                        <td class="mk-cell-main">
+                            <div class="mk-item-title">{{ section.title }}</div>
+                            <div class="mk-item-meta">
+                                {{ kinds.get(section.section_type.value) }}{% if section.category_id in category_names %}: {{ category_names[section.category_id] }}{% endif %}
+                            </div>
+                        </td>
+                        <td data-label="Items" class="mk-num">{{ section.item_limit }}</td>
+                        <td data-label="Status"><span class="mk-pill {{ 'mk-pill-published' if section.is_visible else 'mk-pill-off' }}">{{ 'Visible' if section.is_visible else 'Hidden' }}</span></td>
+                        <td>
+                            <div class="mk-row-actions">
+                                <a class="mk-btn mk-btn-sm" href="?edit={{ section.id }}">Edit</a>
+                                {% if section.can_delete %}
+                                <form method="post" action="/admin/marketplace/home-sections/{{ section.id }}/delete" data-confirm="Delete the section “{{ section.title }}”?">
+                                    <button class="mk-btn mk-btn-sm mk-btn-danger">Delete</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="mk-card mk-card-pad" aria-labelledby="tags-title">
+            <div class="mk-card-head">
+                <div>
+                    <h2 class="mk-card-title" id="tags-title">Trending searches</h2>
+                    <p class="mk-card-hint">Quick links under the search box.</p>
+                </div>
+            </div>
+            {% if tags %}
+            <div class="mk-tag-list">
+                {% for tag in tags %}
+                <div class="mk-tag">
+                    <div>
+                        <div class="mk-item-title">{{ tag.label }}{% if not tag.is_active %} <span class="mk-pill mk-pill-off">Hidden</span>{% endif %}</div>
+                        <div class="mk-tag-url">{{ tag.url }}</div>
+                    </div>
+                    <div class="mk-row-actions" style="width:auto;padding:0">
+                        <a class="mk-btn mk-btn-sm" href="?edit_tag={{ tag.id }}">Edit</a>
+                        <form method="post" action="/admin/marketplace/trending/{{ tag.id }}/delete" data-confirm="Delete the link “{{ tag.label }}”?">
+                            <button class="mk-btn mk-btn-sm mk-btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="mk-hint">No trending links yet.</p>
+            {% endif %}
+        </section>
+    </div>
+
+    <aside class="mk-side mk-stack">
+        <form class="mk-card mk-card-pad" method="post" action="/admin/marketplace/home-sections" novalidate>
+            <div class="mk-card-head"><h2 class="mk-card-title">{{ 'Edit section' if editing else 'Add a category section' }}</h2></div>
+            {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+            <div class="mk-fields" style="grid-template-columns:minmax(0,1fr)">
+                {{ ui.input('title', 'Heading', section_form, section_errors, required=true) }}
+                {{ ui.input('subtitle', 'Subheading', section_form, section_errors) }}
+                {% if not editing or editing.section_type.value == 'CATEGORY_PRODUCTS' %}
+                <label class="mk-field {{ 'mk-invalid' if section_errors.get('category_id') }}">
+                    <span class="mk-label">Category<span class="mk-req" aria-hidden="true">*</span></span>
+                    <select name="category_id">
+                        <option value="">Choose a category</option>
+                        {% for row in category_rows %}
+                        <option value="{{ row.category.id }}" {% if section_form.get('category_id')|string == row.category.id|string %}selected{% endif %}>{{ '— ' * row.depth }}{{ row.category.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if section_errors.get('category_id') %}<span class="mk-error" role="alert">{{ section_errors.category_id }}</span>{% endif %}
+                </label>
+                {% endif %}
+                {{ ui.input('item_limit', 'Items to show', section_form, section_errors, type='number', step='1', min=1) }}
+                {{ ui.checkbox('is_visible', 'Show on the home page', section_form) }}
+            </div>
+            <div class="mk-form-actions" style="margin-top:16px">
+                <button class="mk-btn mk-btn-primary">{{ 'Save section' if editing else 'Add section' }}</button>
+                {% if editing %}<a class="mk-btn" href="/admin/marketplace/home">Cancel</a>{% endif %}
+            </div>
+        </form>
+
+        <form class="mk-card mk-card-pad" method="post" action="/admin/marketplace/trending" novalidate>
+            <div class="mk-card-head"><h2 class="mk-card-title">{{ 'Edit trending link' if editing_tag else 'Add a trending link' }}</h2></div>
+            {% if editing_tag %}<input type="hidden" name="id" value="{{ editing_tag.id }}">{% endif %}
+            <div class="mk-fields" style="grid-template-columns:minmax(0,1fr)">
+                {{ ui.input('label', 'Label', tag_form, tag_errors, required=true, hint='For example: Gir cow') }}
+                {{ ui.input('url', 'Link', tag_form, tag_errors, required=true, hint='For example: /marketplace/animals?search=gir') }}
+                {{ ui.input('sort_order', 'Display order', tag_form, tag_errors, type='number', step='1') }}
+                {{ ui.checkbox('is_active', 'Show this link', tag_form) }}
+            </div>
+            <div class="mk-form-actions" style="margin-top:16px">
+                <button class="mk-btn mk-btn-primary">{{ 'Save link' if editing_tag else 'Add link' }}</button>
+                {% if editing_tag %}<a class="mk-btn" href="/admin/marketplace/home">Cancel</a>{% endif %}
+            </div>
+        </form>
+    </aside>
+</div>
+{% endblock %}

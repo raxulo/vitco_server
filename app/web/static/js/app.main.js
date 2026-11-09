@@ -26,9 +26,18 @@ window.addEventListener('DOMContentLoaded', () => {
         if (hasActiveChild) {
             group.classList.add('expanded');
         }
-        
-        header.addEventListener('click', () => {
-            group.classList.toggle('expanded');
+        header.setAttribute('aria-expanded', String(group.classList.contains('expanded')));
+
+        const toggleGroup = () => {
+            const expanded = group.classList.toggle('expanded');
+            header.setAttribute('aria-expanded', String(expanded));
+        };
+        header.addEventListener('click', toggleGroup);
+        header.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                toggleGroup();
+            }
         });
     });
 

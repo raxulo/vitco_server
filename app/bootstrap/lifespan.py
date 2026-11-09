@@ -75,6 +75,7 @@ Python 3.13+
 from app.modules.administration.application.handler import UserHandler
 from app.modules.admin.application.handler import AdminHandler
 from app.core.logging.logger import logger_manager
+from app.modules.marketplace.infrastructure.seed import MarketplaceSeeder
 from app.worker.supervisor import WorkerSupervisor
 
 from contextlib import asynccontextmanager
@@ -115,6 +116,12 @@ async def lifespan(app: FastAPI):
         seeder = state.container.resolve(UserHandler)
         async with state.container.database.transaction():
             await seeder.create_super_admin()
+
+        # A store problem must never keep the dairy platform from starting
+        try:
+            await state.container.resolve(MarketplaceSeeder).run()
+        except Exception:
+            logger.exception("Marketplace starter data could not be created; the API keeps running.")
 
         # Excel import / export worker: a separate process, so a job can never slow down or crash the API
         exchange_supervisor = state.container.resolve(WorkerSupervisor)

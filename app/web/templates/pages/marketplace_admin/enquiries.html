@@ -1,0 +1,66 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Enquiries{% endblock %}
+{% block heading %}Enquiries{% endblock %}
+{% block subheading %}<p class="mk-sub">Buyers who asked about an animal. Call them, then update the status.</p>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-card">
+    <div class="mk-toolbar">
+        <form class="mk-search" method="get" role="search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" name="search" value="{{ search }}" placeholder="Search by buyer, phone or animal" aria-label="Search enquiries">
+            {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+        </form>
+        <div class="mk-filter-links">
+            <a class="mk-filter" href="?search={{ search|urlencode }}" {% if not status %}aria-current="true"{% endif %}>All</a>
+            {% for option in statuses %}
+            <a class="mk-filter" href="?status={{ option.value }}&search={{ search|urlencode }}" {% if status == option.value %}aria-current="true"{% endif %}>{{ option.value|capitalize }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if items %}
+    <div class="mk-enquiries">
+        {% for enquiry in items %}
+        <article class="mk-enquiry">
+            <div class="mk-enquiry-main">
+                <div class="mk-enquiry-head">
+                    <span class="mk-item-title">{{ enquiry.buyer_name }}</span>
+                    <span class="mk-pill {{ {'NEW': 'mk-pill-reserved', 'CONTACTED': 'mk-pill-published', 'CLOSED': 'mk-pill-off'}[enquiry.status.value] }}">{{ enquiry.status.value|capitalize }}</span>
+                </div>
+                <div class="mk-item-meta">
+                    {{ enquiry.animal_title }}{% if enquiry.location %} · {{ enquiry.location }}{% endif %}
+                    {% if enquiry.created_at %} · {{ enquiry.created_at.strftime('%d %b %Y, %I:%M %p') }}{% endif %}
+                </div>
+                {% if enquiry.message %}<p class="mk-enquiry-message">{{ enquiry.message }}</p>{% endif %}
+                <div class="mk-enquiry-actions">
+                    <a class="mk-btn mk-btn-sm" href="tel:{{ enquiry.buyer_phone }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> {{ enquiry.buyer_phone }}</a>
+                    <a class="mk-btn mk-btn-sm" href="https://wa.me/91{{ enquiry.buyer_phone }}" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>
+                </div>
+            </div>
+            <form class="mk-enquiry-form" method="post" action="/admin/marketplace/enquiries/{{ enquiry.id }}">
+                <label class="mk-field">
+                    <span class="mk-label">Status</span>
+                    <select name="status">
+                        {% for option in statuses %}<option value="{{ option.value }}" {% if enquiry.status == option %}selected{% endif %}>{{ option.value|capitalize }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label class="mk-field">
+                    <span class="mk-label">Your notes</span>
+                    <textarea name="admin_notes" rows="2" maxlength="1000">{{ enquiry.admin_notes or '' }}</textarea>
+                </label>
+                <button class="mk-btn mk-btn-sm">Save</button>
+            </form>
+        </article>
+        {% endfor %}
+    </div>
+    {{ ui.pager(page, total_pages, total, "&search=" ~ search|urlencode ~ "&status=" ~ status) }}
+    {% elif search or status %}
+    <div class="mk-empty"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><div class="mk-empty-title">No enquiries match</div>Try a different search or filter.</div>
+    {% else %}
+    <div class="mk-empty"><i class="fa-regular fa-comments" aria-hidden="true"></i><div class="mk-empty-title">No enquiries yet</div>When a buyer asks about an animal, it appears here.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Categories{% endblock %}
+{% block heading %}Categories{% endblock %}
+{% block subheading %}<p class="mk-sub">How products are grouped in the store.</p>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-form-grid">
+    <div class="mk-card">
+        {% if rows %}
+        <table class="mk-table">
+            <thead><tr><th>Category</th><th>Order</th><th>Status</th><th><span class="mk-vh">Actions</span></th></tr></thead>
+            <tbody>
+                {% for row in rows %}
+                {% set category = row.category %}
+                <tr>
+                    <td class="mk-cell-main">
+                        <div class="mk-item" style="padding-left:{{ row.depth * 24 }}px">
+                            {% if category.image_url %}
+                            <img class="mk-thumb" src="{{ category.image_url }}" alt="" loading="lazy" width="48" height="48">
+                            {% else %}
+                            <span class="mk-thumb mk-thumb-empty"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
+                            {% endif %}
+                            <div class="mk-item-title">{{ category.name }}</div>
+                        </div>
+                    </td>
+                    <td data-label="Order" class="mk-num">{{ category.sort_order }}</td>
+                    <td data-label="Status"><span class="mk-pill {{ 'mk-pill-published' if category.is_active else 'mk-pill-off' }}">{{ 'Active' if category.is_active else 'Inactive' }}</span></td>
+                    <td>
+                        <div class="mk-row-actions">
+                            <a class="mk-btn mk-btn-sm" href="?edit={{ category.id }}">Edit</a>
+                            <form method="post" action="/admin/marketplace/categories/{{ category.id }}/delete" data-confirm="Delete the category “{{ category.name }}”?">
+                                <button class="mk-btn mk-btn-sm mk-btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="mk-empty"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><div class="mk-empty-title">No categories yet</div>Add your first category using the form.</div>
+        {% endif %}
+    </div>
+
+    <aside class="mk-side">
+        <form class="mk-card mk-card-pad" method="post" enctype="multipart/form-data" action="/admin/marketplace/categories" novalidate>
+            <div class="mk-card-head"><h2 class="mk-card-title">{{ 'Edit ' ~ editing.name if editing else 'Add a category' }}</h2></div>
+            {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+            <div class="mk-fields" style="grid-template-columns:minmax(0,1fr)">
+                {{ ui.input('name', 'Name', form, errors, required=true) }}
+                <label class="mk-field {{ 'mk-invalid' if errors.get('parent_id') }}">
+                    <span class="mk-label">Parent category</span>
+                    <select name="parent_id">
+                        <option value="">None (top level)</option>
+                        {% for row in rows %}
+                        {% if not editing or row.category.id != editing.id %}
+                        <option value="{{ row.category.id }}" {% if form.get('parent_id')|string == row.category.id|string %}selected{% endif %}>{{ '— ' * row.depth }}{{ row.category.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                    {% if errors.get('parent_id') %}<span class="mk-error" role="alert">{{ errors.parent_id }}</span>{% endif %}
+                </label>
+                {{ ui.textarea('description', 'Description', form, errors, rows=3) }}
+                {{ ui.image_field(form if editing else {}, errors) }}
+                {{ ui.input('sort_order', 'Display order', form, errors, type='number', step='1') }}
+                {{ ui.checkbox('is_active', 'Show in the store', form) }}
+            </div>
+            <div class="mk-form-actions" style="margin-top:16px">
+                <button class="mk-btn mk-btn-primary">{{ 'Save changes' if editing else 'Add category' }}</button>
+                {% if editing %}<a class="mk-btn" href="/admin/marketplace/categories">Cancel</a>{% endif %}
+            </div>
+        </form>
+    </aside>
+</div>
+{% endblock %}

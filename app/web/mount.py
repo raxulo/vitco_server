@@ -119,3 +119,11 @@ class WebMount:
         # Decimal display that truncates instead of rounding: {{ v|fixed }} / {{ v|fixed(3) }}
         from app.core.numeric import fixed
         env.filters["fixed"] = fixed
+        from app.web.framework.formatting import age_label, inr, quantity
+        env.filters["inr"] = inr
+        env.filters["quantity"] = quantity
+        env.filters["age_label"] = age_label
+        from app.web.storefront.cart_cookie import cart_count
+        env.filters["cart_count"] = cart_count
+        from app.web.storefront.seo import store_url
+        env.globals["store_url"] = store_url

@@ -1,0 +1,18 @@
+{% extends "layouts/store.html" %}
+
+{% block title %}Page not found · {{ frame.settings.store_name }}{% endblock %}
+{% block seo %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<div class="st-wrap st-list-page">
+    <div class="st-empty">
+        <i class="fa-solid fa-seedling" aria-hidden="true"></i>
+        <h1>We could not find that</h1>
+        <p>It may have been sold or removed.</p>
+        <div class="st-empty-links">
+            <a class="st-btn st-btn-forest" href="/marketplace/animals">Browse animals</a>
+            <a class="st-btn st-btn-plain" href="/marketplace/products">Browse products</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

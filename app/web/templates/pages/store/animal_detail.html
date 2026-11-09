@@ -1,0 +1,126 @@
+{% extends "layouts/store.html" %}
+{% import "pages/store/_cards.html" as cards %}
+
+{% block title %}{{ animal.title }} · {{ frame.settings.store_name }}{% endblock %}
+{% block description %}{{ animal.type_name }}{% if animal.breed_name %}, {{ animal.breed_name }}{% endif %}{% if animal.location %}, {{ animal.location }}{% endif %}. {{ animal.price|inr }}.{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_image %}{{ store_url(request, animal.images[0].url if animal.images else (frame.settings.logo_url or '/static/images/logo.png')) }}{% endblock %}
+{% block head %}<script type="application/ld+json">{{ json_ld|tojson }}</script>{% endblock %}
+
+{% macro field_error(name) %}{% if errors.get(name) %}<span class="st-error" id="{{ name }}-error" role="alert">{{ errors[name] }}</span>{% endif %}{% endmacro %}
+
+{% block content %}
+{% set settings = frame.settings %}
+<div class="st-wrap st-detail-page {{ 'st-has-contact-bar' if not animal.is_sold }}">
+    <nav class="st-crumbs" aria-label="Breadcrumb">
+        <a href="/marketplace">Home</a> <span aria-hidden="true">/</span>
+        <a href="/marketplace/animals?type={{ animal.type_slug }}">{{ animal.type_name }}</a> <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ animal.title }}</span>
+    </nav>
+
+    {% if animal.is_sold %}
+    <div class="st-alert st-alert-info" role="status"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> This animal has been sold. Similar animals are listed below.</div>
+    {% elif animal.status.value == 'RESERVED' %}
+    <div class="st-alert st-alert-info" role="status"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> This animal is reserved. You can still enquire in case it becomes available.</div>
+    {% endif %}
+
+    <div class="st-detail-grid">
+        <div class="st-animal-main">
+            {{ cards.gallery(animal.images, 'fa-cow') }}
+
+            <section class="st-animal-section">
+                <h2>Details</h2>
+                <dl class="st-spec-table">
+                    <div><dt>Animal</dt><dd>{{ animal.type_name }}</dd></div>
+                    {% if animal.breed_name %}<div><dt>Breed</dt><dd>{{ animal.breed_name }}</dd></div>{% endif %}
+                    <div><dt>Gender</dt><dd>{{ animal.gender.value|capitalize }}</dd></div>
+                    {% if animal.age_months is not none %}<div><dt>Age</dt><dd>{{ animal.age_months|age_label }}</dd></div>{% endif %}
+                    {% if animal.lactation_number is not none %}<div><dt>Lactation</dt><dd>{{ animal.lactation_number }}</dd></div>{% endif %}
+                    {% if animal.milk_litres_per_day is not none %}<div><dt>Milk per day</dt><dd>{{ animal.milk_litres_per_day|quantity }} litres</dd></div>{% endif %}
+                    {% if animal.fat_percent is not none %}<div><dt>FAT</dt><dd>{{ animal.fat_percent|quantity }}%</dd></div>{% endif %}
+                    {% if animal.pregnancy_status.value == 'PREGNANT' %}<div><dt>Pregnancy</dt><dd>Pregnant{% if animal.pregnancy_months %}, {{ animal.pregnancy_months }} month{{ '' if animal.pregnancy_months == 1 else 's' }}{% endif %}</dd></div>
+                    {% elif animal.pregnancy_status.value == 'NOT_PREGNANT' %}<div><dt>Pregnancy</dt><dd>Not pregnant</dd></div>{% endif %}
+                    {% if animal.calf_details %}<div><dt>Calf</dt><dd>{{ animal.calf_details }}</dd></div>{% endif %}
+                    {% if animal.location %}<div><dt>Location</dt><dd>{{ animal.location }}</dd></div>{% endif %}
+                </dl>
+            </section>
+
+            {% if animal.description %}<section class="st-animal-section"><h2>Description</h2><p class="st-prose">{{ animal.description }}</p></section>{% endif %}
+            {% if animal.health_notes %}<section class="st-animal-section"><h2>Health</h2><p class="st-prose">{{ animal.health_notes }}</p></section>{% endif %}
+            {% if animal.vaccination_notes %}<section class="st-animal-section"><h2>Vaccination</h2><p class="st-prose">{{ animal.vaccination_notes }}</p></section>{% endif %}
+        </div>
+
+        <aside class="st-contact">
+            <div class="st-eyebrow">{{ animal.type_name }}{% if animal.breed_name %} · {{ animal.breed_name }}{% endif %}</div>
+            <h1>{{ animal.title }}</h1>
+            {% if animal.location %}<p class="st-location st-location-lg"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> {{ animal.location }}</p>{% endif %}
+
+            <div class="st-detail-price">
+                <span class="st-price st-price-lg">{{ animal.price|inr }}</span>
+                {% if animal.is_negotiable %}<span class="st-negotiable-tag">Negotiable</span>{% endif %}
+            </div>
+
+            <dl class="st-specs st-specs-lg">
+                <div><dt>Milk / day</dt><dd>{% if animal.milk_litres_per_day is not none %}{{ animal.milk_litres_per_day|quantity }} L{% else %}—{% endif %}</dd></div>
+                <div><dt>Lactation</dt><dd>{{ animal.lactation_number if animal.lactation_number is not none else '—' }}</dd></div>
+                <div><dt>Age</dt><dd>{{ animal.age_months|age_label }}</dd></div>
+            </dl>
+
+            {% if not animal.is_sold %}
+            <div class="st-contact-actions" data-contact-actions>
+                {% if settings.support_phone %}<a class="st-btn st-btn-forest" href="tel:{{ settings.support_phone }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call seller</a>{% endif %}
+                {% if whatsapp_url %}<a class="st-btn st-btn-whatsapp" href="{{ whatsapp_url }}" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>{% endif %}
+            </div>
+
+            <section id="enquiry" class="st-enquiry" aria-labelledby="enquiry-title">
+                <h2 id="enquiry-title">Send an enquiry</h2>
+                {% if enquiry_sent %}
+                <div class="st-alert st-alert-ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Thank you. The seller will call you soon.</div>
+                {% else %}
+                <p>Leave your number and the seller will call you back.</p>
+                {% if errors.get('form') %}<div class="st-alert st-alert-error" role="alert">{{ errors.form }}</div>{% endif %}
+                <form method="post" action="/marketplace/animals/{{ animal.slug }}/enquiry" novalidate>
+                    <label class="st-field {{ 'st-invalid' if errors.get('buyer_name') }}">
+                        <span>Your name</span>
+                        <input type="text" name="buyer_name" value="{{ form.get('buyer_name', '') }}" autocomplete="name" required maxlength="120" {% if errors.get('buyer_name') %}aria-invalid="true" aria-describedby="buyer_name-error"{% endif %}>
+                        {{ field_error('buyer_name') }}
+                    </label>
+                    <label class="st-field {{ 'st-invalid' if errors.get('buyer_phone') }}">
+                        <span>Mobile number</span>
+                        <input type="tel" name="buyer_phone" value="{{ form.get('buyer_phone', '') }}" autocomplete="tel" inputmode="tel" required maxlength="20" {% if errors.get('buyer_phone') %}aria-invalid="true" aria-describedby="buyer_phone-error"{% endif %}>
+                        {{ field_error('buyer_phone') }}
+                    </label>
+                    <label class="st-field">
+                        <span>Your village or city (optional)</span>
+                        <input type="text" name="location" value="{{ form.get('location', '') }}" maxlength="200">
+                    </label>
+                    <label class="st-field">
+                        <span>Message (optional)</span>
+                        <textarea name="message" rows="3" maxlength="1000">{{ form.get('message', '') }}</textarea>
+                    </label>
+                    <div class="st-hp" aria-hidden="true">
+                        <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+                    </div>
+                    <button class="st-btn st-btn-gold st-btn-block">Send enquiry</button>
+                </form>
+                {% endif %}
+            </section>
+            {% endif %}
+        </aside>
+    </div>
+
+    {% if similar %}
+    <section class="st-section" aria-labelledby="similar-title">
+        <div class="st-section-head"><h2 id="similar-title">Similar animals</h2></div>
+        <div class="st-grid st-grid-animals">{% for item in similar %}{{ cards.animal_card(item) }}{% endfor %}</div>
+    </section>
+    {% endif %}
+</div>
+
+{% if not animal.is_sold and (settings.support_phone or whatsapp_url) %}
+<div class="st-contact-bar">
+    {% if settings.support_phone %}<a class="st-btn st-btn-forest" href="tel:{{ settings.support_phone }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call</a>{% endif %}
+    {% if whatsapp_url %}<a class="st-btn st-btn-whatsapp" href="{{ whatsapp_url }}" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

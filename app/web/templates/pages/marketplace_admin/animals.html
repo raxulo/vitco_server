@@ -1,0 +1,75 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Animals{% endblock %}
+{% block heading %}Animals{% endblock %}
+{% block head_actions %}<a class="mk-btn mk-btn-primary" href="/admin/marketplace/animals/new"><i class="fa-solid fa-plus" aria-hidden="true"></i> Add animal</a>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-card">
+    <div class="mk-toolbar">
+        <form class="mk-search" method="get" role="search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" name="search" value="{{ search }}" placeholder="Search by title or district" aria-label="Search animals">
+            {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+        </form>
+        <div class="mk-filter-links">
+            <a class="mk-filter" href="?search={{ search|urlencode }}" {% if not status %}aria-current="true"{% endif %}>All</a>
+            {% for option in statuses %}
+            <a class="mk-filter" href="?status={{ option.value }}&search={{ search|urlencode }}" {% if status == option.value %}aria-current="true"{% endif %}>{{ option.value|capitalize }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if items %}
+    <table class="mk-table">
+        <thead><tr><th>Animal</th><th>Price</th><th>Lactation</th><th>Milk / day</th><th>Status</th><th><span class="mk-vh">Actions</span></th></tr></thead>
+        <tbody>
+            {% for animal in items %}
+            <tr>
+                <td class="mk-cell-main">
+                    <div class="mk-item">
+                        {% if animal.images %}
+                        <img class="mk-thumb" src="{{ animal.images[0].url }}" alt="" loading="lazy" width="48" height="48">
+                        {% else %}
+                        <span class="mk-thumb mk-thumb-empty"><i class="fa-solid fa-cow" aria-hidden="true"></i></span>
+                        {% endif %}
+                        <div>
+                            <div class="mk-item-title">{{ animal.title }}</div>
+                            <div class="mk-item-meta">
+                                {{ types.get(animal.animal_type_id, '') }}{% if animal.breed_id in breeds %} · {{ breeds[animal.breed_id] }}{% endif %}
+                                {% if animal.is_featured %}<span class="mk-flag"><i class="fa-solid fa-star" aria-hidden="true"></i> Featured</span>{% endif %}
+                                {% if animal.is_trending %}<span class="mk-flag"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i> Trending</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td data-label="Price" class="mk-num">{{ animal.price|inr }}</td>
+                <td data-label="Lactation" class="mk-num">{{ animal.lactation_number if animal.lactation_number is not none else '—' }}</td>
+                <td data-label="Milk / day" class="mk-num">{% if animal.milk_litres_per_day is not none %}{{ animal.milk_litres_per_day|quantity }} L{% else %}—{% endif %}</td>
+                <td data-label="Status">{{ ui.status_pill(animal.status) }}</td>
+                <td>
+                    <div class="mk-row-actions">
+                        <a class="mk-btn mk-btn-sm" href="/admin/marketplace/animals/{{ animal.id }}">Edit</a>
+                        <form method="post" action="/admin/marketplace/animals/{{ animal.id }}/delete" data-confirm="Delete “{{ animal.title }}”? It will disappear from the store.">
+                            <button class="mk-btn mk-btn-sm mk-btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {{ ui.pager(page, total_pages, total, "&search=" ~ search|urlencode ~ "&status=" ~ status) }}
+    {% elif search or status %}
+    <div class="mk-empty"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><div class="mk-empty-title">No animals match</div>Try a different search or filter.</div>
+    {% else %}
+    <div class="mk-empty">
+        <i class="fa-solid fa-cow" aria-hidden="true"></i>
+        <div class="mk-empty-title">No animals yet</div>
+        List cows, buffaloes, goats and sheep with their milk and lactation details.
+        <div><a class="mk-btn mk-btn-primary" href="/admin/marketplace/animals/new">Add your first animal</a></div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

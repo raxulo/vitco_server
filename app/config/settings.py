@@ -207,6 +207,15 @@ class Settings(BaseSettings):
     LOG_PATH: Path = BASE_DIR / "logs"
 
     # ==========================================================
+    # Marketplace
+    # ==========================================================
+
+    MARKETPLACE_RATE_LIMIT_ENABLED: bool = True
+    # The address customers use, such as https://shop.example.com. Search engine links use it.
+    # Empty means the address of the current request.
+    MARKETPLACE_PUBLIC_URL: str = ""
+
+    # ==========================================================
     # Excel Data Exchange (import / export jobs)
     # ==========================================================
 

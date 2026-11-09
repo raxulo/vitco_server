@@ -1,234 +1,310 @@
 """
-Marketplace API Pydantic Schemas
+Public store API schemas.
 
-Validation & Response schemas for Marketplace APIs:
-- Banners & Hero Banners
-- Trending Search Tags
-- Product Categories & Cards
-- Cattle / Livestock Animals
-- Catalog Products
-- Marketplace Orders
+Each response model lists exactly what is public, so a field added to a domain object
+never becomes public by accident. Amounts serialise as strings to keep paise exact.
 
 Python 3.13+
 """
-from typing import Any, List, Optional
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Annotated, Literal
 from uuid import UUID
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, ConfigDict, Field
+
+Limit = Annotated[int, Field(ge=1, le=100)]
+Offset = Annotated[int, Field(ge=0)]
+Price = Annotated[Decimal, Field(ge=0, le=9_999_999_999, allow_inf_nan=False)]
+Quantity = Annotated[int, Field(ge=1, le=50)]
 
 
-# --- Banner Schemas ---
-
-class CreateBannerRequest(BaseModel):
-    """Request schema for creating a Hero Banner."""
-    title: str = Field(..., min_length=1, description="Banner title")
-    subtitle: Optional[str] = Field(None, description="Banner subtitle")
-    badge: Optional[str] = Field(None, description="Badge text (e.g. OFFER)")
-    image_url: Optional[str] = Field(None, description="Image URL")
-    cta_text: Optional[str] = Field(None, description="Call-to-action text")
-    cta_target_url: Optional[str] = Field(None, description="Target URL")
-    bg_gradient: Optional[str] = Field(None, description="Background gradient CSS")
-    sort_order: int = Field(0, description="Sort order index")
+class _Public(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
 
-class BannerSchema(BaseModel):
-    """Hero Banner schema."""
-    id: str = Field(..., description="Banner UUID")
-    title: str = Field(..., description="Title")
-    subtitle: Optional[str] = Field(None, description="Subtitle")
-    badge: Optional[str] = Field(None, description="Badge")
-    image_url: Optional[str] = Field(None, description="Image URL")
-    image: Optional[str] = Field(None, description="Display image fallback URL")
-    cta_text: Optional[str] = Field(None, description="CTA Text")
-    cta_target_url: Optional[str] = Field(None, description="CTA Target URL")
-    bg_gradient: Optional[str] = Field(None, description="Background gradient")
-    sort_order: int = Field(0, description="Sort order")
-    is_active: bool = Field(True, description="Active status")
+# =========================================================
+# REQUESTS
+# =========================================================
 
 
-# --- Trending Tag Schemas ---
-
-class CreateTrendingTagRequest(BaseModel):
-    """Request schema for creating a Trending Search Tag."""
-    title: str = Field(..., min_length=1, description="Tag title (e.g. Sahiwal Cow)")
-    url_path: str = Field(..., description="Filter path URL")
-    sort_order: int = Field(0, description="Sort order index")
-
-
-class TrendingTagSchema(BaseModel):
-    """Trending Search Tag schema."""
-    id: str = Field(..., description="Tag UUID")
-    title: str = Field(..., description="Tag title")
-    url_path: str = Field(..., description="Filter path URL")
-    sort_order: int = Field(0, description="Sort order")
-    is_active: bool = Field(True, description="Active status")
+class ProductListRequest(BaseModel):
+    search: str | None = Field(default=None, max_length=100)
+    category: str | None = Field(default=None, max_length=180)
+    min_price: Price | None = None
+    max_price: Price | None = None
+    in_stock: bool = False
+    sort: Literal["newest", "price_asc", "price_desc"] = "newest"
+    limit: Limit = 24
+    offset: Offset = 0
 
 
-# --- Category Schemas ---
-
-class CreateCategoryRequest(BaseModel):
-    """Request schema for creating a Marketplace Category."""
-    name: str = Field(..., min_length=1, description="Category name")
-    slug: Optional[str] = Field(None, description="Category slug identifier")
-    description: Optional[str] = Field(None, description="Description")
-    color: Optional[str] = Field(None, description="Hex accent color")
-    icon: Optional[str] = Field(None, description="Icon class or URL")
-    sort_order: int = Field(0, description="Sort order")
-
-
-class CategorySchema(BaseModel):
-    """Marketplace Category schema."""
-    id: str = Field(..., description="Category UUID")
-    name: str = Field(..., description="Name")
-    slug: str = Field(..., description="Slug")
-    description: Optional[str] = Field(None, description="Description")
-    color: Optional[str] = Field(None, description="Color code")
-    icon: Optional[str] = Field(None, description="Icon class")
-    sort_order: int = Field(0, description="Sort order")
-    is_active: bool = Field(True, description="Active status")
+class AnimalListRequest(BaseModel):
+    search: str | None = Field(default=None, max_length=100)
+    type: str | None = Field(default=None, max_length=100)
+    breed: UUID | None = None
+    min_price: Price | None = None
+    max_price: Price | None = None
+    min_milk: Price | None = None
+    lactation: Annotated[int, Field(ge=1, le=4)] | None = None
+    location: str | None = Field(default=None, max_length=100)
+    sort: Literal["newest", "price_asc", "price_desc", "milk_desc"] = "newest"
+    limit: Limit = 24
+    offset: Offset = 0
 
 
-# --- Animal / Livestock Schemas ---
-
-class CreateAnimalRequest(BaseModel):
-    """Request schema for listing a Cattle/Livestock Animal."""
-    animal_type: str = Field(..., description="Cow, Buffalo, Goat, Sheep, Bull, etc.")
-    title: str = Field(..., min_length=1, description="Listing title")
-    price: float = Field(..., gt=0.0, description="Price in INR")
-    breed: Optional[str] = Field(None, description="Breed name (e.g. Gir, Murrah)")
-    age_months: Optional[int] = Field(None, ge=0, description="Age in months")
-    milk_yield_liters: Optional[float] = Field(None, ge=0.0, description="Daily milk yield in Liters")
-    lactation: Optional[int] = Field(None, ge=0, description="Lactation number")
-    discount_percent: Optional[float] = Field(None, ge=0.0, le=100.0, description="Discount percentage")
-    badge: Optional[str] = Field(None, description="Badge text (e.g. HIGH YIELD)")
-    description: Optional[str] = Field(None, description="Detailed description")
-    images: List[str] = Field(default_factory=list, description="List of image URLs")
+class EnquiryRequest(BaseModel):
+    buyer_name: str = Field(max_length=120)
+    buyer_phone: str = Field(max_length=20)
+    location: str | None = Field(default=None, max_length=200)
+    message: str | None = Field(default=None, max_length=1000)
 
 
-class AnimalSchema(BaseModel):
-    """Animal listing schema."""
-    id: str = Field(..., description="Listing UUID")
-    seller_user_id: Optional[str] = Field(None, description="Seller User UUID")
-    seller_name: Optional[str] = Field(None, description="Seller Name")
-    animal_type: str = Field(..., description="Animal Type")
-    title: str = Field(..., description="Title")
-    price: float = Field(..., description="Price")
-    original_price: Optional[float] = Field(None, description="Original Price before discount")
-    breed: Optional[str] = Field(None, description="Breed")
-    age_months: Optional[int] = Field(None, description="Age in months")
-    milk_yield_liters: Optional[float] = Field(None, description="Milk yield in Liters")
-    lactation: Optional[int | str] = Field(None, description="Lactation number or description")
-    discount_percent: Optional[float] = Field(None, description="Discount %")
-    badge: Optional[str] = Field(None, description="Badge text")
-    description: Optional[str] = Field(None, description="Description")
-    images: List[str] = Field(default_factory=list, description="Images list")
-    is_active: bool = Field(True, description="Active status")
+class CartItem(BaseModel):
+    variant_id: UUID
+    quantity: Quantity
 
 
-# --- Catalog Product Schemas ---
-
-class CreateProductRequest(BaseModel):
-    """Request schema for creating a Catalog Product."""
-    category_id: UUID = Field(..., description="Category UUID")
-    title: str = Field(..., min_length=1, description="Product title")
-    price: float = Field(..., gt=0.0, description="Price")
-    compare_at_price: Optional[float] = Field(None, description="Original price before discount")
-    brand_name: Optional[str] = Field(None, description="Brand name")
-    description: Optional[str] = Field(None, description="Description")
-    badge: Optional[str] = Field(None, description="Badge text")
-    is_featured: bool = Field(False, description="Featured product flag")
-    images: List[str] = Field(default_factory=list, description="List of product image URLs")
+class CartQuoteRequest(BaseModel):
+    items: list[CartItem] = Field(max_length=30)
 
 
-class ProductSchema(BaseModel):
-    """Catalog Product schema."""
-    id: str = Field(..., description="Product UUID")
-    category_id: str = Field(..., description="Category UUID")
-    category_name: Optional[str] = Field(None, description="Category Name")
-    title: str = Field(..., description="Product title")
-    price: float = Field(..., description="Price")
-    compare_at_price: Optional[float] = Field(None, description="Original price")
-    discount_percent: Optional[float] = Field(None, description="Discount %")
-    brand_name: Optional[str] = Field(None, description="Brand name")
-    description: Optional[str] = Field(None, description="Description")
-    badge: Optional[str] = Field(None, description="Badge")
-    is_featured: bool = Field(False, description="Featured flag")
-    images: List[str] = Field(default_factory=list, description="Product images")
-    is_active: bool = Field(True, description="Active status")
+class OrderRequest(BaseModel):
+    items: list[CartItem] = Field(min_length=1, max_length=30)
+    buyer_name: str = Field(max_length=120)
+    buyer_phone: str = Field(max_length=20)
+    address_line: str = Field(max_length=500)
+    city: str | None = Field(default=None, max_length=100)
+    state: str | None = Field(default=None, max_length=100)
+    pincode: str = Field(max_length=10)
+    notes: str | None = Field(default=None, max_length=500)
+    checkout_token: UUID
+    expected_total: Price
 
 
-# --- Order Schemas ---
-
-class CreateOrderRequest(BaseModel):
-    """Request schema for placing a Marketplace Order."""
-    item_type: str = Field("product", description="'animal' or 'product'")
-    item_id: UUID = Field(..., description="Target Animal/Product UUID")
-    quantity: int = Field(1, ge=1, description="Quantity")
-    delivery_address: str = Field(..., min_length=1, description="Shipping/Delivery address")
-    contact_phone: Optional[str] = Field(None, description="Contact phone number")
-    notes: Optional[str] = Field(None, description="Order notes")
+class TrackRequest(BaseModel):
+    order_ref: str = Field(max_length=30)
+    phone: str = Field(max_length=20)
 
 
-class OrderSchema(BaseModel):
-    """Marketplace Order schema."""
-    id: str = Field(..., description="Order UUID")
-    buyer_user_id: str = Field(..., description="Buyer User UUID")
-    buyer_name: Optional[str] = Field(None, description="Buyer Name")
-    item_type: str = Field(..., description="animal or product")
-    item_id: str = Field(..., description="Item UUID")
-    item_title: Optional[str] = Field(None, description="Item Title")
-    quantity: int = Field(..., description="Quantity")
-    unit_price: float = Field(..., description="Unit price")
-    total_amount: float = Field(..., description="Total order amount")
-    status: str = Field(..., description="Order status (PENDING, CONFIRMED, COMPLETED, CANCELLED)")
-    delivery_address: Optional[str] = Field(None, description="Delivery address")
-    contact_phone: Optional[str] = Field(None, description="Contact phone")
-    created_at: str = Field(..., description="Creation timestamp")
+# =========================================================
+# RESPONSES
+# =========================================================
 
 
-class UpdateOrderStatusRequest(BaseModel):
-    """Request schema for updating order status."""
-    status: str = Field(..., description="PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED")
+class StoreOut(_Public):
+    store_name: str
+    tagline: str | None
+    logo_url: str | None
+    support_phone: str | None
+    whatsapp_number: str | None
+    support_email: str | None
+    address: str | None
+    delivery_charge: Decimal
+    free_delivery_above: Decimal | None
+    min_order_amount: Decimal
+    cod_enabled: bool
+    serviceable_pincodes: list[str]
+    is_store_open: bool
+    closed_message: str | None
+    policies: dict[str, str]
 
 
-# --- Catalog Summary Data & Responses ---
-
-class CatalogData(BaseModel):
-    """Marketplace Catalog Summary Data payload."""
-    banners: List[BannerSchema] = Field(default_factory=list, description="Hero Banners")
-    trending_tags: List[TrendingTagSchema] = Field(default_factory=list, description="Trending Search Tags")
-    categories: List[CategorySchema] = Field(default_factory=list, description="Product Categories")
-    animals: List[AnimalSchema] = Field(default_factory=list, description="Cattle/Livestock Animals")
-    products: List[ProductSchema] = Field(default_factory=list, description="Catalog Products")
-    animal_types: List[str] = Field(default_factory=list, description="Available animal type filter options")
+class CategoryOut(_Public):
+    name: str
+    slug: str
+    image_url: str | None
 
 
-class MarketplaceCatalogResponse(BaseModel):
-    """Catalog Response Wrapper."""
-    status: bool = Field(True, description="Status indicator")
-    code: int = Field(200, description="HTTP status code")
-    message: str = Field("Marketplace catalog fetched successfully", description="Response message")
-    data: CatalogData = Field(..., description="Catalog summary payload")
+class AnimalTypeOut(_Public):
+    name: str
+    slug: str
+    image_url: str | None
 
 
-class MarketplaceListResponse(BaseModel):
-    """Standard paginated response wrapper for generic marketplace list items."""
-    status: bool = Field(True, description="Status indicator")
-    code: int = Field(200, description="HTTP status code")
-    message: str = Field("Marketplace items fetched successfully", description="Response message")
-    items: List[Any] = Field(default_factory=list, description="Items list")
-    limit: Optional[int] = Field(None, description="Items per page")
-    offset: Optional[int] = Field(None, description="Offset")
-    total: int = Field(0, description="Total matching items")
-    pages: int = Field(1, description="Total pages")
-    next_page: Optional[int] = Field(None, description="Next page number")
-    has_more: bool = Field(False, description="Has more pages indicator")
-    type: Optional[str] = Field(None, description="Type of items")
+class BreedOut(_Public):
+    id: UUID
+    name: str
 
 
-class MarketplaceSingleResponse(BaseModel):
-    """Single marketplace record response wrapper."""
-    status: bool = Field(True, description="Status indicator")
-    code: int = Field(200, description="HTTP status code")
-    message: str = Field("Operation successful", description="Response message")
-    data: Any = Field(..., description="Data object")
-    type: str = Field(..., description="Data object")
+class BannerOut(_Public):
+    title: str
+    subtitle: str | None
+    cta_label: str | None
+    cta_url: str | None
+    image_url: str
+    mobile_image_url: str | None
+
+
+class TrendingTagOut(_Public):
+    label: str
+    url: str
+
+
+class ProductCardOut(_Public):
+    slug: str
+    title: str
+    brand: str | None
+    short_description: str | None
+    price: Decimal
+    mrp: Decimal
+    discount_percent: int
+    size: str
+    other_sizes: int
+    in_stock: bool
+    image_url: str | None
+    image_alt: str | None
+
+
+class AnimalCardOut(_Public):
+    slug: str
+    title: str
+    type_name: str
+    breed_name: str | None
+    status: str
+    price: Decimal
+    is_negotiable: bool
+    milk_litres_per_day: Decimal | None
+    lactation_number: int | None
+    age_months: int | None
+    location: str | None
+    image_url: str | None
+    image_alt: str | None
+
+
+class HomeBlockOut(_Public):
+    section_type: str
+    title: str
+    subtitle: str | None
+    category_slug: str | None
+    categories: list[CategoryOut]
+    products: list[ProductCardOut]
+    animals: list[AnimalCardOut]
+    banners: list[BannerOut]
+
+
+class HomeOut(BaseModel):
+    store: StoreOut
+    trending_tags: list[TrendingTagOut]
+    hero_banners: list[BannerOut]
+    blocks: list[HomeBlockOut]
+
+
+class GalleryImageOut(_Public):
+    url: str
+    alt: str
+
+
+class SizeOut(_Public):
+    variant_id: UUID
+    name: str
+    price: Decimal
+    mrp: Decimal
+    discount_percent: int
+    in_stock: bool
+    is_default: bool
+    few_left: int | None
+
+
+class ProductDetailOut(_Public):
+    slug: str
+    title: str
+    brand: str | None
+    short_description: str | None
+    description: str | None
+    category_name: str
+    category_slug: str
+    specifications: list[dict[str, str]]
+    sizes: list[SizeOut]
+    images: list[GalleryImageOut]
+
+
+class ProductPageOut(BaseModel):
+    product: ProductDetailOut
+    related: list[ProductCardOut]
+
+
+class AnimalDetailOut(_Public):
+    slug: str
+    title: str
+    type_name: str
+    type_slug: str
+    breed_name: str | None
+    status: str
+    gender: str
+    price: Decimal
+    is_negotiable: bool
+    age_months: int | None
+    lactation_number: int | None
+    milk_litres_per_day: Decimal | None
+    fat_percent: Decimal | None
+    pregnancy_status: str
+    pregnancy_months: int | None
+    calf_details: str | None
+    health_notes: str | None
+    vaccination_notes: str | None
+    village: str | None
+    district: str | None
+    state: str | None
+    description: str | None
+    images: list[GalleryImageOut]
+
+
+class AnimalPageOut(BaseModel):
+    animal: AnimalDetailOut
+    similar: list[AnimalCardOut]
+
+
+class CartLineOut(_Public):
+    variant_id: UUID
+    slug: str
+    title: str
+    size: str
+    price: Decimal
+    mrp: Decimal
+    quantity: int
+    line_total: Decimal
+    image_url: str | None
+    reduced_from: int | None
+    is_out_of_stock: bool
+    max_quantity: int
+
+
+class CartOut(_Public):
+    lines: list[CartLineOut]
+    removed_count: int
+    subtotal: Decimal
+    delivery_charge: Decimal
+    total: Decimal
+    min_order_amount: Decimal
+    below_minimum_by: Decimal
+    free_delivery_gap: Decimal
+    is_store_open: bool
+    cod_enabled: bool
+    can_check_out: bool
+
+
+class TrackedLineOut(_Public):
+    product_title: str
+    variant_name: str
+    unit_price: Decimal
+    quantity: int
+    line_total: Decimal
+
+
+class TrackedOrderOut(_Public):
+    """Deliberately no buyer name or address: a reference and phone number may be shared."""
+
+    order_ref: str
+    status: str
+    payment_method: str
+    payment_status: str
+    pincode: str
+    subtotal: Decimal
+    delivery_charge: Decimal
+    total: Decimal
+    cancel_reason: str | None
+    created_at: object | None = None
+    lines: list[TrackedLineOut]

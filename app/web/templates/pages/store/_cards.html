@@ -1,0 +1,91 @@
+{# Store cards, used by the home page and the listing pages. #}
+
+{% macro pager(page, pages, total, query, base) %}
+{% if pages > 1 %}
+<nav class="st-pager" aria-label="Pages">
+    {% if page > 1 %}<a class="st-btn st-btn-plain" rel="prev" href="{{ base }}?page={{ page - 1 }}{% if query %}&{{ query }}{% endif %}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Previous</a>{% endif %}
+    <span>Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}<a class="st-btn st-btn-plain" rel="next" href="{{ base }}?page={{ page + 1 }}{% if query %}&{{ query }}{% endif %}">Next <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>{% endif %}
+</nav>
+{% endif %}
+{% endmacro %}
+
+{% macro gallery(images, icon) %}
+<div class="st-gallery" data-gallery>
+    <div class="st-gallery-track" data-gallery-track tabindex="0" aria-label="Images">
+        {% for image in images %}
+        <img src="{{ image.url }}" alt="{{ image.alt }}" width="800" height="800" {% if not loop.first %}loading="lazy"{% endif %}>
+        {% else %}
+        <span class="st-gallery-empty"><i class="fa-solid {{ icon }}" aria-hidden="true"></i></span>
+        {% endfor %}
+    </div>
+    {% if images|length > 1 %}
+    <div class="st-thumbs">
+        {% for image in images %}
+        <button type="button" data-gallery-thumb="{{ loop.index0 }}" aria-label="Show image {{ loop.index }}" {% if loop.first %}aria-current="true"{% endif %}>
+            <img src="{{ image.url }}" alt="" width="72" height="72" loading="lazy">
+        </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro product_card(product) %}
+<article class="st-card st-product">
+    <a class="st-card-link" href="/marketplace/products/{{ product.slug }}">
+        <div class="st-card-image st-card-image-square">
+            {% if product.image_url %}
+            <img src="{{ product.image_url }}" alt="{{ product.image_alt }}" loading="lazy" width="400" height="400">
+            {% else %}
+            <span class="st-card-noimage"><i class="fa-solid fa-bottle-droplet" aria-hidden="true"></i></span>
+            {% endif %}
+            {% if not product.in_stock %}
+            <span class="st-badge st-badge-dark">Out of stock</span>
+            {% elif product.discount_percent %}
+            <span class="st-badge st-badge-offer">{{ product.discount_percent }}% off</span>
+            {% endif %}
+        </div>
+        <div class="st-card-body">
+            {% if product.brand %}<div class="st-eyebrow">{{ product.brand }}</div>{% endif %}
+            <h3 class="st-card-title">{{ product.title }}</h3>
+            <div class="st-size">{{ product.size }}{% if product.other_sizes %} · {{ product.other_sizes }} more size{{ 's' if product.other_sizes > 1 }}{% endif %}</div>
+            <div class="st-price-row">
+                <span class="st-price">{{ product.price|inr }}</span>
+                {% if product.discount_percent %}<s class="st-mrp"><span class="st-vh">MRP </span>{{ product.mrp|inr }}</s>{% endif %}
+            </div>
+        </div>
+    </a>
+</article>
+{% endmacro %}
+
+{% macro animal_card(animal) %}
+<article class="st-card st-animal">
+    <a class="st-card-link" href="/marketplace/animals/{{ animal.slug }}">
+        <div class="st-card-image st-card-image-wide">
+            {% if animal.image_url %}
+            <img src="{{ animal.image_url }}" alt="{{ animal.image_alt }}" loading="lazy" width="640" height="480">
+            {% else %}
+            <span class="st-card-noimage"><i class="fa-solid fa-cow" aria-hidden="true"></i></span>
+            {% endif %}
+            {% if animal.status.value == 'RESERVED' %}<span class="st-badge st-badge-dark">Reserved</span>{% endif %}
+        </div>
+        <div class="st-card-body">
+            <div class="st-eyebrow">{{ animal.type_name }}{% if animal.breed_name %} · {{ animal.breed_name }}{% endif %}</div>
+            <h3 class="st-card-title">{{ animal.title }}</h3>
+            <dl class="st-specs">
+                <div><dt>Milk / day</dt><dd>{% if animal.milk_litres_per_day is not none %}{{ animal.milk_litres_per_day|quantity }} L{% else %}—{% endif %}</dd></div>
+                <div><dt>Lactation</dt><dd>{{ animal.lactation_number if animal.lactation_number is not none else '—' }}</dd></div>
+                <div><dt>Age</dt><dd>{{ animal.age_months|age_label }}</dd></div>
+            </dl>
+            <div class="st-price-row st-animal-foot">
+                <span>
+                    <span class="st-price">{{ animal.price|inr }}</span>
+                    {% if animal.is_negotiable %}<span class="st-negotiable">Negotiable</span>{% endif %}
+                </span>
+                {% if animal.location %}<span class="st-location"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> {{ animal.location }}</span>{% endif %}
+            </div>
+        </div>
+    </a>
+</article>
+{% endmacro %}

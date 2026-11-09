@@ -1,0 +1,64 @@
+{% extends "layouts/store.html" %}
+
+{% block title %}Track your order · {{ frame.settings.store_name }}{% endblock %}
+{% block seo %}<meta name="robots" content="noindex">{% endblock %}
+
+{% set step_labels = {'PLACED': 'Placed', 'CONFIRMED': 'Confirmed', 'PACKED': 'Packed', 'OUT_FOR_DELIVERY': 'Out for delivery', 'DELIVERED': 'Delivered'} %}
+
+{% block content %}
+<div class="st-wrap st-list-page st-track">
+    <header class="st-list-head">
+        <h1>Track your order</h1>
+        <p>Enter your order reference and the mobile number you ordered with.</p>
+    </header>
+
+    <form method="post" action="/marketplace/track" class="st-track-form">
+        <label class="st-field">
+            <span>Order reference</span>
+            <input type="text" name="order_ref" value="{{ form.get('order_ref', '') }}" placeholder="VT-261109-K7M2QX" maxlength="30" autocapitalize="characters" required>
+        </label>
+        <label class="st-field">
+            <span>Mobile number</span>
+            <input type="tel" name="phone" value="{{ form.get('phone', '') }}" maxlength="20" autocomplete="tel" required>
+        </label>
+        <button class="st-btn st-btn-forest">Track</button>
+    </form>
+
+    {% if not_found %}
+    <div class="st-alert st-alert-error" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> We could not find an order with that reference and mobile number. Please check both.</div>
+    {% endif %}
+
+    {% if order %}
+    <section class="st-track-result" aria-labelledby="result-title">
+        <div class="st-track-head">
+            <h2 id="result-title">{{ order.order_ref }}</h2>
+            <span>Ordered {{ order.created_at.strftime('%d %b %Y') if order.created_at }} · Delivery to {{ order.pincode }}</span>
+        </div>
+
+        {% if order.status.value == 'CANCELLED' %}
+        <div class="st-alert st-alert-error" role="status"><i class="fa-solid fa-ban" aria-hidden="true"></i> This order was cancelled.{% if order.cancel_reason %} Reason: {{ order.cancel_reason }}{% endif %}</div>
+        {% else %}
+        <ol class="st-steps">
+            {% for step in steps %}
+            <li class="{{ 'st-step-done' if loop.index0 <= reached }}" {% if loop.index0 == reached %}aria-current="step"{% endif %}>
+                <span class="st-step-dot" aria-hidden="true">{% if loop.index0 <= reached %}<i class="fa-solid fa-check"></i>{% endif %}</span>
+                {{ step_labels[step.value] }}
+            </li>
+            {% endfor %}
+        </ol>
+        {% endif %}
+
+        <ul class="st-summary-lines">
+            {% for line in order.lines %}
+            <li><span>{{ line.product_title }} <small>{{ line.variant_name }} × {{ line.quantity }}</small></span><b>{{ line.line_total|inr }}</b></li>
+            {% endfor %}
+        </ul>
+        <dl class="st-track-totals">
+            <div><dt>Delivery</dt><dd>{% if order.delivery_charge %}{{ order.delivery_charge|inr }}{% else %}Free{% endif %}</dd></div>
+            <div class="st-summary-total"><dt>Total</dt><dd>{{ order.total|inr }}</dd></div>
+            <div><dt>Payment</dt><dd>Cash on Delivery · {{ 'Paid' if order.payment_status.value == 'PAID' else 'To pay' }}</dd></div>
+        </dl>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

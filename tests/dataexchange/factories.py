@@ -155,7 +155,7 @@ async def create_user(
     mobile = unique_mobile()
     async with database.transaction() as session:
         await session.execute(UserModel.__table__.insert(), [dict(
-            id=user_id, name=name, email=f"user-{user_id.hex[:6]}@test.local",
+            id=user_id, name=name, email=f"user-{user_id.hex}@test.local",
             mobile=mobile, password_hash="x", role=role, is_active=True, is_locked=False,
             created_by=created_by, created_at=now, updated_at=now, is_deleted=False,
         )])

@@ -101,6 +101,57 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | REQ-26 | Deleting an Admin / Sub Admin from Managed Admins is a soft delete (DECISION-014) | User 2026-11-04 | 7 | Complete |
 | REQ-27 | The bin shows who soft-deleted each record and when (list and confirm dialog) | User 2026-11-04 | 7 | Complete |
 
+### Marketplace Revamp (v1.2.0, Phases 8–15)
+
+**Legacy removal**
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-28 | All old marketplace UI, web routes, API, module code, cart and uploaded demo images are removed; the app starts and its tests pass without them | User 2026-11-08 | 8 | Complete |
+| REQ-29 | Legacy marketplace tables and their rows are not altered or dropped by startup, and the Recycle Bin can still purge a user who owns legacy rows (DECISION-015) | User 2026-11-08 | 8 | Complete |
+
+**Seller model**
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-47 | Only Super Admin can create or manage listings now. Every listing and order line records its seller, one policy decides which roles may sell, and repository scope limits non-Super-Admin sellers to their own records, so enabling Admin / Sub Admin needs no schema change (DECISION-016) | User 2026-11-08 | 9, 10 | Complete |
+
+**Control Center**
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-30 | Super-Admin-only Control Center with an overview: listings, low stock, new orders, new enquiries | User 2026-11-08 | 10 | Complete |
+| REQ-31 | Manage nested categories: name, slug, image, order, active | User 2026-11-08 | 10 | Complete |
+| REQ-32 | Manage products: category, brand, description, specifications, gallery, variants (size, SKU, MRP, price, stock), draft / published / archived, featured and trending | User 2026-11-08 | 10 | Complete |
+| REQ-33 | Manage animals: type, breed, price, negotiable flag, age, lactation number, milk litres per day, FAT %, pregnancy and calf details, health and vaccination notes, location, description, gallery, draft / published / reserved / sold, featured and trending; manage the animal type and breed masters | User 2026-11-08 | 10 | Complete |
+| REQ-34 | Manage storefront content: scheduled banners, trending items, and the order and visibility of home sections | User 2026-11-08 | 11 | Complete |
+| REQ-35 | Manage store settings: brand, contact and WhatsApp numbers, delivery charge, free-delivery threshold, minimum order, COD switch, serviceable pincodes, policy pages, store open or closed | User 2026-11-08 | 11 | Complete |
+| REQ-36 | Manage enquiries (new / contacted / closed) and orders (placed → confirmed → packed → out for delivery → delivered, or cancelled, with stock restored on cancel) | User 2026-11-08 | 13, 14 | Complete |
+
+**Storefront**
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-37 | Public home page: search, category navigation, banner carousel, trending, featured animals and products, all driven by the Control Center; empty sections hide themselves | User 2026-11-08 | 12 | Complete |
+| REQ-38 | Product listing: search, category, price and availability filters, sorting, pagination | User 2026-11-08 | 13 | Complete |
+| REQ-39 | Animal listing: search and filters for type, breed, price, milk litres per day, lactation and location; sorting and pagination; cards show price, lactation and milk litres per day | User 2026-11-08 | 13 | Complete |
+| REQ-40 | Product detail page: gallery, variant selection, MRP, price and discount, stock state, description, specifications, related products | User 2026-11-08 | 13 | Complete |
+| REQ-41 | Animal detail page: image gallery, price, lactation, milk litres per day, every specification, full description, seller location, similar animals | User 2026-11-08 | 13 | Complete |
+| REQ-42 | Animals are not added to the cart; the detail page offers Call, WhatsApp with a prefilled message, and a validated enquiry form (DECISION-017) | User 2026-11-08 | 13 | Complete |
+| REQ-43 | Cart: add, change quantity, remove, live totals; survives reload; revalidated against the server | User 2026-11-08 | 14 | Complete |
+| REQ-44 | Guest COD checkout: name, phone, address and pincode validated; prices, totals and delivery charge are computed on the server; stock cannot go negative under concurrent orders (DECISION-018) | User 2026-11-08 | 14 | Complete |
+| REQ-45 | Order confirmation with a reference; tracking requires both the reference and the phone number | User 2026-11-08 | 14 | Complete |
+| REQ-46 | New `/api/v1/marketplace` REST API for browsing, enquiries, orders and tracking, using the standard envelopes; it replaces the old API | User 2026-11-08 | 15 | Complete |
+
+**Marketplace quality**
+
+| ID | Requirement | Category | Phase | Status |
+|----|-------------|----------|-------|--------|
+| NFR-15 | **Professional UI:** one design system; responsive from 360 px to desktop; keyboard usable with visible focus and WCAG AA contrast; loading, empty and error states everywhere; user sign-off on real pages | Usability | 12–15 | In Progress (audits pass; final user sign-off open) |
+| NFR-16 | **Fast:** server-rendered pages; lazy, correctly sized images with no layout shift; no list query per card (no N+1); p95 under 300 ms for home and listing pages on a catalog of 1,000 listings | Performance | 12–15 | Complete (see Phase 15 verification for load limits) |
+| NFR-17 | **Secure by default:** the Control Center and admin API are outside public URL prefixes and enforce the role on the server; public forms are validated and rate limited; images go through `MediaService` validation | Security | 10, 15 | Complete (no admin API exists, DECISION-023) |
+| NFR-18 | **No CDN at runtime:** all fonts, icons and scripts are self-hosted like the rest of the app | Reliability | 12 | Complete |
+
 ---
 
 ## Constraints
@@ -149,6 +200,14 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | NFR-12 | 1.6, 5.2 | `test_jobs_api.py`, load test | — |
 | NFR-13 | 1.6 | `test_uploads_api.py` | — |
 | NFR-14 | 1.6 | `test_jobs_api.py` | — |
+| REQ-28 | 8.2 | `tests/test_marketplace_removal.py` | Complete |
+| REQ-29 | 8.1 | `tests/test_recycle_bin.py`, `tests/test_marketplace_removal.py` | Complete |
+| REQ-30 … REQ-45, REQ-47 | Phases 9 to 14 | `tests/marketplace/` | Complete |
+| REQ-46 | 15.1 | `tests/marketplace/test_store_api.py` | Complete |
+| NFR-15 | 12 to 15 | axe-core and keyboard runs in `.gsd/phases/15/VERIFICATION.md` | In Progress |
+| NFR-16 | 12 to 15 | Timing runs in `.gsd/phases/15/VERIFICATION.md` | Complete |
+| NFR-17 | 10, 15 | `tests/marketplace/test_rate_limit.py`, `tests/test_logging_privacy.py` | Complete |
+| NFR-18 | 12 | Source check in `.gsd/phases/15/VERIFICATION.md` | Complete |
 
 ---
 

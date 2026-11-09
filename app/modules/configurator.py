@@ -70,6 +70,17 @@ from app.modules.dataexchange.application.prodata_exchange import ProdataExchang
 from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
 from app.modules.dataexchange.infrastructure.vlcc_scope import VlccScope
 from app.modules.dataexchange.infrastructure.owner_scope import OwnerScope
+from app.modules.marketplace.application.handler import MarketplaceCatalogHandler
+from app.modules.marketplace.application.merchandising_handler import MarketplaceMerchandisingHandler
+from app.core.rate_limit import SlidingWindowLimiter
+from app.modules.marketplace.application.order_handler import MarketplaceOrderHandler
+from app.modules.marketplace.application.rate_limits import StoreRateLimiter
+from app.modules.marketplace.application.storefront_handler import StorefrontHandler
+from app.modules.marketplace.infrastructure.merchandising_repository import MerchandisingRepository
+from app.modules.marketplace.infrastructure.order_repository import OrderRepository
+from app.modules.marketplace.infrastructure.storefront_repository import StorefrontRepository
+from app.modules.marketplace.infrastructure.repository import MarketplaceRepository
+from app.modules.marketplace.infrastructure.seed import MarketplaceSeeder
 from app.modules.recyclebin.application.handler import RecycleBinHandler
 from app.modules.recyclebin.infrastructure.repository import RecycleBinRepository
 from app.modules.dataexchange.infrastructure.ratechart_scope import RateChartScope
@@ -205,9 +216,12 @@ class ModuleConfigurator:
         repository = DeviceItemVersionRepository(_database)
         container.register(DeviceItemVersionRepository, repository)
 
-        from app.modules.marketplace.infrastructure.repository import MarketplaceRepository
         repository = MarketplaceRepository(_database)
         container.register(MarketplaceRepository, repository)
+        container.register(MarketplaceSeeder, MarketplaceSeeder(_database))
+        container.register(MerchandisingRepository, MerchandisingRepository(_database))
+        container.register(StorefrontRepository, StorefrontRepository(_database))
+        container.register(OrderRepository, OrderRepository(_database))
 
         repository = ExcelJobRepository(_database)
         container.register(ExcelJobRepository, repository)
@@ -252,9 +266,43 @@ class ModuleConfigurator:
         cls._dashboard(container)
         cls._device_item_version(container)
         cls._reports(container)
-        cls._marketplace(container)
         cls._dataexchange(container)
         cls._recycle_bin(container)
+        cls._marketplace(container)
+
+    @classmethod
+    def _marketplace(cls, container: ServiceContainer):
+        handler = MarketplaceCatalogHandler(
+            database=container.database,
+            repository=container.resolve(MarketplaceRepository),
+            media_service=container.resolve(MediaService),
+        )
+        container.register(MarketplaceCatalogHandler, handler)
+
+        merchandising = MarketplaceMerchandisingHandler(
+            database=container.database,
+            repository=container.resolve(MerchandisingRepository),
+            media_service=container.resolve(MediaService),
+        )
+        container.register(MarketplaceMerchandisingHandler, merchandising)
+
+        storefront = StorefrontHandler(
+            database=container.database,
+            store=container.resolve(StorefrontRepository),
+            content=container.resolve(MerchandisingRepository),
+        )
+        container.register(StorefrontHandler, storefront)
+
+        orders = MarketplaceOrderHandler(
+            database=container.database,
+            orders=container.resolve(OrderRepository),
+            content=container.resolve(MerchandisingRepository),
+        )
+        container.register(MarketplaceOrderHandler, orders)
+        container.register(
+            StoreRateLimiter,
+            StoreRateLimiter(SlidingWindowLimiter(), enabled=settings.MARKETPLACE_RATE_LIMIT_ENABLED),
+        )
 
     @classmethod
     def _dataexchange(cls, container: ServiceContainer):
@@ -322,19 +370,6 @@ class ModuleConfigurator:
             file_ttl_hours=settings.EXCHANGE_FILE_TTL_HOURS,
         )
         container.register(WorkerSupervisor, supervisor)
-
-    @classmethod
-    def _marketplace(cls, container: ServiceContainer):
-        from app.modules.marketplace.infrastructure.repository import MarketplaceRepository
-        from app.modules.marketplace.application.handler import MarketplaceCommandHandler
-        handler = MarketplaceCommandHandler(
-            database=container.database,
-            repository=container.resolve(MarketplaceRepository),
-            media_service=container.resolve(MediaService),
-        )
-        container.register(MarketplaceCommandHandler, handler)
-
-
 
     @classmethod
     def _password_register(cls, container: ServiceContainer):

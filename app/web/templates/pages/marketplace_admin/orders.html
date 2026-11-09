@@ -1,0 +1,57 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Orders{% endblock %}
+{% block heading %}Orders{% endblock %}
+{% block subheading %}<p class="mk-sub">Cash on Delivery orders from the store.</p>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-card">
+    <div class="mk-toolbar">
+        <form class="mk-search" method="get" role="search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" name="search" value="{{ search }}" placeholder="Search by reference, buyer or phone" aria-label="Search orders">
+            {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+        </form>
+        <div class="mk-filter-links">
+            <a class="mk-filter" href="?search={{ search|urlencode }}" {% if not status %}aria-current="true"{% endif %}>All</a>
+            {% for option in statuses %}
+            <a class="mk-filter" href="?status={{ option.value }}&search={{ search|urlencode }}" {% if status == option.value %}aria-current="true"{% endif %}>{{ option.value|replace('_', ' ')|capitalize }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if items %}
+    <table class="mk-table">
+        <thead><tr><th>Order</th><th>Buyer</th><th>Items</th><th>Total</th><th>Status</th><th><span class="mk-vh">Actions</span></th></tr></thead>
+        <tbody>
+            {% for order in items %}
+            <tr>
+                <td class="mk-cell-main">
+                    <div class="mk-item-title">{{ order.order_ref }}</div>
+                    <div class="mk-item-meta">{{ order.created_at.strftime('%d %b %Y, %I:%M %p') if order.created_at }}</div>
+                </td>
+                <td data-label="Buyer">
+                    <div>
+                        <div>{{ order.buyer_name }}</div>
+                        <div class="mk-item-meta">{{ order.buyer_phone }} · {{ order.pincode }}</div>
+                    </div>
+                </td>
+                <td data-label="Items" class="mk-num">{{ order.item_count }}</td>
+                <td data-label="Total" class="mk-num">{{ order.total|inr }}</td>
+                <td data-label="Status">
+                    <span class="mk-pill {{ {'PLACED': 'mk-pill-reserved', 'DELIVERED': 'mk-pill-published', 'CANCELLED': 'mk-pill-off'}.get(order.status.value, 'mk-pill-sold') }}">{{ order.status.value|replace('_', ' ')|capitalize }}</span>
+                </td>
+                <td><div class="mk-row-actions"><a class="mk-btn mk-btn-sm" href="/admin/marketplace/orders/{{ order.id }}">Open</a></div></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {{ ui.pager(page, total_pages, total, "&search=" ~ search|urlencode ~ "&status=" ~ status) }}
+    {% elif search or status %}
+    <div class="mk-empty"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><div class="mk-empty-title">No orders match</div>Try a different search or filter.</div>
+    {% else %}
+    <div class="mk-empty"><i class="fa-solid fa-receipt" aria-hidden="true"></i><div class="mk-empty-title">No orders yet</div>When a customer orders, it appears here.</div>
+    {% endif %}
+</div>
+{% endblock %}

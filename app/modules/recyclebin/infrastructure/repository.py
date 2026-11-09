@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy import column, delete, func, inspect, or_, select, table, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -35,9 +35,8 @@ from app.modules.common.milk_quality.infrastructure.models import MilkQualityCon
 from app.modules.common.settings.infrastructure.models import SettingsModel
 from app.modules.farmer.infrastructure.models import FarmerModel
 from app.modules.marketplace.infrastructure.models import (
-    AnimalModel,
-    MarketplaceOrderModel,
-    ProductOfferModel,
+    MarketplaceAnimalModel,
+    MarketplaceProductModel,
 )
 from app.modules.masters.advanced.infrastructure.models import AdvanceMasterModel
 from app.modules.mcc.infrastructure.models import MccModel
@@ -64,6 +63,14 @@ _USER_ROLE = {
     DeletedEntityType.ADMIN: Role.ADMIN,
     DeletedEntityType.SUB_ADMIN: Role.SUB_ADMIN,
 }
+
+# Tables of the removed marketplace (DECISION-015). Existing databases keep them, with
+# ON DELETE RESTRICT links to users, so a purge must clear them first. Fresh databases
+# do not have them, so every use checks that the table exists.
+_LEGACY_UUID = UserModel.id.type
+_LEGACY_ANIMALS = table("animals", column("id", _LEGACY_UUID), column("seller_user_id", _LEGACY_UUID))
+_LEGACY_OFFERS = table("product_offers", column("id", _LEGACY_UUID), column("seller_user_id", _LEGACY_UUID))
+_LEGACY_ORDERS = table("marketplace_orders", column("id", _LEGACY_UUID), column("buyer_id", _LEGACY_UUID))
 
 
 def _chunks(values: Iterable[UUID]) -> Iterable[list[UUID]]:
@@ -289,8 +296,9 @@ class RecycleBinRepository(IRecycleBinRepository):
             "rate_charts": len(await self._rate_chart_ids(users)),
             "advances": len(await self._advance_record_ids(users))
             + len(await self._in(select(AdvanceMasterModel.id), AdvanceMasterModel.user_id, users)),
-            "marketplace_listings": len(await self._in(select(AnimalModel.id), AnimalModel.seller_user_id, users))
-            + len(await self._in(select(ProductOfferModel.id), ProductOfferModel.seller_user_id, users)),
+            "marketplace_listings": await self._count_legacy_listings(users)
+            + len(await self._in(select(MarketplaceProductModel.id), MarketplaceProductModel.seller_user_id, users))
+            + len(await self._in(select(MarketplaceAnimalModel.id), MarketplaceAnimalModel.seller_user_id, users)),
         }
 
     # =========================================================
@@ -314,9 +322,10 @@ class RecycleBinRepository(IRecycleBinRepository):
         # 3. Advances and marketplace rows owned by the tree's users
         await self._delete_in(AdvanceRecordModel, AdvanceRecordModel.id, await self._advance_record_ids(users))
         await self._delete_in(AdvanceMasterModel, AdvanceMasterModel.user_id, users)
-        await self._delete_in(AnimalModel, AnimalModel.seller_user_id, users)
-        await self._delete_in(ProductOfferModel, ProductOfferModel.seller_user_id, users)
-        await self._delete_in(MarketplaceOrderModel, MarketplaceOrderModel.buyer_id, users)
+        await self._delete_legacy_marketplace_rows(users)
+        # Variants and images cascade; order lines and enquiries keep their snapshots with a NULL link
+        await self._delete_in(MarketplaceProductModel, MarketplaceProductModel.seller_user_id, users)
+        await self._delete_in(MarketplaceAnimalModel, MarketplaceAnimalModel.seller_user_id, users)
 
         # 4. Rate charts made inside the tree that no survivor uses; survivors' charts stay
         await self._delete_in(RateChartModel, RateChartModel.id, await self._rate_chart_ids(users))
@@ -348,6 +357,30 @@ class RecycleBinRepository(IRecycleBinRepository):
     # =========================================================
     # PURGE HELPERS
     # =========================================================
+
+    async def _existing_tables(self) -> set[str]:
+        names = await self._session.run_sync(
+            lambda session: inspect(session.connection()).get_table_names()
+        )
+        return set(names)
+
+    async def _count_legacy_listings(self, users: set[UUID]) -> int:
+        existing = await self._existing_tables()
+        count = 0
+        for legacy in (_LEGACY_ANIMALS, _LEGACY_OFFERS):
+            if legacy.name in existing:
+                count += len(await self._in(select(legacy.c.id), legacy.c.seller_user_id, users))
+        return count
+
+    async def _delete_legacy_marketplace_rows(self, users: set[UUID]) -> None:
+        existing = await self._existing_tables()
+        for legacy, owner in (
+            (_LEGACY_ANIMALS, _LEGACY_ANIMALS.c.seller_user_id),
+            (_LEGACY_OFFERS, _LEGACY_OFFERS.c.seller_user_id),
+            (_LEGACY_ORDERS, _LEGACY_ORDERS.c.buyer_id),
+        ):
+            if legacy.name in existing:
+                await self._delete_in(legacy, owner, users)
 
     async def _reverse_survivor_balances(self, transfer_ids: set[UUID], users: set[UUID]) -> None:
         """Undo each survivor ledger entry of a deleted transfer on its account balance."""

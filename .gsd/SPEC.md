@@ -12,7 +12,7 @@ Quickyee is an ultra-fast, robust, and offline-capable dairy enterprise platform
 2. **Transparent Pricing & Rate Charts**: Precision milk valuation via configurable FAT/SNF slab matrices, formulas, and pro-rata pricing.
 3. **Dispatch & Traceability**: Milk tanker dispatches from VLCC centers to MCC chilling plants with shift tracking and transit loss monitoring.
 4. **Member Ledger & Supplies**: Cattle feed, store advances, loan recovery, and farmer ledger management.
-5. **Open Marketplace**: Dairy cattle listings, cattle feed, and accessories accessible to both guest and authenticated users.
+5. **Open Marketplace (revamped in v1.2.0)**: A professional e-commerce store for guests and logged-in users. Animals (cow, buffalo, sheep, goat and more) are shown with price, lactation, milk litres per day, full description and images, and are bought through Call, WhatsApp or an enquiry. Products (milk, ghee, coconut and similar) follow mainstream e-commerce with categories, variants, stock, cart and Cash on Delivery guest checkout. Banners, trending and home sections are managed from a Super Admin Control Center. Super Admin is the only seller for now; the design allows Admin and Sub Admin sellers later. Details: [REQUIREMENTS.md](REQUIREMENTS.md).
 6. **Bulk Data Exchange (v1.1.0)**: Farmers (per VLCC), VLCCs (per Admin / Sub Admin) and Prodata rate-chart rows can be exported to and imported from Excel through one job-based API used by the web panel and the mobile app. Imports upsert by code, discard only the bad rows with a reason, and report total / inserted / updated / discarded. Very large files are streamed so the server never crashes and no data is lost. Details: [REQUIREMENTS.md](REQUIREMENTS.md).
 
 ## Non-Goals (Out of Scope for Core Backend)
@@ -20,6 +20,7 @@ Quickyee is an ultra-fast, robust, and offline-capable dairy enterprise platform
 - Raw video streaming (images and PDFs are supported via `MediaService`).
 - Excel exchange for other entities (MCCs, collections, payments) and file formats other than `.xlsx` (CSV, `.xls`) — not in v1.1.0.
 - Exporting passwords, database IDs (UUIDs) or profile images to Excel.
+- Online payments, customer accounts / OTP login and a seller panel for Admin / Sub Admin — not in v1.2.0; the marketplace design leaves room for them.
 
 ## Technical Constraints
 - Asynchronous Python 3.13+ runtime with FastAPI.
@@ -28,4 +29,4 @@ Quickyee is an ultra-fast, robust, and offline-capable dairy enterprise platform
 - Strict Pydantic v2 schemas and response envelopes.
 
 ---
-*Last updated: 2026-10-25 (Goal 6 added for milestone v1.1.0)*
+*Last updated: 2026-11-08 (Goal 5 revised for milestone v1.2.0)*

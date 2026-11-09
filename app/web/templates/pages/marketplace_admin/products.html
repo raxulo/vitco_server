@@ -1,0 +1,81 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Products{% endblock %}
+{% block heading %}Products{% endblock %}
+{% block head_actions %}<a class="mk-btn mk-btn-primary" href="/admin/marketplace/products/new"><i class="fa-solid fa-plus" aria-hidden="true"></i> Add product</a>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-card">
+    <div class="mk-toolbar">
+        <form class="mk-search" method="get" role="search">
+            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" name="search" value="{{ search }}" placeholder="Search by name or brand" aria-label="Search products">
+            {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+        </form>
+        <div class="mk-filter-links">
+            <a class="mk-filter" href="?search={{ search|urlencode }}" {% if not status %}aria-current="true"{% endif %}>All</a>
+            {% for option in statuses %}
+            <a class="mk-filter" href="?status={{ option.value }}&search={{ search|urlencode }}" {% if status == option.value %}aria-current="true"{% endif %}>{{ option.value|capitalize }}</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if items %}
+    <table class="mk-table">
+        <thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th><span class="mk-vh">Actions</span></th></tr></thead>
+        <tbody>
+            {% for product in items %}
+            {% set active = product.variants|selectattr('is_active')|list %}
+            <tr>
+                <td class="mk-cell-main">
+                    <div class="mk-item">
+                        {% if product.images %}
+                        <img class="mk-thumb" src="{{ product.images[0].url }}" alt="" loading="lazy" width="48" height="48">
+                        {% else %}
+                        <span class="mk-thumb mk-thumb-empty"><i class="fa-regular fa-image" aria-hidden="true"></i></span>
+                        {% endif %}
+                        <div>
+                            <div class="mk-item-title">{{ product.title }}</div>
+                            <div class="mk-item-meta">
+                                {{ product.brand or '' }}
+                                {% if product.is_featured %}<span class="mk-flag"><i class="fa-solid fa-star" aria-hidden="true"></i> Featured</span>{% endif %}
+                                {% if product.is_trending %}<span class="mk-flag"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i> Trending</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td data-label="Category">{{ categories.get(product.category_id, '—') }}</td>
+                <td data-label="Price" class="mk-num">
+                    {% if active %}
+                        {% set prices = active|map(attribute='price')|list %}
+                        {{ prices|min|inr }}{% if prices|min != prices|max %} – {{ prices|max|inr }}{% endif %}
+                    {% else %}—{% endif %}
+                </td>
+                <td data-label="Stock" class="mk-num">{{ active|map(attribute='stock')|sum }}</td>
+                <td data-label="Status">{{ ui.status_pill(product.status) }}</td>
+                <td>
+                    <div class="mk-row-actions">
+                        <a class="mk-btn mk-btn-sm" href="/admin/marketplace/products/{{ product.id }}">Edit</a>
+                        <form method="post" action="/admin/marketplace/products/{{ product.id }}/delete" data-confirm="Delete “{{ product.title }}”? It will disappear from the store.">
+                            <button class="mk-btn mk-btn-sm mk-btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {{ ui.pager(page, total_pages, total, "&search=" ~ search|urlencode ~ "&status=" ~ status) }}
+    {% elif search or status %}
+    <div class="mk-empty"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i><div class="mk-empty-title">No products match</div>Try a different search or filter.</div>
+    {% else %}
+    <div class="mk-empty">
+        <i class="fa-solid fa-bottle-droplet" aria-hidden="true"></i>
+        <div class="mk-empty-title">No products yet</div>
+        Add milk, ghee, coconut and other products your customers can order.
+        <div><a class="mk-btn mk-btn-primary" href="/admin/marketplace/products/new">Add your first product</a></div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

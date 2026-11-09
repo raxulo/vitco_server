@@ -1,0 +1,77 @@
+{% extends "layouts/store.html" %}
+
+{% block title %}Your cart · {{ frame.settings.store_name }}{% endblock %}
+{% block seo %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<div class="st-wrap st-list-page">
+    <header class="st-list-head"><h1>Your cart</h1></header>
+
+    {% if cart.removed_count %}
+    <div class="st-alert st-alert-info" role="status"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> {{ cart.removed_count }} item{{ '' if cart.removed_count == 1 else 's' }} in your cart {{ 'is' if cart.removed_count == 1 else 'are' }} no longer on sale and {{ 'was' if cart.removed_count == 1 else 'were' }} removed.</div>
+    {% endif %}
+    {% if not cart.is_store_open %}
+    <div class="st-alert st-alert-info" role="status"><i class="fa-solid fa-store-slash" aria-hidden="true"></i> {{ cart.closed_message or 'We are not taking orders right now.' }}</div>
+    {% elif not cart.cod_enabled %}
+    <div class="st-alert st-alert-info" role="status"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Cash on Delivery is not available right now, so orders are paused.</div>
+    {% endif %}
+
+    {% if cart.lines %}
+    <div class="st-cart-grid">
+        <ul class="st-cart-lines">
+            {% for line in cart.lines %}
+            <li class="st-cart-line">
+                <a class="st-cart-image" href="/marketplace/products/{{ line.slug }}" tabindex="-1" aria-hidden="true">
+                    {% if line.image_url %}<img src="{{ line.image_url }}" alt="" loading="lazy" width="88" height="88">
+                    {% else %}<i class="fa-solid fa-bottle-droplet" aria-hidden="true"></i>{% endif %}
+                </a>
+                <div class="st-cart-info">
+                    <a class="st-card-title" href="/marketplace/products/{{ line.slug }}">{{ line.title }}</a>
+                    <div class="st-size">{{ line.size }} · {{ line.price|inr }} each</div>
+                    {% if line.is_out_of_stock %}<div class="st-line-note">Out of stock</div>
+                    {% elif line.reduced_from %}<div class="st-line-note">Only {{ line.quantity }} left, so we changed your quantity</div>{% endif %}
+                    <form class="st-cart-actions" method="post" action="/marketplace/cart/update">
+                        <input type="hidden" name="variant_id" value="{{ line.variant_id }}">
+                        {% if not line.is_out_of_stock %}
+                        <label class="st-qty st-qty-inline">
+                            <span>Quantity</span>
+                            <input type="number" name="quantity" value="{{ line.quantity }}" min="1" max="{{ line.max_quantity }}" inputmode="numeric" data-autosubmit>
+                        </label>
+                        <button class="st-btn st-btn-plain st-btn-sm" data-no-js-only>Update</button>
+                        {% endif %}
+                        <button class="st-link-btn" name="remove" value="1">Remove</button>
+                    </form>
+                </div>
+                <div class="st-cart-amount">{{ line.line_total|inr }}</div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <aside class="st-summary" aria-labelledby="summary-title">
+            <h2 id="summary-title">Order summary</h2>
+            <dl>
+                <div><dt>Items ({{ cart.item_count }})</dt><dd>{{ cart.subtotal|inr }}</dd></div>
+                <div><dt>Delivery</dt><dd>{% if cart.delivery_charge %}{{ cart.delivery_charge|inr }}{% else %}Free{% endif %}</dd></div>
+                <div class="st-summary-total"><dt>Total</dt><dd>{{ cart.total|inr }}</dd></div>
+            </dl>
+            {% if cart.below_minimum_by %}
+            <p class="st-summary-note">Add {{ cart.below_minimum_by|inr }} more to reach the minimum order of {{ cart.min_order_amount|inr }}.</p>
+            {% elif cart.free_delivery_gap %}
+            <p class="st-summary-note">Add {{ cart.free_delivery_gap|inr }} more for free delivery.</p>
+            {% endif %}
+            {% if cart.can_check_out %}
+            <a class="st-btn st-btn-gold st-btn-block" href="/marketplace/checkout">Proceed to checkout <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+            <p class="st-summary-pay"><i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i> Pay cash when it is delivered.</p>
+            {% endif %}
+        </aside>
+    </div>
+    {% else %}
+    <div class="st-empty">
+        <i class="fa-solid fa-cart-shopping" aria-hidden="true"></i>
+        <h2>Your cart is empty</h2>
+        <p>Fresh milk, ghee and more are waiting.</p>
+        <div class="st-empty-links"><a class="st-btn st-btn-forest" href="/marketplace/products">Shop dairy products</a></div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

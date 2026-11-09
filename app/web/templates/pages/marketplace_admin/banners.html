@@ -1,0 +1,83 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}Banners{% endblock %}
+{% block heading %}Banners{% endblock %}
+{% block subheading %}<p class="mk-sub">Large images at the top and middle of the home page. Times are in IST.</p>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-form-grid">
+    <div class="mk-card">
+        {% if rows %}
+        <table class="mk-table">
+            <thead><tr><th>Banner</th><th>Where</th><th>Order</th><th>Status</th><th><span class="mk-vh">Actions</span></th></tr></thead>
+            <tbody>
+                {% for row in rows %}
+                {% set banner = row.banner %}
+                <tr>
+                    <td class="mk-cell-main">
+                        <div class="mk-item">
+                            <img class="mk-thumb mk-thumb-wide" src="{{ banner.image_url }}" alt="" loading="lazy" width="96" height="48">
+                            <div>
+                                <div class="mk-item-title">{{ banner.title }}</div>
+                                {% if banner.starts_at or banner.ends_at %}
+                                <div class="mk-item-meta">
+                                    {{ banner.starts_at.strftime('%d %b %Y, %I:%M %p') if banner.starts_at else 'Now' }}
+                                    – {{ banner.ends_at.strftime('%d %b %Y, %I:%M %p') if banner.ends_at else 'No end' }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td data-label="Where">{{ 'Top' if banner.placement.value == 'HOME_HERO' else 'Middle' }}</td>
+                    <td data-label="Order" class="mk-num">{{ banner.sort_order }}</td>
+                    <td data-label="Status"><span class="mk-pill {{ row.pill }}">{{ row.state.value }}</span></td>
+                    <td>
+                        <div class="mk-row-actions">
+                            <a class="mk-btn mk-btn-sm" href="?edit={{ banner.id }}">Edit</a>
+                            <form method="post" action="/admin/marketplace/banners/{{ banner.id }}/delete" data-confirm="Delete the banner “{{ banner.title }}”?">
+                                <button class="mk-btn mk-btn-sm mk-btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="mk-empty"><i class="fa-regular fa-image" aria-hidden="true"></i><div class="mk-empty-title">No banners yet</div>The home page hides this area until you add one.</div>
+        {% endif %}
+    </div>
+
+    <aside class="mk-side">
+        <form class="mk-card mk-card-pad" method="post" enctype="multipart/form-data" action="/admin/marketplace/banners" novalidate>
+            <div class="mk-card-head"><h2 class="mk-card-title">{{ 'Edit banner' if editing else 'Add a banner' }}</h2></div>
+            {% if editing %}<input type="hidden" name="id" value="{{ editing.id }}">{% endif %}
+            <div class="mk-fields" style="grid-template-columns:minmax(0,1fr)">
+                {{ ui.input('title', 'Title', form, errors, required=true) }}
+                {{ ui.input('subtitle', 'Subtitle', form, errors) }}
+                {{ ui.image_field(form, errors, remove='', required=not editing, label='Image', hint='Wide photo, about 1600 × 600.') }}
+                {{ ui.image_field(form, errors, name='mobile_image', url_key='mobile_image_url', remove='remove_mobile_image', label='Phone image', hint='Optional. Taller crop for phones, about 800 × 800.') }}
+                {{ ui.input('cta_label', 'Button text', form, errors, hint='For example: Shop now') }}
+                {{ ui.input('cta_url', 'Button link', form, errors, hint='For example: /marketplace/products') }}
+                <label class="mk-field {{ 'mk-invalid' if errors.get('placement') }}">
+                    <span class="mk-label">Where it appears</span>
+                    <select name="placement">
+                        {% for option in placements %}
+                        <option value="{{ option.value }}" {% if form.get('placement')|string == option.value %}selected{% endif %}>{{ 'Top of page' if option.value == 'HOME_HERO' else 'Middle of page' }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                {{ ui.input('starts_at', 'Show from', form, errors, type='datetime-local', hint='Leave empty to start now.') }}
+                {{ ui.input('ends_at', 'Show until', form, errors, type='datetime-local', hint='Leave empty for no end.') }}
+                {{ ui.input('sort_order', 'Display order', form, errors, type='number', step='1') }}
+                {{ ui.checkbox('is_active', 'Banner is on', form) }}
+            </div>
+            <div class="mk-form-actions" style="margin-top:16px">
+                <button class="mk-btn mk-btn-primary">{{ 'Save changes' if editing else 'Add banner' }}</button>
+                {% if editing %}<a class="mk-btn" href="/admin/marketplace/banners">Cancel</a>{% endif %}
+            </div>
+        </form>
+    </aside>
+</div>
+{% endblock %}

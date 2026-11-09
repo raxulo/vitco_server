@@ -1,0 +1,23 @@
+{% extends "layouts/store.html" %}
+
+{% block title %}Order placed · {{ frame.settings.store_name }}{% endblock %}
+{% block seo %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<div class="st-wrap st-list-page">
+    <div class="st-placed">
+        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+        <h1>Thank you, your order is placed</h1>
+        <p>Keep this reference to track your order.</p>
+        <div class="st-ref">{{ order.order_ref }}</div>
+        <dl class="st-placed-facts">
+            <div><dt>Items</dt><dd>{{ order.item_count }}</dd></div>
+            <div><dt>To pay on delivery</dt><dd>{{ order.total|inr }}</dd></div>
+        </dl>
+        <div class="st-empty-links">
+            <a class="st-btn st-btn-forest" href="/marketplace/track">Track your order</a>
+            <a class="st-btn st-btn-plain" href="/marketplace/products">Continue shopping</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

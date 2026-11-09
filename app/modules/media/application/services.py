@@ -1,9 +1,11 @@
 
+import asyncio
+from collections.abc import Iterable
 from io import BytesIO
 from uuid import UUID, uuid4
 
 from app.modules.media.infrastructure.file_cleanup import delete_after_commit, delete_on_rollback
-from app.modules.media.infrastructure.image_compressor import ImageProcessor
+from app.modules.media.infrastructure.image_compressor import ImageProcessor, ProcessedImage
 from app.modules.media.infrastructure.media_repository import MediaRepository
 
 from fastapi import UploadFile
@@ -24,6 +26,8 @@ ALLOWED_IMAGE_TYPES = {
 }
 
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
+LISTING_IMAGE_MAX_BYTES = 300 * 1024
+LISTING_IMAGE_MAX_SIDE = 1600
 
 class MediaUrlService:
 
@@ -119,6 +123,73 @@ class MediaService:
             storage_key
         )
 
+
+    # =========================================================
+    # Marketplace images: re-encoded like profile images, larger
+    # =========================================================
+
+    async def prepare_listing_image(self, file: UploadFile) -> ProcessedImage:
+        """
+        Validate and re-encode an upload; raises ValueError with a message for the user.
+
+        Runs in a worker thread and before any database write: decoding takes far longer
+        than the write-lock budget (DECISION-010) and the server is a single process.
+        """
+        if (file.content_type or "").lower() not in ALLOWED_IMAGE_TYPES:
+            raise ValueError("Use a JPG, PNG or WebP image")
+
+        data = await file.read()
+        if not data:
+            raise ValueError("The image file is empty")
+        if len(data) > MAX_IMAGE_SIZE:
+            raise ValueError("Image is too large (maximum 5 MB)")
+
+        processor = ImageProcessor(max_bytes=LISTING_IMAGE_MAX_BYTES, max_side=LISTING_IMAGE_MAX_SIDE)
+        return await asyncio.to_thread(processor.process, data)
+
+    async def store_listing_image(
+        self,
+        image: ProcessedImage,
+        category: MediaCategory,
+        uploaded_by: UUID,
+        name: str,
+    ) -> MediaModel:
+        media_id = uuid4()
+        storage_key = f"{category.value}/{media_id.hex}{image.extension}"
+
+        # If the surrounding transaction rolls back, the new file goes with it
+        delete_on_rollback(self.repository._session, self.storage, storage_key)
+        await self.storage.save(BytesIO(image.data), storage_key)
+        return await self.repository.create(
+            MediaModel(
+                id=media_id,
+                name=name,
+                media_type=MediaType.IMAGE,
+                category=category,
+                storage_key=storage_key,
+                mime_type=image.mime_type,
+                extension=image.extension,
+                file_size=len(image.data),
+                uploaded_by=uploaded_by,
+                is_active=True,
+            )
+        )
+
+    async def delete_images(self, media_ids: Iterable[UUID]) -> None:
+        """Remove the rows now and the files only after the transaction commits."""
+        for media_id in media_ids:
+            media = await self.repository.delete(media_id)
+            if media is not None:
+                delete_after_commit(self.repository._session, self.storage, media.storage_key)
+
+    async def delete_image_by_url(self, url: str | None) -> None:
+        """Remove an image known only by its public URL; other URLs are left alone."""
+        prefix = f"{MediaUrlService.BASE_PATH}/"
+        if not url or not url.startswith(prefix):
+            return
+        media = await self.repository.get_by_key(url.removeprefix(prefix))
+        if media is not None:
+            await self.delete_images([media.id])
 
     # =========================================================
     # Profile images: one per user, kept in profile/<user_id>/

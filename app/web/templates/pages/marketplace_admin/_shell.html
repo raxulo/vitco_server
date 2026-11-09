@@ -1,0 +1,57 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}{% block page_title %}Control Center{% endblock %} · Marketplace{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/marketplace-admin.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="mk">
+    <div class="mk-head">
+        <div>
+            <div class="mk-eyebrow">Marketplace Control Center</div>
+            <h1 class="mk-title">{% block heading %}{% endblock %}</h1>
+            {% block subheading %}{% endblock %}
+        </div>
+        {% block head_actions %}{% endblock %}
+    </div>
+
+    <nav class="mk-tabs" aria-label="Control Center sections">
+        {% set tabs = [('overview', 'Overview', ''), ('products', 'Products', '/products'), ('animals', 'Animals', '/animals'), ('orders', 'Orders', '/orders'), ('enquiries', 'Enquiries', '/enquiries')] %}
+        {% if can_edit_masters %}
+            {% set tabs = tabs + [('categories', 'Categories', '/categories'), ('animal_types', 'Animal types', '/animal-types'), ('banners', 'Banners', '/banners'), ('home', 'Home page', '/home'), ('settings', 'Store settings', '/settings')] %}
+        {% endif %}
+        {% for key, label, path in tabs %}
+        <a class="mk-tab" href="/admin/marketplace{{ path }}" {% if section == key %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+    </nav>
+
+    {% if notice %}
+    <div class="mk-notice mk-notice-ok" role="status"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> {{ notice }}</div>
+    {% endif %}
+    {% if page_error %}
+    <div class="mk-notice mk-notice-error" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> {{ page_error }}</div>
+    {% endif %}
+    {% if errors %}
+    <div class="mk-notice mk-notice-error" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Please correct the highlighted fields.</div>
+    {% endif %}
+
+    {% block mk_content %}{% endblock %}
+
+    <dialog id="mk-confirm" class="mk-dialog" aria-labelledby="mk-confirm-title">
+        <form method="dialog">
+            <h2 id="mk-confirm-title">Are you sure?</h2>
+            <p></p>
+            <div class="mk-dialog-actions">
+                <button class="mk-btn mk-btn-plain" value="no" autofocus>Cancel</button>
+                <button class="mk-btn mk-btn-danger-solid" value="yes">Delete</button>
+            </div>
+        </form>
+    </dialog>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', path='js/marketplace-admin.js') }}"></script>
+{% endblock %}

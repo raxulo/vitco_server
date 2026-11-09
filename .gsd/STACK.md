@@ -54,7 +54,7 @@
 | Rate Charts | `app/modules/ratechart/` | FAT/SNF slab matrices, formulas, and pro-rata milk pricing rules |
 | Masters (Items & Units)| `app/modules/masters/` | Item Master, Unit Master for feed and dairy supplies |
 | Advanced / Advances | `app/modules/masters/advanced/`, `app/modules/advanceditem/` | Feed credits, store loans & farmer advance tracking |
-| Marketplace | `app/modules/marketplace/` | Cattle trade listings, cattle feed, dairy accessories, banners |
+| Marketplace | `app/modules/marketplace/` | Public store for dairy animals and products on `mkt_*` tables; rebuilt in v1.2.0 |
 | Reports | `app/modules/reports/` | Shift summary, member ledgers, weight route-wise reports |
 | Data Sync API | `app/api/v1/routers/sync.py` | Ultra-fast delta sync for mobile collection client & offline devices |
 

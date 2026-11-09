@@ -20,18 +20,23 @@ os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_TEST_ROOT / 'test.db').as_
 os.environ["EXCHANGE_PATH"] = str(_TEST_ROOT / "exchange")
 os.environ["EXCHANGE_WORKER_ENABLED"] = "false"
 os.environ["LOG_PATH"] = str(_TEST_ROOT / "logs")
+os.environ["MEDIA_PATH"] = str(_TEST_ROOT / "media")
+os.environ["MARKETPLACE_RATE_LIMIT_ENABLED"] = "false"  # all test clients share one IP; test_rate_limit.py turns it on
 os.environ["EXCHANGE_UPLOAD_CHUNK_MB"] = "1"          # small chunks keep upload test files small
 
 from collections.abc import AsyncIterator, Awaitable, Callable  # noqa: E402
 from uuid import UUID, uuid4  # noqa: E402
 
+import httpx  # noqa: E402
 import pytest  # noqa: E402
 
 from app.config.database import database_config  # noqa: E402
+from app.config.settings import settings  # noqa: E402
 from app.core.database.factory import DatabaseFactory  # noqa: E402
 from app.core.database.manager import DatabaseManager  # noqa: E402
 from app.modules.administration.domain.enums import Role  # noqa: E402
 from app.modules.administration.infrastructure.models import UserModel  # noqa: E402
+from app.modules.auth.infrastructure.jwt import JWTService  # noqa: E402
 
 # Register every model of the app (as the API does) before create_all runs
 import app.modules.configurator  # noqa: E402,F401
@@ -44,7 +49,8 @@ def test_root() -> Path:
 
 @pytest.fixture(scope="session")
 async def database() -> AsyncIterator[DatabaseManager]:
-    assert database_config.url.startswith("sqlite"), "tests must never run against a real database"
+    # Also catches `app` having been imported before this file set DATABASE_URL
+    assert _TEST_ROOT.as_posix() in database_config.url, "tests must never run against a real database"
     manager = DatabaseFactory(database_config).create()
     await manager.startup()
     try:
@@ -52,6 +58,28 @@ async def database() -> AsyncIterator[DatabaseManager]:
     finally:
         await manager.shutdown()
         shutil.rmtree(_TEST_ROOT, ignore_errors=True)
+
+
+@pytest.fixture(scope="session")
+async def api(database: DatabaseManager) -> AsyncIterator[httpx.AsyncClient]:
+    """The real FastAPI app (full middleware stack and lifespan), called in-process."""
+    from app.main import app
+
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client
+
+
+@pytest.fixture(scope="session")
+def token_for() -> Callable[[UUID, Role], dict[str, str]]:
+    jwt = JWTService(secret_key=settings.SECRET_KEY)
+
+    def headers(user_id: UUID, role: Role = Role.VLCC) -> dict[str, str]:
+        token = jwt.create_access_token(str(user_id), {"role": str(int(role)), "name": "Test"})
+        return {"Authorization": f"Bearer {token}"}
+
+    return headers
 
 
 @pytest.fixture(scope="session")

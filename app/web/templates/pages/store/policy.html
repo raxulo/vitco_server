@@ -1,0 +1,10 @@
+{% extends "layouts/store.html" %}
+
+{% block title %}{{ title }} · {{ frame.settings.store_name }}{% endblock %}
+
+{% block content %}
+<div class="st-wrap st-list-page st-policy">
+    <h1>{{ title }}</h1>
+    <p class="st-prose">{{ text }}</p>
+</div>
+{% endblock %}

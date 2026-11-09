@@ -1,0 +1,106 @@
+{# Form building blocks of the Control Center. #}
+
+{% macro _error(errors, name) %}
+    {% if errors.get(name) %}<span class="mk-error" id="{{ name }}-error" role="alert">{{ errors[name] }}</span>{% endif %}
+{% endmacro %}
+
+{% macro input(name, label, form, errors, type="text", required=false, hint="", span=false, step="", min="", show_if="") %}
+<label class="mk-field {{ 'mk-span' if span }} {{ 'mk-invalid' if errors.get(name) }}" {% if show_if %}data-show-if="{{ show_if }}"{% endif %}>
+    <span class="mk-label">{{ label }}{% if required %}<span class="mk-req" aria-hidden="true">*</span>{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}" value="{{ form.get(name) if form.get(name) is not none else '' }}"
+        {% if step %}step="{{ step }}"{% endif %} {% if min != "" %}min="{{ min }}"{% endif %}
+        {% if type == "number" %}inputmode="decimal"{% endif %}
+        {% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+    {% if hint %}<span class="mk-hint">{{ hint }}</span>{% endif %}
+    {{ _error(errors, name) }}
+</label>
+{% endmacro %}
+
+{% macro textarea(name, label, form, errors, hint="", rows=4) %}
+<label class="mk-field mk-span {{ 'mk-invalid' if errors.get(name) }}">
+    <span class="mk-label">{{ label }}</span>
+    <textarea name="{{ name }}" rows="{{ rows }}" {% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>{{ form.get(name) or '' }}</textarea>
+    {% if hint %}<span class="mk-hint">{{ hint }}</span>{% endif %}
+    {{ _error(errors, name) }}
+</label>
+{% endmacro %}
+
+{% macro enum_select(name, label, form, errors, options, show_if="") %}
+<label class="mk-field {{ 'mk-invalid' if errors.get(name) }}" {% if show_if %}data-show-if="{{ show_if }}"{% endif %}>
+    <span class="mk-label">{{ label }}</span>
+    <select name="{{ name }}">
+        {% for option in options %}
+        <option value="{{ option.value }}" {% if form.get(name)|string == option.value %}selected{% endif %}>{{ option.value|replace('_', ' ')|capitalize }}</option>
+        {% endfor %}
+    </select>
+    {{ _error(errors, name) }}
+</label>
+{% endmacro %}
+
+{% macro checkbox(name, title, form, hint="") %}
+<label class="mk-check">
+    <input type="checkbox" name="{{ name }}" {% if form.get(name) %}checked{% endif %}>
+    <span><span class="mk-check-title">{{ title }}</span>{% if hint %}<span class="mk-check-hint">{{ hint }}</span>{% endif %}</span>
+</label>
+{% endmacro %}
+
+{% macro status_pill(status) %}
+{% set value = status.value if status.value is defined else status %}
+{% set kinds = {'PUBLISHED': 'mk-pill-published', 'RESERVED': 'mk-pill-reserved', 'SOLD': 'mk-pill-sold', 'ARCHIVED': 'mk-pill-off'} %}
+<span class="mk-pill {{ kinds.get(value, '') }}">{{ value|capitalize }}</span>
+{% endmacro %}
+
+{% macro gallery(images, errors, max_images) %}
+<ul class="mk-gallery" aria-label="Current images">
+    {% for image in images %}
+    <li>
+        <input type="hidden" name="keep_image_id" value="{{ image.id }}">
+        <img src="{{ image.url }}" alt="{{ image.alt_text or '' }}" loading="lazy">
+        <span class="mk-gallery-tag">Main</span>
+        <div class="mk-gallery-tools">
+            <button type="button" data-move="-1" aria-label="Move image earlier"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button>
+            <button type="button" data-remove-image aria-label="Remove image"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+            <button type="button" data-move="1" aria-label="Move image later"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+<ul class="mk-gallery" id="new-image-previews" aria-label="New images to upload"></ul>
+<label class="mk-drop {{ 'mk-invalid' if errors.get('images') }}">
+    <i class="fa-solid fa-cloud-arrow-up" aria-hidden="true"></i>
+    <span><strong>Choose images</strong></span>
+    <span class="mk-hint">JPG, PNG or WebP, up to 5 MB each and {{ max_images }} per listing. The first image is the main one.</span>
+    <input type="file" name="new_images" accept="image/jpeg,image/png,image/webp" multiple
+        data-preview="new-image-previews" data-max="{{ max_images }}" data-message="images-live-error">
+</label>
+<span class="mk-error" id="images-live-error" aria-live="polite"></span>
+{{ _error(errors, 'images') }}
+{% endmacro %}
+
+{% macro pager(page, total_pages, total, query="") %}
+{% if total_pages > 1 %}
+<div class="mk-pager">
+    <span>Page {{ page }} of {{ total_pages }} · {{ total }} records</span>
+    <div class="mk-pager-links">
+        {% if page > 1 %}<a class="mk-btn mk-btn-sm" href="?page={{ page - 1 }}{{ query }}">Previous</a>{% endif %}
+        {% if page < total_pages %}<a class="mk-btn mk-btn-sm" href="?page={{ page + 1 }}{{ query }}">Next</a>{% endif %}
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro image_field(form, errors, name='image', url_key='image_url', remove='remove_image', label='Image', required=false, hint='') %}
+<div class="mk-field mk-span {{ 'mk-invalid' if errors.get(name) }}">
+    <label class="mk-label" for="field-{{ name }}">{{ label }}{% if required %}<span class="mk-req" aria-hidden="true">*</span>{% endif %}</label>
+    {% if form.get(url_key) %}
+    <div class="mk-item mk-current-image">
+        <img class="mk-thumb" src="{{ form.get(url_key) }}" alt="">
+        {% if remove %}<label class="mk-check"><input type="checkbox" name="{{ remove }}"><span class="mk-check-title">Remove this image</span></label>
+        {% else %}<span class="mk-hint">Choose a file to replace it.</span>{% endif %}
+    </div>
+    {% endif %}
+    <input type="file" id="field-{{ name }}" name="{{ name }}" accept="image/jpeg,image/png,image/webp">
+    {% if hint %}<span class="mk-hint">{{ hint }}</span>{% endif %}
+    {{ _error(errors, name) }}
+</div>
+{% endmacro %}

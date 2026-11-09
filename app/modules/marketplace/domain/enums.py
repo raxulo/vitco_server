@@ -1,57 +1,91 @@
+"""
+Marketplace enums.
+
+Python 3.13+
+"""
+
 from enum import StrEnum
-
-class MarketplaceOrderStatus(StrEnum):
-    PENDING = "PENDING"
-    CONFIRMED = "CONFIRMED"
-    PROCESSING = "PROCESSING"
-    SHIPPED = "SHIPPED"
-    DELIVERED = "DELIVERED"
-    CANCELLED = "CANCELLED"
-    REFUNDED = "REFUNDED"
-
-class MarketplacePostType(StrEnum):
-    PRODUCT = "product"
-    ANIMAL = "animal"
 
 
 class ProductStatus(StrEnum):
-    DRAFT = "draft"
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DELETED = "deleted"
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    ARCHIVED = "ARCHIVED"
 
 
-class ProductOfferStatus(StrEnum):
-    DRAFT = "draft"
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    OUT_OF_STOCK = "out_of_stock"
-    DELETED = "deleted"
-
-
-class AnimalListingStatus(StrEnum):
-    DRAFT = "draft"
-    ACTIVE = "active"
-    SOLD = "sold"
-    INACTIVE = "inactive"
-    CANCELLED = "cancelled"
-    DELETED = "deleted"
+class AnimalStatus(StrEnum):
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    RESERVED = "RESERVED"
+    SOLD = "SOLD"
+    ARCHIVED = "ARCHIVED"
 
 
 class AnimalGender(StrEnum):
-    MALE = "male"
-    FEMALE = "female"
+    FEMALE = "FEMALE"
+    MALE = "MALE"
 
 
 class PregnancyStatus(StrEnum):
-    NOT_APPLICABLE = "not_applicable"
-    NOT_PREGNANT = "not_pregnant"
-    PREGNANT = "pregnant"
-    UNKNOWN = "unknown"
+    NOT_PREGNANT = "NOT_PREGNANT"
+    PREGNANT = "PREGNANT"
+    UNKNOWN = "UNKNOWN"
 
-class AnimalType(StrEnum):
-    BUFFALO = "Buffalo"
-    COW = "Cow"
-    GOAT = "Goat"
-    SHEEP = "Sheep"
-    OTHER = "Other"
+
+class EnquiryStatus(StrEnum):
+    NEW = "NEW"
+    CONTACTED = "CONTACTED"
+    CLOSED = "CLOSED"
+
+
+class OrderStatus(StrEnum):
+    PLACED = "PLACED"
+    CONFIRMED = "CONFIRMED"
+    PACKED = "PACKED"
+    OUT_FOR_DELIVERY = "OUT_FOR_DELIVERY"
+    DELIVERED = "DELIVERED"
+    CANCELLED = "CANCELLED"
+
+    def can_move_to(self, target: "OrderStatus") -> bool:
+        return target in _ORDER_TRANSITIONS[self]
+
+
+_ORDER_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
+    OrderStatus.PLACED: frozenset({OrderStatus.CONFIRMED, OrderStatus.CANCELLED}),
+    OrderStatus.CONFIRMED: frozenset({OrderStatus.PACKED, OrderStatus.CANCELLED}),
+    OrderStatus.PACKED: frozenset({OrderStatus.OUT_FOR_DELIVERY, OrderStatus.CANCELLED}),
+    OrderStatus.OUT_FOR_DELIVERY: frozenset({OrderStatus.DELIVERED, OrderStatus.CANCELLED}),
+    OrderStatus.DELIVERED: frozenset(),
+    OrderStatus.CANCELLED: frozenset(),
+}
+
+
+class PaymentMethod(StrEnum):
+    COD = "COD"
+
+
+class PaymentStatus(StrEnum):
+    PENDING = "PENDING"
+    PAID = "PAID"
+    REFUNDED = "REFUNDED"
+
+
+class BannerPlacement(StrEnum):
+    HOME_HERO = "HOME_HERO"
+    HOME_MIDDLE = "HOME_MIDDLE"
+
+
+class BannerState(StrEnum):
+    LIVE = "Live"
+    SCHEDULED = "Scheduled"
+    EXPIRED = "Expired"
+    OFF = "Off"
+
+
+class HomeSectionType(StrEnum):
+    CATEGORIES = "CATEGORIES"
+    TRENDING = "TRENDING"
+    FEATURED_ANIMALS = "FEATURED_ANIMALS"
+    FEATURED_PRODUCTS = "FEATURED_PRODUCTS"
+    MIDDLE_BANNERS = "MIDDLE_BANNERS"
+    CATEGORY_PRODUCTS = "CATEGORY_PRODUCTS"

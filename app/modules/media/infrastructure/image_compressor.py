@@ -36,13 +36,14 @@ class ProcessedImage:
 
 
 class ImageProcessor:
-    __slots__ = ("_max_bytes",)
+    __slots__ = ("_max_bytes", "_max_side",)
 
-    def __init__(self, max_bytes: int = PROFILE_IMAGE_MAX_BYTES) -> None:
+    def __init__(self, max_bytes: int = PROFILE_IMAGE_MAX_BYTES, max_side: int = _MAX_SIDE) -> None:
         self._max_bytes = max_bytes
+        self._max_side = max_side
 
     def process(self, data: bytes) -> ProcessedImage:
-        image = self._fit(self._open(data), _MAX_SIDE)
+        image = self._fit(self._open(data), self._max_side)
         return ProcessedImage(self._encode_within_limit(image))
 
     # -----------------------------------------------------

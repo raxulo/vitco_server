@@ -1,0 +1,131 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+{% import "pages/marketplace_admin/_ui.html" as ui %}
+
+{% block page_title %}{{ 'Edit product' if product_id else 'New product' }}{% endblock %}
+{% block heading %}{{ form.get('title') if product_id and form.get('title') else 'New product' }}{% endblock %}
+{% block head_actions %}<a class="mk-btn" href="/admin/marketplace/products"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> All products</a>{% endblock %}
+
+{% macro variant_row(variant, index, checked) %}
+<div class="mk-variant-row" data-row data-variant-row>
+    <input type="hidden" name="variant_id" value="{{ variant.get('id') or '' }}">
+    <input type="hidden" name="variant_row" value="{{ index }}">
+    <div class="mk-variant-default">
+        <input type="radio" name="variant_default" value="{{ index }}" aria-label="Default size" {% if checked %}checked{% endif %}>
+        <span class="mk-row-label">Default</span>
+    </div>
+    <div><span class="mk-row-label">Size</span><input type="text" name="variant_name" value="{{ variant.get('name') or '' }}" placeholder="1 L" aria-label="Size"></div>
+    <div><span class="mk-row-label">SKU</span><input type="text" name="variant_sku" value="{{ variant.get('sku') or '' }}" aria-label="SKU"></div>
+    <div><span class="mk-row-label">MRP ₹</span><input type="number" step="0.01" min="0" name="variant_mrp" value="{{ variant.get('mrp') if variant.get('mrp') is not none else '' }}" aria-label="MRP"></div>
+    <div><span class="mk-row-label">Price ₹</span><input type="number" step="0.01" min="0" name="variant_price" value="{{ variant.get('price') if variant.get('price') is not none else '' }}" aria-label="Price"></div>
+    <div><span class="mk-row-label">Stock</span><input type="number" step="1" min="0" name="variant_stock" value="{{ variant.get('stock') if variant.get('stock') is not none else '' }}" aria-label="Stock"></div>
+    <div><span class="mk-row-label">Low at</span><input type="number" step="1" min="0" name="variant_low_stock" value="{{ variant.get('low_stock_threshold') if variant.get('low_stock_threshold') is not none else 5 }}" aria-label="Low stock level"></div>
+    <div>
+        <span class="mk-row-label">Active</span>
+        <select name="variant_active" aria-label="Active">
+            <option value="1">Yes</option>
+            <option value="0" {% if variant.get('is_active') in (false, '0', 0) %}selected{% endif %}>No</option>
+        </select>
+    </div>
+    <div class="mk-variant-remove"><button type="button" class="mk-icon-btn" data-remove-row aria-label="Remove this size"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+</div>
+{% endmacro %}
+
+{% macro spec_row(spec) %}
+<div class="mk-spec-row" data-row>
+    <input type="text" name="spec_label" value="{{ spec.get('label') or '' }}" placeholder="Shelf life" aria-label="Specification name">
+    <input type="text" name="spec_value" value="{{ spec.get('value') or '' }}" placeholder="6 months" aria-label="Specification value">
+    <button type="button" class="mk-icon-btn" data-remove-row aria-label="Remove this specification"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+</div>
+{% endmacro %}
+
+{% block mk_content %}
+<form method="post" enctype="multipart/form-data" action="/admin/marketplace/products/{{ product_id or 'new' }}" novalidate>
+    <div class="mk-form-grid">
+        <div>
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head"><h2 class="mk-card-title">Details</h2></div>
+                <div class="mk-fields">
+                    {{ ui.input('title', 'Product name', form, errors, required=true, span=true) }}
+                    <label class="mk-field {{ 'mk-invalid' if errors.get('category_id') }}">
+                        <span class="mk-label">Category<span class="mk-req" aria-hidden="true">*</span></span>
+                        <select name="category_id">
+                            <option value="">Choose a category</option>
+                            {% for row in category_rows %}
+                            <option value="{{ row.category.id }}" {% if form.get('category_id')|string == row.category.id|string %}selected{% endif %}>{{ '— ' * row.depth }}{{ row.category.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.get('category_id') %}<span class="mk-error" role="alert">{{ errors.category_id }}</span>{% endif %}
+                    </label>
+                    {{ ui.input('brand', 'Brand', form, errors) }}
+                    {{ ui.input('short_description', 'Short description', form, errors, span=true, hint='One line shown on product cards.') }}
+                    {{ ui.textarea('description', 'Full description', form, errors, rows=6) }}
+                </div>
+            </section>
+
+            <section class="mk-card mk-card-pad {{ 'mk-invalid' if errors.get('variants') }}">
+                <div class="mk-card-head">
+                    <div>
+                        <h2 class="mk-card-title">Sizes and prices</h2>
+                        <p class="mk-card-hint">Each size has its own MRP, price and stock. Stock counts whole packs.</p>
+                    </div>
+                </div>
+                <div class="mk-rows-head" aria-hidden="true">
+                    <span>Default</span><span>Size</span><span>SKU</span><span>MRP ₹</span><span>Price ₹</span><span>Stock</span><span>Low at</span><span>Active</span><span></span>
+                </div>
+                <div id="variant-rows">
+                    {% for variant in form.get('variants', []) %}
+                    {{ variant_row(variant, loop.index0, variant.get('is_default')) }}
+                    {% else %}
+                    {{ variant_row({}, 0, true) }}
+                    {% endfor %}
+                </div>
+                {% if errors.get('variants') %}<span class="mk-error" role="alert">{{ errors.variants }}</span>{% endif %}
+                <template id="variant-row-template">{{ variant_row({}, 0, false) }}</template>
+                <button type="button" class="mk-btn mk-btn-sm mk-add-row" data-add-row="variant-rows" data-template="variant-row-template"><i class="fa-solid fa-plus" aria-hidden="true"></i> Add size</button>
+            </section>
+
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head">
+                    <div>
+                        <h2 class="mk-card-title">Images</h2>
+                        <p class="mk-card-hint">Use the arrows to change the order.</p>
+                    </div>
+                </div>
+                {{ ui.gallery(images, errors, max_images) }}
+            </section>
+
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head">
+                    <div>
+                        <h2 class="mk-card-title">Specifications</h2>
+                        <p class="mk-card-hint">Facts shown on the product page, such as shelf life or fat content.</p>
+                    </div>
+                </div>
+                <div id="spec-rows">
+                    {% for spec in form.get('specifications', []) %}{{ spec_row(spec) }}{% endfor %}
+                </div>
+                <template id="spec-row-template">{{ spec_row({}) }}</template>
+                <button type="button" class="mk-btn mk-btn-sm" data-add-row="spec-rows" data-template="spec-row-template"><i class="fa-solid fa-plus" aria-hidden="true"></i> Add specification</button>
+            </section>
+        </div>
+
+        <aside class="mk-side">
+            <section class="mk-card mk-card-pad">
+                <div class="mk-card-head"><h2 class="mk-card-title">Publishing</h2></div>
+                <div class="mk-fields" style="grid-template-columns:minmax(0,1fr)">
+                    {{ ui.enum_select('status', 'Status', form, errors, statuses) }}
+                    {{ ui.input('sort_order', 'Display order', form, errors, type='number', step='1', hint='Lower numbers appear first.') }}
+                </div>
+                <div style="margin:12px 0 16px">
+                    {{ ui.checkbox('is_featured', 'Featured', form, 'Show in featured products on the home page.') }}
+                    {{ ui.checkbox('is_trending', 'Trending', form, 'Show in the trending section.') }}
+                </div>
+                <div class="mk-form-actions">
+                    <button class="mk-btn mk-btn-primary">Save product</button>
+                    <a class="mk-btn" href="/admin/marketplace/products">Cancel</a>
+                </div>
+            </section>
+        </aside>
+    </div>
+</form>
+{% endblock %}

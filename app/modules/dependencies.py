@@ -176,10 +176,29 @@ class GetHandler:
         return request.app.state.application.container.resolve(AdvanceService)
 
     @staticmethod
-    def marketplace_handler(request: Request):
-        from app.modules.marketplace.application.handler import MarketplaceCommandHandler
-        return request.app.state.application.container.resolve(MarketplaceCommandHandler)
+    def marketplace_catalog_handler(request: Request):
+        from app.modules.marketplace.application.handler import MarketplaceCatalogHandler
+        return request.app.state.application.container.resolve(MarketplaceCatalogHandler)
 
+    @staticmethod
+    def marketplace_merchandising_handler(request: Request):
+        from app.modules.marketplace.application.merchandising_handler import MarketplaceMerchandisingHandler
+        return request.app.state.application.container.resolve(MarketplaceMerchandisingHandler)
+
+    @staticmethod
+    def storefront_handler(request: Request):
+        from app.modules.marketplace.application.storefront_handler import StorefrontHandler
+        return request.app.state.application.container.resolve(StorefrontHandler)
+
+    @staticmethod
+    def marketplace_order_handler(request: Request):
+        from app.modules.marketplace.application.order_handler import MarketplaceOrderHandler
+        return request.app.state.application.container.resolve(MarketplaceOrderHandler)
+
+    @staticmethod
+    def store_rate_limiter(request: Request):
+        from app.modules.marketplace.application.rate_limits import StoreRateLimiter
+        return request.app.state.application.container.resolve(StoreRateLimiter)
 
     # @staticmethod
     # def user(request: Request):

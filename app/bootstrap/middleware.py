@@ -132,15 +132,12 @@ class MiddlewareRegistrar:
             jwt_service=jwt,
             public_routes={
                 "/",
-                "/marketplace",
-                "/marketplace/",
-                "/api/v1/marketplace",
-                "/api/v1/marketplace/",
                 "/healthz",
                 "/docs",
                 "/redoc",
                 "/openapi.json",
                 "/api/v1/auth/login",
-                "/login", "/auth/login"
+                "/login", "/auth/login",
+                "/robots.txt", "/sitemap.xml",
             },
         )

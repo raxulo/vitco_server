@@ -1,0 +1,68 @@
+{% extends "layouts/store.html" %}
+
+{% block title %}Checkout · {{ frame.settings.store_name }}{% endblock %}
+{% block seo %}<meta name="robots" content="noindex">{% endblock %}
+
+{% macro field(name, label, autocomplete='', input_type='text', hint='', maxlength=100, inputmode='') %}
+<label class="st-field {{ 'st-invalid' if errors.get(name) }}">
+    <span>{{ label }}</span>
+    <input type="{{ input_type }}" name="{{ name }}" value="{{ form.get(name, '') }}" maxlength="{{ maxlength }}"
+        {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %} {% if inputmode %}inputmode="{{ inputmode }}"{% endif %}
+        {% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+    {% if errors.get(name) %}<span class="st-error" id="{{ name }}-error" role="alert">{{ errors[name] }}</span>{% endif %}
+</label>
+{% endmacro %}
+
+{% block content %}
+<div class="st-wrap st-list-page">
+    <header class="st-list-head"><h1>Checkout</h1></header>
+
+    {% if errors.get('form') %}
+    <div class="st-alert st-alert-error st-alert-spaced" role="alert"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> {{ errors.form }}</div>
+    {% endif %}
+
+    <form method="post" action="/marketplace/checkout" class="st-cart-grid" data-checkout novalidate>
+        <input type="hidden" name="checkout_token" value="{{ checkout_token }}">
+        <input type="hidden" name="expected_total" value="{{ cart.total }}">
+
+        <section class="st-checkout-form" aria-labelledby="address-title">
+            <h2 id="address-title">Delivery details</h2>
+            <div class="st-form-grid">
+                {{ field('buyer_name', 'Your name', 'name', maxlength=120) }}
+                {{ field('buyer_phone', 'Mobile number', 'tel', 'tel', maxlength=20, inputmode='tel') }}
+            </div>
+            <label class="st-field {{ 'st-invalid' if errors.get('address_line') }}">
+                <span>Full address</span>
+                <textarea name="address_line" rows="3" maxlength="500" autocomplete="street-address" {% if errors.get('address_line') %}aria-invalid="true" aria-describedby="address_line-error"{% endif %}>{{ form.get('address_line', '') }}</textarea>
+                {% if errors.get('address_line') %}<span class="st-error" id="address_line-error" role="alert">{{ errors.address_line }}</span>{% endif %}
+            </label>
+            <div class="st-form-grid st-form-grid-3">
+                {{ field('city', 'City or village', 'address-level2') }}
+                {{ field('state', 'State', 'address-level1') }}
+                {{ field('pincode', 'Pincode', 'postal-code', maxlength=10, inputmode='numeric') }}
+            </div>
+            <label class="st-field">
+                <span>Note for delivery (optional)</span>
+                <input type="text" name="notes" value="{{ form.get('notes', '') }}" maxlength="500">
+            </label>
+            <div class="st-pay-box"><i class="fa-solid fa-money-bill-wave" aria-hidden="true"></i><div><strong>Cash on Delivery</strong><span>Pay {{ cart.total|inr }} when your order arrives.</span></div></div>
+        </section>
+
+        <aside class="st-summary" aria-labelledby="summary-title">
+            <h2 id="summary-title">Your order</h2>
+            <ul class="st-summary-lines">
+                {% for line in cart.payable_lines %}
+                <li><span>{{ line.title }} <small>{{ line.size }} × {{ line.quantity }}</small></span><b>{{ line.line_total|inr }}</b></li>
+                {% endfor %}
+            </ul>
+            <dl>
+                <div><dt>Items ({{ cart.item_count }})</dt><dd>{{ cart.subtotal|inr }}</dd></div>
+                <div><dt>Delivery</dt><dd>{% if cart.delivery_charge %}{{ cart.delivery_charge|inr }}{% else %}Free{% endif %}</dd></div>
+                <div class="st-summary-total"><dt>Total</dt><dd>{{ cart.total|inr }}</dd></div>
+            </dl>
+            <button class="st-btn st-btn-gold st-btn-block" data-place-order>Place order</button>
+            <a class="st-back-link" href="/marketplace/cart">Back to cart</a>
+        </aside>
+    </form>
+</div>
+{% endblock %}

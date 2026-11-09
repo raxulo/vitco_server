@@ -1,0 +1,80 @@
+{% extends "pages/marketplace_admin/_shell.html" %}
+
+{% set move_labels = {'CONFIRMED': 'Confirm order', 'PACKED': 'Mark as packed', 'OUT_FOR_DELIVERY': 'Send out for delivery', 'DELIVERED': 'Mark as delivered and paid'} %}
+
+{% block page_title %}{{ order.order_ref }}{% endblock %}
+{% block heading %}{{ order.order_ref }}{% endblock %}
+{% block subheading %}<p class="mk-sub">{{ order.created_at.strftime('%d %b %Y, %I:%M %p') if order.created_at }}</p>{% endblock %}
+{% block head_actions %}<a class="mk-btn" href="/admin/marketplace/orders"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> All orders</a>{% endblock %}
+
+{% block mk_content %}
+<div class="mk-form-grid">
+    <div class="mk-stack">
+        <section class="mk-card" aria-labelledby="items-title">
+            <div class="mk-card-pad"><h2 class="mk-card-title" id="items-title">Items</h2></div>
+            <table class="mk-table">
+                <thead><tr><th>Product</th><th>Size</th><th>Price</th><th>Qty</th><th>Amount</th></tr></thead>
+                <tbody>
+                    {% for line in order.lines %}
+                    <tr>
+                        <td class="mk-cell-main"><span class="mk-item-title">{{ line.product_title }}</span></td>
+                        <td data-label="Size">{{ line.variant_name }}</td>
+                        <td data-label="Price" class="mk-num">{{ line.unit_price|inr }}</td>
+                        <td data-label="Qty" class="mk-num">{{ line.quantity }}</td>
+                        <td data-label="Amount" class="mk-num">{{ line.line_total|inr }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <dl class="mk-totals">
+                <div><dt>Items</dt><dd>{{ order.subtotal|inr }}</dd></div>
+                <div><dt>Delivery</dt><dd>{% if order.delivery_charge %}{{ order.delivery_charge|inr }}{% else %}Free{% endif %}</dd></div>
+                <div class="mk-totals-final"><dt>Total</dt><dd>{{ order.total|inr }}</dd></div>
+                <div><dt>Payment</dt><dd>Cash on Delivery · {{ order.payment_status.value|capitalize }}</dd></div>
+            </dl>
+        </section>
+
+        <section class="mk-card mk-card-pad" aria-labelledby="buyer-title">
+            <div class="mk-card-head"><h2 class="mk-card-title" id="buyer-title">Deliver to</h2></div>
+            <p class="mk-item-title">{{ order.buyer_name }}</p>
+            <p class="mk-address">{{ order.address_line }}{% if order.city %}, {{ order.city }}{% endif %}{% if order.state %}, {{ order.state }}{% endif %} — {{ order.pincode }}</p>
+            {% if order.notes %}<p class="mk-enquiry-message">{{ order.notes }}</p>{% endif %}
+            <div class="mk-enquiry-actions">
+                <a class="mk-btn mk-btn-sm" href="tel:{{ order.buyer_phone }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> {{ order.buyer_phone }}</a>
+                <a class="mk-btn mk-btn-sm" href="https://wa.me/91{{ order.buyer_phone }}" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>
+            </div>
+        </section>
+    </div>
+
+    <aside class="mk-side mk-stack">
+        <section class="mk-card mk-card-pad" aria-labelledby="status-title">
+            <div class="mk-card-head"><h2 class="mk-card-title" id="status-title">Status</h2></div>
+            <p><span class="mk-pill {{ {'PLACED': 'mk-pill-reserved', 'DELIVERED': 'mk-pill-published', 'CANCELLED': 'mk-pill-off'}.get(order.status.value, 'mk-pill-sold') }}">{{ order.status.value|replace('_', ' ')|capitalize }}</span></p>
+            {% if order.cancel_reason %}<p class="mk-address">Reason: {{ order.cancel_reason }}</p>{% endif %}
+
+            {% for next_status in order.next_statuses %}
+            {% if next_status != OrderStatus.CANCELLED %}
+            <form method="post" action="/admin/marketplace/orders/{{ order.id }}/move" class="mk-move-form">
+                <input type="hidden" name="status" value="{{ next_status.value }}">
+                <button class="mk-btn mk-btn-primary">{{ move_labels[next_status.value] }}</button>
+            </form>
+            {% endif %}
+            {% endfor %}
+
+            {% if OrderStatus.CANCELLED in order.next_statuses %}
+            <form method="post" action="/admin/marketplace/orders/{{ order.id }}/move" class="mk-cancel-form {{ 'mk-invalid' if errors.get('cancel_reason') }}" data-confirm="Cancel order {{ order.order_ref }}? Its stock goes back on sale.">
+                <input type="hidden" name="status" value="CANCELLED">
+                <label class="mk-field">
+                    <span class="mk-label">Reason for cancelling</span>
+                    <input type="text" name="cancel_reason" maxlength="300" {% if errors.get('cancel_reason') %}aria-invalid="true" aria-describedby="cancel-error"{% endif %}>
+                    {% if errors.get('cancel_reason') %}<span class="mk-error" id="cancel-error" role="alert">{{ errors.cancel_reason }}</span>{% endif %}
+                </label>
+                <button class="mk-btn mk-btn-danger">Cancel order</button>
+            </form>
+            {% endif %}
+
+            {% if not order.next_statuses %}<p class="mk-hint">This order is finished.</p>{% endif %}
+        </section>
+    </aside>
+</div>
+{% endblock %}
