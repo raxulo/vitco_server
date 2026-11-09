@@ -177,6 +177,7 @@ class MccCollectionController:
             "rate_charts": [],
             "next_sample_number": None,
             "buffalo_min_fat": None,
+            "hide_member_names": False,
         }
         if mcc_id is None:
             return model
@@ -185,6 +186,7 @@ class MccCollectionController:
         except Exception:
             return model
         model["mcc"] = mcc
+        model["hide_member_names"] = not mcc.shows_member_name
 
         if mcc.settings_id:
             model["setting"] = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id) or {}
@@ -366,7 +368,7 @@ class MccCollectionController:
             )
             model["default_date"] = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
             model["new_item"] = {
-                "vlcc_name": vlcc_name,
+                "vlcc_name": "VLCC" if model["hide_member_names"] else vlcc_name,
                 "date": result.collected_at.strftime("%d/%m %H:%M"),
                 "qty": result.quantity,
                 "fat": result.fat_percent or 0.0,

@@ -53,6 +53,7 @@ class MccDtoResponse(BaseModel):
     route_code: int | None = None
     sample_start: int = 0
     sample_end: int = 0
+    visible_member: bool = True
     is_active: bool
     profile_image: str | None = None
     settings_id: UUID | None = None

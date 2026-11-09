@@ -157,6 +157,7 @@ async def mcc_data(request: Request, current_user:CurrentUser):
             mcc_type=mcc.mcc_type,
             sample_start=mcc.sample_start if mcc.mcc_type==MccType.WEIGHT else None,
             sample_end=mcc.sample_end if mcc.mcc_type==MccType.WEIGHT else None,
+            visible_member=mcc.shows_member_name,
         ),
         settings=MccSettingSyncDto(
             config=setting,

@@ -209,6 +209,21 @@
                 </div>
 
 
+                <!-- VISIBLE MEMBER: FAT / SNF and Fixed Rate only -->
+                <div class="form-field" id="field-visible-member">
+                    <label for="visible-member">Visible Member</label>
+
+                    <select name="visible_member" id="visible-member" class="form-control">
+                        <option value="1" {{ 'selected' if not mcc or mcc.visible_member else '' }}>Enabled</option>
+                        <option value="0" {{ 'selected' if mcc and not mcc.visible_member else '' }}>Disabled</option>
+                    </select>
+
+                    <small class="field-help">
+                        When disabled, the VLCC name stays hidden after entering a sample number.
+                    </small>
+                </div>
+
+
                 <!-- PHONE -->
                 <div class="form-field">
                     <label>Phone Number <span class="required">*</span></label>
@@ -1679,6 +1694,14 @@ document.addEventListener("DOMContentLoaded", function () {
     function updateMccType() {
 
         const type = String(typeSelect.value);
+
+        // Visible Member applies to FAT / SNF and Fixed Rate MCCs only
+        const visibleMemberField = document.getElementById("field-visible-member");
+        if (type === "1" || type === "3") {
+            show(visibleMemberField);
+        } else {
+            hide(visibleMemberField);
+        }
 
 
         /*

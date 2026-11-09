@@ -87,6 +87,12 @@
                         <span class="lbl">Sample Range</span>
                         <strong class="val font-mono">{{ mcc.sample_start or 0 }} - {{ mcc.sample_end or 0 }}</strong>
                     </div>
+                    {% if mcc.mcc_type.supports_visible_member %}
+                    <div class="grid-cell">
+                        <span class="lbl">Visible Member</span>
+                        <strong class="val">{{ 'Enabled' if mcc.visible_member else 'Disabled' }}</strong>
+                    </div>
+                    {% endif %}
                     <div class="grid-cell">
                         <span class="lbl">Registered By</span>
                         <strong class="val">{{ mcc.created_by_name or 'System Administrator' }}</strong>

@@ -28,6 +28,14 @@ class MccType(IntEnum):
         }
         return labels[self]
 
+    @property
+    def supports_visible_member(self) -> bool:
+        """Only these MCCs fill a collection from a sample number and can hide the VLCC's name."""
+        return self in (MccType.FAT_SNF, MccType.FIXED_RATE)
+
+    def shows_member_name(self, visible_member: bool) -> bool:
+        return visible_member or not self.supports_visible_member
+
 
 class AnalyzerType(IntEnum):
     TYPE_A = 0

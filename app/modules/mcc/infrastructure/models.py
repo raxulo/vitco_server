@@ -9,6 +9,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import (
+    true,
     Boolean,
     Enum,
     ForeignKey,
@@ -88,6 +89,14 @@ class MccModel(
         Integer,
         nullable=True,
         default=0,
+    )
+
+    # False hides the VLCC's name in the sample number detail (FAT / SNF and Fixed Rate MCCs)
+    visible_member: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=true(),
     )
 
     # =========================================================

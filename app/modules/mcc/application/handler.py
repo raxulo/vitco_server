@@ -499,6 +499,9 @@ class MccHandler:
                     mcc_type=command.mcc.mcc_type,
                     sample_start=command.mcc.sample_start,
                     sample_end=command.mcc.sample_end,
+                    visible_member=(
+                        mcc.visible_member if command.mcc.visible_member is None else command.mcc.visible_member
+                    ),
                     route_code=command.mcc.route_code,
                     address_id=address_id,
                     bank_account_id=bank_account_id,
@@ -795,6 +798,7 @@ class MccHandler:
             route_code=command.route_code,
             sample_start=command.sample_start,
             sample_end=command.sample_end,
+            visible_member=command.visible_member,
             address_id=address_id,
             bank_account_id=bank_account_id,
             settings_id=settings_id,
@@ -925,6 +929,7 @@ class MccHandler:
             route_code=mcc.route_code,
             sample_start=mcc.sample_start,
             sample_end=mcc.sample_end,
+            visible_member=mcc.visible_member,
             profile_image=mcc.profile_image,
             is_active=mcc.is_active,
             settings_id=mcc.settings_id,

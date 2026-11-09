@@ -55,6 +55,8 @@ class Mcc:
 
     can_modify: bool = False
 
+    visible_member: bool = True
+
 
 @dataclass(slots=True, frozen=True)
 class MccRelations:

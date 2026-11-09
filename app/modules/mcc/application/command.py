@@ -40,6 +40,8 @@ class CreateMccCommand:
 
     created_by: UUID | None = None
 
+    visible_member: bool = True
+
 
 @dataclass(slots=True)
 class UpdateMccCommand:
@@ -69,6 +71,9 @@ class UpdateMccCommand:
     route_code: int | None = None
 
     password: str | None = None
+
+    # None keeps the stored value
+    visible_member: bool | None = None
 
 
 

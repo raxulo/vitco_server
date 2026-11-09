@@ -38,6 +38,11 @@ class MccDto:
     fixed_rate_config_id: UUID | None = None
     can_modify: bool = False
     city: str | None = None
+    visible_member: bool = True
+
+    @property
+    def shows_member_name(self) -> bool:
+        return self.mcc_type.shows_member_name(self.visible_member)
 
 
 @dataclass(slots=True, frozen=True)

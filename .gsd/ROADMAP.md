@@ -168,6 +168,16 @@ updated: 2026-11-08T00:00:00+05:30
 
 **Verification:** [VERIFICATION.md](phases/17/VERIFICATION.md)
 
+### Phase 18: MCC Visible Member
+**Status:** ✅ Complete (2026-11-09), on branch `feature/mcc-visible-member`
+**Objective:** A setting on FAT / SNF and Fixed Rate MCCs that hides the VLCC's name in the sample number detail, reported in sync. VLCC comes later.
+**Depends on:** Nothing in the marketplace
+
+**Plans:**
+- [x] Plan 18.1: MCC Visible Member — [1-PLAN.md](phases/18/1-PLAN.md)
+
+**Verification:** [VERIFICATION.md](phases/18/VERIFICATION.md)
+
 ---
 
 ## Progress Summary
@@ -184,6 +194,7 @@ updated: 2026-11-08T00:00:00+05:30
 | 15 | ✅ | 2/2 | 100% |
 | 16 | ✅ | 1/1 | 100% |
 | 17 | ✅ | 1/1 | 100% |
+| 18 | ✅ | 1/1 | 100% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

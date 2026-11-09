@@ -13,6 +13,7 @@ class MccResponse(BaseModel):
     route_code: int | None
     sample_start: int | None
     sample_end: int | None
+    visible_member: bool = True
     address_id: UUID | None
     bank_account_id: UUID | None
     dairy_config_id: UUID | None

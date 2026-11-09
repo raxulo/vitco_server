@@ -7,13 +7,14 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 17 - Collection Totals & Filters
-**Status:** ✅ Complete (verified 2026-11-09); not committed yet. v1.2.0 phases 8 to 16 are committed (`90d47af`, `0011e8e`)
+**Phase:** 18 - MCC Visible Member
+**Status:** ✅ Complete (verified 2026-11-09); not committed yet. Phases 8 to 17 are committed
 **Plan:** Next is the user's review and approval of the commit message
-**Branch:** `feature/collection-summary-filters`, from `feature/marketplace-revamp`; commit after `/verify` and user approval
+**Branch:** `feature/mcc-visible-member`, from `feature/collection-summary-filters`; commit after `/verify` and user approval
 
 ## Last Action
 
+- 2026-11-09: Phase 18 executed and verified: Visible Member on FAT / SNF and Fixed Rate MCCs. Full suite: 918 passed, and the 1 failure also occurs on `a345c6f`.
 - 2026-11-09: Phase 17 executed and verified: totals and fuller filters on the VLCC and MCC collection lists. Totals match direct SQL; axe clean on the new parts.
 - 2026-11-09: Phase 16 executed and verified: Control Center refresh with tab counts and latest orders. The store redesign was undone at the user's request, so the store keeps its earlier look. Added `scripts/seed_marketplace_demo.py` and seeded the local database after a backup. axe clean on 52 of 52 checks.
 - 2026-11-09: Phase 15 executed and verified: public API, rate limits, SEO, axe and keyboard audits, real-server load runs, release checklist. Audit also stopped SQL values reaching the logs (DECISION-024). Full suite including the throughput test: 831 passed, and the 1 failure also occurs on `a345c6f`.
@@ -69,6 +70,7 @@ None.
 
 ## Concerns
 
+- MCC edit fails with 422 when the FAT / SNF limits were left blank: the form sends the text "None" (found in Phase 18, not fixed).
 - Open question for Plan 3.3: may Super Admin pick "Self" as VLCC owner? (DECISION-004)
 - MCC treated as a locked VLCC owner — assumption, confirm during Phase 3.
 - Confirm the server's SQLite version is ≥ 3.35 (`claim_next` uses UPDATE … RETURNING); `.venv` has 3.50.4.

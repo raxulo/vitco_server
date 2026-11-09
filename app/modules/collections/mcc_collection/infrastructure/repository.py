@@ -481,6 +481,14 @@ class MccCollectionRepository(IMccCollectionRepository):
         vlcc_id = result.get("vlcc_id")
         mcc_id = result.get("mcc_id")
 
+        # The MCC asking decides, not the weight MCC that recorded the sample
+        asking = (
+            await self._session.execute(
+                select(MccModel.mcc_type, MccModel.visible_member).where(MccModel.id == query.mcc_id)
+            )
+        ).one_or_none()
+        shows_name = asking is None or asking.mcc_type.shows_member_name(asking.visible_member)
+
         return MccCollectionResult(
             mcc_name=result.get("mcc_name"),
             mcc_id=mcc_id,
@@ -488,7 +496,7 @@ class MccCollectionRepository(IMccCollectionRepository):
             quantity=result.get("quantity"),
             can_count=result.get("can_count"),
             vlcc_id=vlcc_id,
-            vlcc_name=result.get("vlcc_name"),
+            vlcc_name=result.get("vlcc_name") if shows_name else None,
             is_deleted=result.get("is_deleted"),
             quantity_collection_mode=result.get("quantity_collection_mode"),
         )

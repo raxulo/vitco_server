@@ -65,6 +65,7 @@ class CreateMccRequest(BaseModel):
     route_code: int | None = None
     sample_start: int |None = 0
     sample_end: int |None = 0
+    visible_member: bool = True
     is_active: bool | None = True
     profile_image: UploadFile | None = None
 
@@ -193,6 +194,7 @@ class UpdateMccRequest(BaseModel):
     route_code: int | None = None
     sample_start: int |None = 0
     sample_end: int |None = 0
+    visible_member: bool = True
     is_active: bool | None = True
     profile_image: UploadFile | None = None
 

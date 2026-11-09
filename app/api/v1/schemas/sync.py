@@ -72,6 +72,8 @@ class MccExtraInfoSyncDto:
     mcc_type: MccType
     sample_start: int | None
     sample_end: int | None
+    # False: the app must not show VLCC names (always True unless FAT / SNF or Fixed Rate)
+    visible_member: bool = True
 
 @dataclass(slots=True, kw_only=True)
 class FarmerExtraInfoSyncDto:

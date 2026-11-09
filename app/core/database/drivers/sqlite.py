@@ -94,6 +94,11 @@ class SQLiteDriver(BaseDatabaseDriver):
                         if "vlcc_type" not in cols:
                             # Existing VLCCs are normal (VlccType.NORMAL = 0)
                             cur.execute("ALTER TABLE vlcc_master ADD COLUMN vlcc_type SMALLINT NOT NULL DEFAULT 0;")
+                        cur.execute("PRAGMA table_info(mcc_master);")
+                        cols = [c[1] for c in cur.fetchall()]
+                        if cols and "visible_member" not in cols:
+                            # Existing MCCs keep showing VLCC names, as they always have
+                            cur.execute("ALTER TABLE mcc_master ADD COLUMN visible_member BOOLEAN NOT NULL DEFAULT 1;")
                     cur.close()
                 except Exception:
                     pass

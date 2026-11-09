@@ -76,7 +76,7 @@ class MccCollectionResult:
     quantity: Decimal
     can_count: int
     vlcc_id: UUID
-    vlcc_name: str
+    vlcc_name: str | None  # None when the asking MCC has Visible Member disabled
     is_deleted: bool
     quantity_collection_mode: QuantityCollectionMode
 
