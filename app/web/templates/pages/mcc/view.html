@@ -234,6 +234,8 @@
                 </div>
                 {% if setting %}
                 <div class="details-grid">
+                    {# A Weight MCC has no analyzer, so its analyzer settings are not shown #}
+                    {% if mcc.mcc_type|int != 2 %}
                     <div class="grid-cell">
                         <span class="lbl">Analyzer Type</span>
                         <span class="val">{{ setting.analyzer_type.name }}</span>
@@ -242,6 +244,7 @@
                         <span class="lbl">Analyzer Mode</span>
                         <span class="val">{{ setting.analyzer_collection_mode.name }}</span>
                     </div>
+                    {% endif %}
                     <div class="grid-cell">
                         <span class="lbl">Measurement Unit</span>
                         <span class="val">{{ setting.weight_unit.name }}</span>

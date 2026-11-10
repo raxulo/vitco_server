@@ -694,8 +694,8 @@
 
             <div class="form-grid">
 
-                <!-- ANALYZER -->
-                <div class="form-field">
+                <!-- ANALYZER (hidden for a Weight MCC, which has no analyzer) -->
+                <div class="form-field" id="field-analyzer-type">
 
                     <label>Analyzer Type</label>
 
@@ -1635,6 +1635,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const cattleType = document.getElementById("field-cattle-type");
     const autoTare = document.getElementById("field-auto-tare");
     const weightCollection = document.getElementById("field-weight-collection");
+    const analyzerType = document.getElementById("field-analyzer-type");
     const analyzerCollection = document.getElementById("field-analyzer-collection");
 
     const rateChartPermission =
@@ -1721,6 +1722,7 @@ document.addEventListener("DOMContentLoaded", function () {
             show(cattleType);
             show(autoTare);
             show(weightCollection);
+            show(analyzerType);
             show(analyzerCollection);
 
             show(rateChartPermission);
@@ -1749,6 +1751,7 @@ document.addEventListener("DOMContentLoaded", function () {
             show(cattleType);
             hide(autoTare);
             hide(weightCollection);
+            show(analyzerType);
             show(analyzerCollection);
 
             show(rateChartPermission);
@@ -1778,6 +1781,7 @@ document.addEventListener("DOMContentLoaded", function () {
             hide(cattleType);
             show(autoTare);
             show(weightCollection);
+            hide(analyzerType);
             hide(analyzerCollection);
 
             hide(rateChartPermission);
@@ -1806,6 +1810,7 @@ document.addEventListener("DOMContentLoaded", function () {
             hide(autoTare);
             hide(weightCollection);
 
+            show(analyzerType);
             show(analyzerCollection);
 
             hide(rateChartPermission);
