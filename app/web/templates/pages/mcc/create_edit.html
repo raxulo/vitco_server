@@ -1021,7 +1021,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_min_fat if mcc else 0.1 }}"
+                            value="{{ milk_quality_config.cow_min_fat if (milk_quality_config and milk_quality_config.cow_min_fat is not none) else 0.1 }}"
                         />
                     </div>
 
@@ -1037,7 +1037,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_max_fat if mcc else 6.0 }}"
+                            value="{{ milk_quality_config.cow_max_fat if (milk_quality_config and milk_quality_config.cow_max_fat is not none) else 6.0 }}"
                         />
                     </div>
 
@@ -1053,7 +1053,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_min_snf if mcc else 5.0 }}"
+                            value="{{ milk_quality_config.cow_min_snf if (milk_quality_config and milk_quality_config.cow_min_snf is not none) else 5.0 }}"
                         />
                     </div>
 
@@ -1069,7 +1069,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_max_snf if mcc else 12.0 }}"
+                            value="{{ milk_quality_config.cow_max_snf if (milk_quality_config and milk_quality_config.cow_max_snf is not none) else 12.0 }}"
                         />
                     </div>
 
@@ -1109,7 +1109,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_fat if mcc else 6.1 }}"
+                            value="{{ milk_quality_config.buffalo_min_fat if (milk_quality_config and milk_quality_config.buffalo_min_fat is not none) else 6.1 }}"
                             readonly
                         />
                     </div>
@@ -1126,7 +1126,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_fat if mcc else 12.0 }}"
+                            value="{{ milk_quality_config.buffalo_max_fat if (milk_quality_config and milk_quality_config.buffalo_max_fat is not none) else 12.0 }}"
                         />
                     </div>
 
@@ -1142,7 +1142,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_snf if mcc else 8.0 }}"
+                            value="{{ milk_quality_config.buffalo_min_snf if (milk_quality_config and milk_quality_config.buffalo_min_snf is not none) else 8.0 }}"
                         />
                     </div>
 
@@ -1158,7 +1158,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_snf if mcc else 20.0 }}"
+                            value="{{ milk_quality_config.buffalo_max_snf if (milk_quality_config and milk_quality_config.buffalo_max_snf is not none) else 20.0 }}"
                         />
                     </div>
 
@@ -1201,7 +1201,7 @@
                         step="0.01"
                         min="0"
                         class="form-control"
-                        value="{{ fixed_rate_config and fixed_rate_config.fixed_rate if mcc else 60 }}"
+                        value="{{ fixed_rate_config.fixed_rate if (fixed_rate_config and fixed_rate_config.fixed_rate is not none) else 60 }}"
                     />
                 </div>
 
@@ -1214,7 +1214,7 @@
                         step="0.01"
                         min="0"
                         class="form-control"
-                        value="{{ fixed_rate_config and fixed_rate_config.less_detection if mcc else 0.2 }}"
+                        value="{{ fixed_rate_config.less_detection if (fixed_rate_config and fixed_rate_config.less_detection is not none) else 0.2 }}"
                     />
                     <small class="field-help">Quantity deduction per 0.1 FAT.</small>
                 </div>
@@ -1228,7 +1228,7 @@
                         step="0.01"
                         min="0"
                         class="form-control"
-                        value="{{ fixed_rate_config and fixed_rate_config.high_detection if mcc else 0.2 }}"
+                        value="{{ fixed_rate_config.high_detection if (fixed_rate_config and fixed_rate_config.high_detection is not none) else 0.2 }}"
                     />
                     <small class="field-help">Quantity addition per 0.1 FAT.</small>
                 </div>
@@ -1245,7 +1245,7 @@
                         maxlength="5"
                         autocomplete="off"
                         class="form-control"
-                        value="{{ fixed_rate_config and fixed_rate_config.min_fat if mcc else 6.6 }}"
+                        value="{{ fixed_rate_config.min_fat if (fixed_rate_config and fixed_rate_config.min_fat is not none) else 6.6 }}"
                     />
                 </div>
 
@@ -1260,7 +1260,7 @@
                         maxlength="5"
                         autocomplete="off"
                         class="form-control"
-                        value="{{ fixed_rate_config and fixed_rate_config.max_fat if mcc else 12 }}"
+                        value="{{ fixed_rate_config.max_fat if (fixed_rate_config and fixed_rate_config.max_fat is not none) else 12 }}"
                     />
                 </div>
 
@@ -1275,7 +1275,7 @@
                         maxlength="5"
                         autocomplete="off"
                         class="form-control"
-                        value="{{ fixed_rate_config and fixed_rate_config.min_snf if mcc else 8 }}"
+                        value="{{ fixed_rate_config.min_snf if (fixed_rate_config and fixed_rate_config.min_snf is not none) else 8 }}"
                     />
                 </div>
 
@@ -1290,7 +1290,7 @@
                         maxlength="5"
                         autocomplete="off"
                         class="form-control"
-                        value="{{ fixed_rate_config and fixed_rate_config.max_snf if mcc else 14 }}"
+                        value="{{ fixed_rate_config.max_snf if (fixed_rate_config and fixed_rate_config.max_snf is not none) else 14 }}"
                     />
                 </div>
 

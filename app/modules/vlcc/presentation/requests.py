@@ -128,7 +128,7 @@ class CreateVlccRequest(BaseModel):
             except (TypeError, ValueError):
                 return data
         for key, value in list(data.items()):
-            if value == "":
+            if value == "" or (isinstance(value, str) and value.strip().lower() in ("none", "null", "undefined")):
                 data[key] = None
         return data
 

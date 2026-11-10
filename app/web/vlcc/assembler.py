@@ -97,14 +97,14 @@ class VlccAssembler:
             ),
 
             milk_quality_config=CreateMilkQualityConfigCommand(
-                cow_min_fat=data.cow_min_fat,
-                cow_max_fat=data.cow_max_fat,
-                cow_min_snf=data.cow_min_snf,
-                cow_max_snf=data.cow_max_snf,
-                buffalo_min_fat=data.buffalo_min_fat,
-                buffalo_max_fat=data.buffalo_max_fat,
-                buffalo_min_snf=data.buffalo_min_snf,
-                buffalo_max_snf=data.buffalo_max_snf,
+                cow_min_fat=data.cow_min_fat or 0.0,
+                cow_max_fat=data.cow_max_fat or 0.0,
+                cow_min_snf=data.cow_min_snf or 0.0,
+                cow_max_snf=data.cow_max_snf or 0.0,
+                buffalo_min_fat=data.buffalo_min_fat or 0.0,
+                buffalo_max_fat=data.buffalo_max_fat or 0.0,
+                buffalo_min_snf=data.buffalo_min_snf or 0.0,
+                buffalo_max_snf=data.buffalo_max_snf or 0.0,
             ),
         )
 
@@ -186,13 +186,13 @@ class VlccAssembler:
             ),
 
             milk_quality_config=CreateMilkQualityConfigCommand(
-                cow_min_fat=data.cow_min_fat,
-                cow_max_fat=data.cow_max_fat,
-                cow_min_snf=data.cow_min_snf,
-                cow_max_snf=data.cow_max_snf,
-                buffalo_min_fat=data.buffalo_min_fat,
-                buffalo_max_fat=data.buffalo_max_fat,
-                buffalo_min_snf=data.buffalo_min_snf,
-                buffalo_max_snf=data.buffalo_max_snf,
+                cow_min_fat=data.cow_min_fat or 0.0,
+                cow_max_fat=data.cow_max_fat or 0.0,
+                cow_min_snf=data.cow_min_snf or 0.0,
+                cow_max_snf=data.cow_max_snf or 0.0,
+                buffalo_min_fat=data.buffalo_min_fat or 0.0,
+                buffalo_max_fat=data.buffalo_max_fat or 0.0,
+                buffalo_min_snf=data.buffalo_min_snf or 0.0,
+                buffalo_max_snf=data.buffalo_max_snf or 0.0,
             ),
         )

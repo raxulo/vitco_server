@@ -960,7 +960,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_min_fat if vlcc else 0.1 }}"
+                            value="{{ milk_quality_config.cow_min_fat if (milk_quality_config and milk_quality_config.cow_min_fat is not none) else 0.1 }}"
                         />
                     </div>
                     <div class="form-field">
@@ -974,7 +974,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_max_fat if vlcc else 6.0 }}"
+                            value="{{ milk_quality_config.cow_max_fat if (milk_quality_config and milk_quality_config.cow_max_fat is not none) else 6.0 }}"
                         />
                     </div>
                     <div class="form-field">
@@ -988,7 +988,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_min_snf if vlcc else 5.0 }}"
+                            value="{{ milk_quality_config.cow_min_snf if (milk_quality_config and milk_quality_config.cow_min_snf is not none) else 5.0 }}"
                         />
                     </div>
                     <div class="form-field">
@@ -1002,7 +1002,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.cow_max_snf if vlcc else 12.0 }}"
+                            value="{{ milk_quality_config.cow_max_snf if (milk_quality_config and milk_quality_config.cow_max_snf is not none) else 12.0 }}"
                         />
                     </div>
                 </div>
@@ -1031,7 +1031,7 @@
                             min="0"
                             class="form-control"
                             title="Automatically set to Cow maximum FAT + 0.1"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_fat if vlcc else 6.1 }}"
+                            value="{{ milk_quality_config.buffalo_min_fat if (milk_quality_config and milk_quality_config.buffalo_min_fat is not none) else 6.1 }}"
                             readonly
                         />
                     </div>
@@ -1046,7 +1046,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_fat if vlcc else 12.0 }}"
+                            value="{{ milk_quality_config.buffalo_max_fat if (milk_quality_config and milk_quality_config.buffalo_max_fat is not none) else 12.0 }}"
                         />
                     </div>
                     <div class="form-field">
@@ -1060,7 +1060,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_min_snf if vlcc else 8.0 }}"
+                            value="{{ milk_quality_config.buffalo_min_snf if (milk_quality_config and milk_quality_config.buffalo_min_snf is not none) else 8.0 }}"
                         />
                     </div>
                     <div class="form-field">
@@ -1074,7 +1074,7 @@
                             maxlength="5"
                             autocomplete="off"
                             class="form-control"
-                            value="{{ milk_quality_config and milk_quality_config.buffalo_max_snf if vlcc else 20.0 }}"
+                            value="{{ milk_quality_config.buffalo_max_snf if (milk_quality_config and milk_quality_config.buffalo_max_snf is not none) else 20.0 }}"
                         />
                     </div>
                 </div>
