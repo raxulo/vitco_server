@@ -22,6 +22,8 @@ Every helper returns a SELECT of ids meant for `.in_(...)`, or None for
 Super Admin (no restriction).
 """
 
+from uuid import UUID
+
 from sqlalchemy import Select, false, literal, or_, select, true, union
 
 from app.middleware.authentication import CurrentUser
@@ -32,6 +34,18 @@ from app.modules.mcc.infrastructure.models import MccModel
 from app.modules.vlcc.infrastructure.models import VlccModel
 
 _MANAGER_ROLES = (Role.ADMIN, Role.SUB_ADMIN)
+
+
+def _self(owner: CurrentUser) -> Select:
+    """
+    A one-row SELECT of the owner's own id, typed as a UUID.
+
+    The type is set explicitly: an id read back from PostgreSQL is asyncpg's own
+    UUID class, which SQLAlchemy cannot infer, so the bare parameter would go out
+    untyped and PostgreSQL would read it as text inside a UNION / IN ("operator
+    does not exist: uuid = text"). SQLite never type-checks, so it hid this.
+    """
+    return select(literal(UUID(str(owner.id)), type_=UserModel.id.type))
 
 
 class Hierarchy:
@@ -48,7 +62,7 @@ class Hierarchy:
                     (UserModel.created_by == owner.id) & (UserModel.role == Role.SUB_ADMIN),
                 )
             )
-        return select(literal(owner.id))
+        return _self(owner)
 
     @classmethod
     def mcc_ids(cls, owner: CurrentUser) -> Select | None:
@@ -72,7 +86,7 @@ class Hierarchy:
             mcc_users = select(MccModel.user_id).where(MccModel.created_by.in_(managers))
             return union(managers, mcc_users)
         if role == Role.MCC:
-            return select(literal(owner.id))
+            return _self(owner)
         return select(UserModel.id).where(literal(False))
 
     @classmethod
@@ -113,9 +127,9 @@ class Hierarchy:
         if role in (*_MANAGER_ROLES, Role.MCC):
             mcc_users = select(MccModel.user_id).where(MccModel.id.in_(cls.mcc_ids(owner)))
             vlcc_users = select(VlccModel.user_id).where(VlccModel.id.in_(cls.vlcc_ids(owner)))
-            base = cls.managers(owner) if role in _MANAGER_ROLES else select(literal(owner.id))
+            base = cls.managers(owner) if role in _MANAGER_ROLES else _self(owner)
             return union(base, mcc_users, vlcc_users)
-        return select(literal(owner.id))
+        return _self(owner)
 
     # =========================================================
     # Shared masters (rate charts, route codes, units, items)
@@ -181,7 +195,7 @@ class Hierarchy:
     def farmer_users(cls, owner: CurrentUser) -> Select | None:
         """Login users of the farmers in the VLCCs the owner controls."""
         if owner.role_type == Role.FARMER:
-            return select(literal(owner.id))
+            return _self(owner)
         vlcc_ids = cls.vlcc_ids(owner)
         if vlcc_ids is None:
             return None

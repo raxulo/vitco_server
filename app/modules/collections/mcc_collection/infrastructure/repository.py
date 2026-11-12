@@ -371,6 +371,74 @@ class MccCollectionRepository(IMccCollectionRepository):
         return totals_from_row((await self._session.execute(stmt)).one())
 
     # =========================================================
+    # EXPORT (DECISION-028)
+    # =========================================================
+
+    def _export_conditions(self, owner: CurrentUser, filters: MccCollectionFilters | None) -> list:
+        """The list's own scope and filters, without deleted entries (as in the totals)."""
+        return [*self._list_conditions(owner, filters=filters), MccCollectionModel.is_deleted.is_(False)]
+
+    async def count_export(self, owner: CurrentUser, filters: MccCollectionFilters | None = None) -> int:
+        stmt = (
+            select(func.count(MccCollectionModel.id))
+            .select_from(MccCollectionModel)
+            .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
+            .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
+            .where(*self._export_conditions(owner, filters))
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def export_page(
+        self,
+        owner: CurrentUser,
+        filters: MccCollectionFilters | None,
+        after: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """
+        The next `limit` entries after the `(collected_at, id)` key, oldest first.
+        Keyset paging keeps every page equally fast however far the export has got.
+        """
+        conditions = self._export_conditions(owner, filters)
+        if after is not None:
+            last_at, last_id = after
+            conditions.append(
+                or_(
+                    MccCollectionModel.collected_at > last_at,
+                    and_(MccCollectionModel.collected_at == last_at, MccCollectionModel.id > last_id),
+                )
+            )
+        stmt = (
+            select(
+                MccCollectionModel.id,
+                MccCollectionModel.collected_at,
+                MccCollectionModel.shift,
+                MccModel.code.label("mcc_code"),
+                MccModel.name.label("mcc_name"),
+                VlccModel.vlcc_code.label("vlcc_code"),
+                VlccModel.name.label("vlcc_name"),
+                MccCollectionModel.sample_number,
+                MccCollectionModel.milk_type,
+                MccCollectionModel.can_count,
+                MccCollectionModel.quantity,
+                MccCollectionModel.fat_percent,
+                MccCollectionModel.snf_percent,
+                MccCollectionModel.clr_value,
+                MccCollectionModel.rate_per_unit,
+                MccCollectionModel.total_amount,
+                MccCollectionModel.status,
+                MccCollectionModel.payment_mode,
+            )
+            .select_from(MccCollectionModel)
+            .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
+            .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
+            .where(*conditions)
+            .order_by(MccCollectionModel.collected_at, MccCollectionModel.id)
+            .limit(limit)
+        )
+        return [dict(row) for row in (await self._session.execute(stmt)).mappings()]
+
+    # =========================================================
     # COUNT SEARCH
     # =========================================================
 

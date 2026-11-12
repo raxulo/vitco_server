@@ -11,7 +11,7 @@ from enum import IntEnum
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.modules.dataexchange.application.dto import ExcelJobDto
 from app.modules.dataexchange.application.uploads import UploadStatus
@@ -104,6 +104,32 @@ class VlccOptionResponse(BaseModel):
 class VlccExportRequest(BaseModel):
 
     owner_id: UUID | None = Field(None, description="Admin / Sub Admin ID. Ignored for locked Sub Admin / MCC.")
+
+
+class CollectionExportRequest(BaseModel):
+    """
+    A collection list's filters (DECISION-028); all optional. Empty strings count as
+    not set, so the web list can send its query string as it is.
+    """
+
+    search: str | None = Field(None, max_length=100, description="MCC list: VLCC name / code. VLCC list: farmer name / code.")
+    mcc_id: UUID | None = Field(None, description="MCC collections only")
+    vlcc_id: UUID | None = None
+    milk_type: int | None = Field(None, ge=0, le=2, description="0 COW, 1 BUFFALO, 2 MIXED")
+    date_from: date | None = None
+    date_to: date | None = None
+    start_shift: int | None = Field(None, ge=0, le=1, description="0 MORNING, 1 EVENING")
+    end_shift: int | None = Field(None, ge=0, le=1, description="0 MORNING, 1 EVENING")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _blank_is_unset(cls, data):
+        if isinstance(data, dict):
+            return {
+                key: (None if isinstance(value, str) and not value.strip() else value)
+                for key, value in data.items()
+            }
+        return data
 
 
 class VlccImportRequest(BaseModel):

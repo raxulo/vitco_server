@@ -11,12 +11,13 @@ Python 3.13+
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 import aiofiles
@@ -28,6 +29,7 @@ from app.modules.dataexchange.domain.exceptions import (
 
 _READ_SIZE = 1 << 20          # 1 MB
 _SAFE_NAME = re.compile(r"[A-Za-z0-9._-]{1,128}")
+_PARAMS_FILE = "params.json"  # a job's options beyond its target, e.g. list filters (DECISION-028)
 
 
 class AsyncReadable(Protocol):
@@ -75,6 +77,24 @@ class ExchangeStorage:
 
     def delete_dir(self, path: Path) -> None:
         shutil.rmtree(path, ignore_errors=True)
+
+    # =========================================================
+    # JOB PARAMETERS
+    # =========================================================
+
+    def write_params(self, job_dir: Path, params: dict[str, Any]) -> None:
+        """Store a job's parameters next to its files; written whole or not at all."""
+        dest = self.path(job_dir, _PARAMS_FILE)
+        partial = dest.with_name(f"{dest.name}.part")
+        partial.write_text(json.dumps(params), encoding="utf-8")
+        os.replace(partial, dest)
+
+    def read_params(self, job_dir: Path) -> dict[str, Any]:
+        """A job's parameters; empty when it has none."""
+        source = self.path(job_dir, _PARAMS_FILE)
+        if not source.exists():
+            return {}
+        return json.loads(source.read_text(encoding="utf-8"))
 
     @staticmethod
     def folder_size(path: Path) -> int:

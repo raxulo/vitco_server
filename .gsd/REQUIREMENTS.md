@@ -143,6 +143,13 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | REQ-45 | Order confirmation with a reference; tracking requires both the reference and the phone number | User 2026-11-08 | 14 | Complete |
 | REQ-46 | New `/api/v1/marketplace` REST API for browsing, enquiries, orders and tracking, using the standard envelopes; it replaces the old API | User 2026-11-08 | 15 | Complete |
 
+**Collection export**
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-48 | MCC collections can be exported to Excel from their list, with the list's filters (search, MCC, VLCC, milk type, date and shift range); the file holds exactly the rows the list shows that user, without deleted entries, plus a Summary sheet with the filters and totals (DECISION-028) | User 2026-11-12 | 21 | Complete |
+| REQ-49 | VLCC collections can be exported to Excel the same way, with the VLCC list's filters (farmer search, VLCC, milk type, date and shift range) (DECISION-028) | User 2026-11-12 | 21 | Complete |
+
 **Marketplace quality**
 
 | ID | Requirement | Category | Phase | Status |

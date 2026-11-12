@@ -495,4 +495,23 @@ database load during big imports, and keep memory flat (1M keys: 0.4 MB traced, 
 
 ---
 
+## [DECISION-028] Collection export as an Excel job with filters in the job folder
+
+**Date**: 2026-11-12
+**Status**: Accepted (Phase 21)
+
+### Decision
+MCC and VLCC collection exports are Excel jobs (`MCC_COLLECTION_EXPORT`, `VLCC_COLLECTION_EXPORT`), run by the
+exchange worker like every other export. The list's filters are written to `params.json` in the job folder. The
+worker reads collections as the requesting user through the list's own access scope, oldest first by keyset pages,
+without deleted entries, and adds a Summary sheet with the filters and totals. Export only: collections are not
+imported.
+
+### Why
+A collection list grows by thousands of rows a day, so the export must not run inside a web request
+(DECISION-008). Keeping the filters in the job folder needs no `excel_jobs` column; only Postgres needs a
+migration, for the two new enum values. Using the list's scope means the file can never show more than the list.
+
+---
+
 *Last updated: 2026-11-08*

@@ -321,6 +321,63 @@
     };
 
     /**
+     * Collection list export (DECISION-028): 'mcc-collections' | 'vlcc-collections'.
+     * Sends the page's current filters from its URL, so the file holds what the list shows,
+     * then reuses the modal's progress, polling and download views.
+     */
+    const COLLECTION_EXPORTS = {
+        "mcc-collections": { title: "MCC Collections Export", subtitle: "All entries matching the current filters" },
+        "vlcc-collections": { title: "VLCC Collections Export", subtitle: "All entries matching the current filters" }
+    };
+    const COLLECTION_FILTERS = ["search", "mcc_id", "vlcc_id", "milk_type", "date_from", "date_to", "start_shift", "end_shift"];
+
+    window.exportCollectionsToExcel = async function (kind) {
+        const config = COLLECTION_EXPORTS[kind];
+        const modal = document.getElementById("excel-exchange-modal");
+        if (!config || !modal) return;
+
+        currentKind = kind;
+        document.getElementById("excel-modal-title").innerText = config.title;
+        document.getElementById("excel-modal-subtitle").innerText = config.subtitle;
+        document.getElementById("excel-error-alert").style.display = "none";
+        document.getElementById("excel-progress-title").innerText = "Exporting Data...";
+        document.getElementById("excel-progress-subtitle").innerText = "Generating your Excel spreadsheet in the background";
+        updateProgressBar(10, "Starting export...");
+        showView("progress");
+        modal.classList.add("active");
+        document.body.style.overflow = "hidden";
+
+        const query = new URLSearchParams(window.location.search);
+        const payload = {};
+        COLLECTION_FILTERS.forEach(key => {
+            const value = (query.get(key) || "").trim();
+            if (value) payload[key] = value;
+        });
+
+        try {
+            const res = await fetch(`/api/v1/excel/${kind}/export`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "HX-Request": "true" },
+                body: JSON.stringify(payload)
+            });
+            const body = await res.json().catch(() => ({}));
+
+            // An export of this kind is already running for this user: follow it instead
+            const runningId = body.error?.details?.job_id;
+            if (res.status === 409 && runningId) {
+                pollJob(runningId, true);
+                return;
+            }
+            if (!res.ok) {
+                throw new Error(body.error?.message || body.message || body.detail || "Failed to start export");
+            }
+            pollJob(body.data.id, true);
+        } catch (e) {
+            renderSummary({ status: "FAILED", error_message: e.message }, true);
+        }
+    };
+
+    /**
      * File Selection Handling
      */
     window.handleExcelFileSelect = function (input) {

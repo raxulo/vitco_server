@@ -303,6 +303,9 @@ _LEGACY_OWNERS = (
 async def legacy_tables(database):
     """The old tables as an upgraded database still has them: restricted links to users."""
     async with database.transaction() as session:
+        # Only an upgraded SQLite database has them: a PostgreSQL database always starts empty
+        if session.bind.dialect.name != "sqlite":
+            pytest.skip("legacy marketplace tables exist only in SQLite databases")
         for name, owner in _LEGACY_OWNERS:
             nullability = "NULL" if owner == "buyer_id" else "NOT NULL"
             await session.execute(text(

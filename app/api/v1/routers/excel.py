@@ -24,6 +24,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api.v1.schemas.excel import (
+    CollectionExportRequest,
     CreateUploadRequest,
     ExcelJobResponse,
     FarmerExportRequest,
@@ -42,6 +43,8 @@ from app.api.v1.schemas.excel import (
 )
 from app.core.exceptions.base import ApplicationException
 from app.middleware.authentication import CurrentUser
+from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.modules.dataexchange.application.collection_export import CollectionExportFilters
 from app.modules.dataexchange.application.command import (
     CancelExcelJobCommand,
     GetExcelJobFileQuery,
@@ -51,6 +54,7 @@ from app.modules.dataexchange.application.command import (
 from app.modules.dataexchange.domain.enums import ExcelJobKind, ExcelJobStatus, ImportMode
 from app.modules.dataexchange.domain.exceptions import ExcelJobCapacityException, ExcelJobConflictException
 from app.modules.dependencies import GetHandler
+from app.modules.ratechart.domain.enums import MilkType
 
 router = APIRouter(
     prefix="/excel",
@@ -372,6 +376,47 @@ async def import_formula(request: Request, payload: FormulaImportRequest):
     return _accepted(dto)
 
 
+# =========================================================
+# COLLECTIONS (export only, DECISION-028)
+# =========================================================
+
+def _collection_filters(payload: CollectionExportRequest) -> CollectionExportFilters:
+    return CollectionExportFilters(
+        search=(payload.search or "").strip() or None,
+        mcc_id=payload.mcc_id,
+        vlcc_id=payload.vlcc_id,
+        milk_type=None if payload.milk_type is None else MilkType(payload.milk_type),
+        date_from=payload.date_from,
+        date_to=payload.date_to,
+        start_shift=None if payload.start_shift is None else CollectionShift(payload.start_shift),
+        end_shift=None if payload.end_shift is None else CollectionShift(payload.end_shift),
+    )
+
+
+@router.post("/mcc-collections/export", status_code=202)
+async def export_mcc_collections(request: Request, payload: CollectionExportRequest):
+    """MCC collections matching the list's filters, as the user's list shows them."""
+    user = _user(request)
+    try:
+        dto = await GetHandler.collection_exchange_handler(request).export_mcc_collections(
+            user, _collection_filters(payload),
+        )
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
+
+
+@router.post("/vlcc-collections/export", status_code=202)
+async def export_vlcc_collections(request: Request, payload: CollectionExportRequest):
+    """VLCC collections matching the list's filters, as the user's list shows them."""
+    user = _user(request)
+    try:
+        dto = await GetHandler.collection_exchange_handler(request).export_vlcc_collections(
+            user, _collection_filters(payload),
+        )
+    except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
+        return excel_busy_response(busy)
+    return _accepted(dto)
 
 
 # =========================================================

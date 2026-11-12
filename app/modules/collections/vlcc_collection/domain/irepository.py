@@ -101,6 +101,20 @@ class IVlccCollectionRepository(ABC):
         ...
 
     @abstractmethod
+    async def count_export(self, owner: CurrentUser, filters: VlccCollectionFilters | None = None) -> int:
+        ...
+
+    @abstractmethod
+    async def export_page(
+        self,
+        owner: CurrentUser,
+        filters: VlccCollectionFilters | None,
+        after: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        ...
+
+    @abstractmethod
     async def get_vlcc_user_id(self, vlcc_id: UUID) -> UUID | None:
         ...
 

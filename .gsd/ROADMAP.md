@@ -179,16 +179,24 @@ updated: 2026-11-08T00:00:00+05:30
 **Verification:** [VERIFICATION.md](phases/18/VERIFICATION.md)
 
 ### Phase 20: PostgreSQL Support
-**Status:** 🔄 In progress (planned 2026-11-11), on branch `feature/postgresql-support`
+**Status:** ✅ Complete (2026-11-12; 20.3 verified on a local PostgreSQL 16, committed with Phase 21), branch `feature/postgresql-support`
 **Objective:** PostgreSQL becomes the default database, with the schema managed by Alembic. SQLite keeps working through `DATABASE_URL` (DECISION-025, DECISION-026). Requested by the user.
 **Depends on:** Nothing in the marketplace
 
 **Plans:**
 - [x] Plan 20.1: Postgres driver & configuration — [1-PLAN.md](phases/20/1-PLAN.md)
 - [x] Plan 20.2: Alembic migrations — [2-PLAN.md](phases/20/2-PLAN.md) (verified on SQLite)
-- [ ] Plan 20.3: Postgres compatibility & docs — [3-PLAN.md](phases/20/3-PLAN.md)
+- [x] Plan 20.3: Postgres compatibility & docs — [3-PLAN.md](phases/20/3-PLAN.md), [3-SUMMARY.md](phases/20/3-SUMMARY.md)
 
 **Research:** [RESEARCH.md](phases/20/RESEARCH.md)
+
+### Phase 21: Collection Excel Export
+**Status:** ✅ Complete (verified 2026-11-12), on branch `feature/collection-excel-export`; commit pending approval
+**Objective:** Export MCC and VLCC collections to Excel from their list pages, with the list's filters (REQ-48, REQ-49, DECISION-028). Requested by the user.
+**Depends on:** Phase 20 (Postgres migration for the new job kinds)
+
+**Plans:**
+- [x] Plan 21.1: Collection Excel export — [1-PLAN.md](phases/21/1-PLAN.md), [1-SUMMARY.md](phases/21/1-SUMMARY.md)
 
 ---
 
@@ -207,7 +215,8 @@ updated: 2026-11-08T00:00:00+05:30
 | 16 | ✅ | 1/1 | 100% |
 | 17 | ✅ | 1/1 | 100% |
 | 18 | ✅ | 1/1 | 100% |
-| 20 | 🔄 | 2/3 | 67% |
+| 20 | ✅ | 3/3 | 100% |
+| 21 | ✅ | 1/1 | 100% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

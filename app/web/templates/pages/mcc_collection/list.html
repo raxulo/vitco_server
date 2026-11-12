@@ -33,6 +33,7 @@
         'My Milk Collections' if current_user and current_user.is_farmer_vlcc else 'Recent MCC Collections',
         (total_items or 0) ~ ' Collection Found',
         none if is_vlcc else '/mcc-collections/create',
+        'mcc-collections',
     ) }}
 
     {{ ui.totals_row(totals) }}

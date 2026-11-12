@@ -37,8 +37,9 @@ class UserModel(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         nullable=False,
     )
 
+    # 32, not 20: a soft delete stores "del_<6 hex>_" + the 10-digit number (migration 0002)
     mobile: Mapped[str | None] = mapped_column(
-        String(20),
+        String(32),
         unique=True,
     )
 

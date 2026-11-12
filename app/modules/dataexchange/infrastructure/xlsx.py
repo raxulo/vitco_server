@@ -25,6 +25,7 @@ import zipfile
 from collections import OrderedDict
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 from xml.parsers import expat
@@ -39,6 +40,7 @@ EXCEL_MAX_CELL_CHARS = 32_767
 _LIST_SOURCE_LIMIT = 255                        # Excel limit for an inline dropdown list
 _READ_CHUNK = 1 << 20                           # 1 MB of compressed XML per parse step
 _REPORT_FILL = "FECACA"
+_DATE_FORMAT = "dd-mm-yyyy"
 _DIMENSION_END = re.compile(r"[A-Z]+([0-9]+)$")
 
 
@@ -67,6 +69,7 @@ class XlsxSheetWriter:
         "_row",
         "_rows_written",
         "_text_format",
+        "_date_format",
         "_header_formats",
         "_text_columns",
         "_lists_sheet",
@@ -98,6 +101,7 @@ class XlsxSheetWriter:
         self._rows_per_sheet = max(1, min(rows_per_sheet, EXCEL_MAX_ROWS - 1))
         self._workbook = xlsxwriter.Workbook(str(path), options)
         self._text_format = self._workbook.add_format({"num_format": "@"})
+        self._date_format = self._workbook.add_format({"num_format": _DATE_FORMAT})
         self._header_formats: dict[str, Any] = {}
         self._text_columns = frozenset(
             index for index, column in enumerate(self._columns) if column.is_text_format
@@ -139,6 +143,9 @@ class XlsxSheetWriter:
                     worksheet.write_boolean(row, index, value, fmt)
                 elif isinstance(value, (int, float)):
                     worksheet.write_number(row, index, value, fmt)
+                elif isinstance(value, date):
+                    # A real Excel date (datetime included), so it sorts and filters as a date
+                    worksheet.write_datetime(row, index, value, self._date_format)
                 else:
                     worksheet.write_string(row, index, str(value)[:EXCEL_MAX_CELL_CHARS], fmt)
             self._row += 1
@@ -179,6 +186,23 @@ class XlsxSheetWriter:
         ):
             sheet.write_string(row, 0, note)
             row += 1
+
+    def write_summary(self, title: str, rows: Sequence[tuple[str, Any]]) -> None:
+        """A `Summary` sheet of label / value pairs, e.g. an export's filters and totals."""
+        sheet = self._workbook.add_worksheet("Summary")
+        bold = self._workbook.add_format({"bold": True})
+        heading = self._workbook.add_format({"bold": True, "font_size": 13})
+        sheet.set_column(0, 0, 26)
+        sheet.set_column(1, 1, 40)
+        sheet.write_string(0, 0, title, heading)
+        for offset, (label, value) in enumerate(rows, start=2):
+            sheet.write_string(offset, 0, label, bold)
+            if isinstance(value, bool) or value is None:
+                sheet.write_string(offset, 1, "" if value is None else ("YES" if value else "NO"))
+            elif isinstance(value, (int, float)):
+                sheet.write_number(offset, 1, value)
+            else:
+                sheet.write_string(offset, 1, str(value)[:EXCEL_MAX_CELL_CHARS])
 
     def close(self) -> None:
         self._workbook.close()

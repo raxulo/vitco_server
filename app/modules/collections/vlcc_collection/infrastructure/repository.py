@@ -1,6 +1,6 @@
 from typing import Any
 from datetime import datetime, UTC
-from sqlalchemy import func, select, exists, false, or_, true
+from sqlalchemy import and_, func, select, exists, false, or_, true
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.administration.infrastructure.hierarchy import Hierarchy
 from app.modules.administration.domain.enums import Role
@@ -349,6 +349,66 @@ class VlccCollectionRepository(IVlccCollectionRepository):
             *self._list_conditions(owner, filters=filters)
         )
         return totals_from_row((await self._session.execute(stmt)).one())
+
+    # =========================================================
+    # EXPORT (DECISION-028)
+    # =========================================================
+
+    def _export_conditions(self, owner: CurrentUser, filters: VlccCollectionFilters | None) -> list:
+        """The list's own scope and filters, without deleted entries (as in the totals)."""
+        return [*self._list_conditions(owner, filters=filters), VlccCollectionModel.is_deleted.is_(False)]
+
+    async def count_export(self, owner: CurrentUser, filters: VlccCollectionFilters | None = None) -> int:
+        stmt = self._with_list_joins(select(func.count(VlccCollectionModel.id))).where(
+            *self._export_conditions(owner, filters)
+        )
+        return int(await self._session.scalar(stmt) or 0)
+
+    async def export_page(
+        self,
+        owner: CurrentUser,
+        filters: VlccCollectionFilters | None,
+        after: tuple[datetime, UUID] | None,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """
+        The next `limit` entries after the `(collected_at, id)` key, oldest first.
+        Keyset paging keeps every page equally fast however far the export has got.
+        """
+        conditions = self._export_conditions(owner, filters)
+        if after is not None:
+            last_at, last_id = after
+            conditions.append(
+                or_(
+                    VlccCollectionModel.collected_at > last_at,
+                    and_(VlccCollectionModel.collected_at == last_at, VlccCollectionModel.id > last_id),
+                )
+            )
+        stmt = (
+            self._with_list_joins(
+                select(
+                    VlccCollectionModel.id,
+                    VlccCollectionModel.collected_at,
+                    VlccCollectionModel.shift,
+                    VlccModel.vlcc_code.label("vlcc_code"),
+                    VlccModel.name.label("vlcc_name"),
+                    FarmerModel.farmer_code.label("farmer_code"),
+                    UserModel.name.label("farmer_name"),
+                    VlccCollectionModel.milk_type,
+                    VlccCollectionModel.quantity,
+                    VlccCollectionModel.fat_percent,
+                    VlccCollectionModel.snf_percent,
+                    VlccCollectionModel.rate_per_unit,
+                    VlccCollectionModel.total_amount,
+                    VlccCollectionModel.status,
+                    VlccCollectionModel.payment_mode,
+                )
+            )
+            .where(*conditions)
+            .order_by(VlccCollectionModel.collected_at, VlccCollectionModel.id)
+            .limit(limit)
+        )
+        return [dict(row) for row in (await self._session.execute(stmt)).mappings()]
 
     # =========================================================
     # COUNT SEARCH

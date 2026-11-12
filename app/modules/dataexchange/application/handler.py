@@ -72,7 +72,18 @@ class ExcelJobHandler:
         await self._ensure_capacity(command.owner, command.kind)
         await asyncio.to_thread(self._storage.ensure_free_space, 0)
         job = self._new_job(command.kind, command.owner, command.target_id)
-        await self._insert(job)
+        if command.params is None:
+            await self._insert(job)
+            return ExcelJobDto.from_job(job)
+
+        # The parameters are on disk before the row exists, so the worker never claims a job without them
+        job_dir = self._storage.job_dir(job.id)
+        try:
+            await asyncio.to_thread(self._storage.write_params, job_dir, command.params)
+            await self._insert(job)
+        except BaseException:
+            await asyncio.to_thread(self._storage.delete_dir, job_dir)
+            raise
         return ExcelJobDto.from_job(job)
 
     async def submit_import(self, command: SubmitImportCommand) -> ExcelJobDto:

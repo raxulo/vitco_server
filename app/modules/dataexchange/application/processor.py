@@ -22,6 +22,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, TypeVar
+from uuid import UUID
 
 from app.core.clock import now_naive_ist
 from app.core.database.manager import DatabaseManager
@@ -93,7 +94,13 @@ class JobContext:
         pause_ms: int,
     ) -> None:
         self.job = job
-        self.owner = CurrentUser(id=job.created_by, role=Role(job.owner_role), own_id=job.owner_own_id)
+        # Plain uuid.UUID ids: on PostgreSQL the job row hands back asyncpg's own UUID class,
+        # which SQLAlchemy cannot type when it is used as a bare query parameter
+        self.owner = CurrentUser(
+            id=UUID(str(job.created_by)),
+            role=Role(job.owner_role),
+            own_id=UUID(str(job.owner_own_id)) if job.owner_own_id else None,
+        )
         self.job_dir = job_dir
         self.batcher = batcher
         self.processed = 0

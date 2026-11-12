@@ -7,13 +7,15 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 20 - PostgreSQL Support (Plans 20.1, 20.2 done; 20.3 waits for the user's PostgreSQL). Earlier: 18 - MCC Visible Member
-**Status:** ✅ Complete (verified 2026-11-09); not committed yet. Phases 8 to 17 are committed
+**Phase:** 21 - Collection Excel Export, plus Plan 20.3 (Postgres compatibility)
+**Status:** ✅ Complete and verified 2026-11-12; not committed yet
 **Plan:** Next is the user's review and approval of the commit message
-**Branch:** `feature/mcc-visible-member`, from `feature/collection-summary-filters`; commit after `/verify` and user approval
+**Branch:** `feature/collection-excel-export`, from `bugfix/mcc-credentials-update` (4b56c89); commit after user approval
 
 ## Last Action
 
+- 2026-11-12: Plan 20.3 and Phase 21 on `feature/collection-excel-export`. User: Sub Admin VLCC / farmer Excel failed on PostgreSQL only; asked for MCC / VLCC collection Excel export. Root cause: untyped `literal(owner.id)` in `Hierarchy` with asyncpg UUIDs; also soft delete overflowed `users.mobile` VARCHAR(20) on PostgreSQL. Migration `0002`. DECISION-028, REQ-48, REQ-49. Suites: 972 passed on PostgreSQL and on SQLite, only the known order-dependent failure. /verify on PostgreSQL passed.
+- 2026-11-12: `bugfix/mcc-credentials-update` committed (4b56c89): MCC edit no longer double-hashes the password.
 - 2026-11-11: Phase 20 (PostgreSQL Support) on `feature/postgresql-support`, from `bugfix/mcc-weight-hide-analyzer-type` (8194f01). DECISION-025, DECISION-026. Plans 20.1 and 20.2 done and verified on SQLite (946 passed, 1 order-dependent failure that passes alone; real legacy DB copy adopted with every row kept). **Blocked:** Plan 20.3 needs the user's local PostgreSQL and its connection details.
 - 2026-11-09: Phase 18 executed and verified: Visible Member on FAT / SNF and Fixed Rate MCCs. Full suite: 918 passed, and the 1 failure also occurs on `a345c6f`.
 - 2026-11-09: Phase 17 executed and verified: totals and fuller filters on the VLCC and MCC collection lists. Totals match direct SQL; axe clean on the new parts.
@@ -50,6 +52,7 @@ updated: 2026-11-08T00:00:00+05:30
 | Marketplace images | `MediaService` (DECISION-022) | 2026-11-08 | Phases 10 to 14 |
 | Admin REST API | Not built; Control Center is the website (DECISION-023) | 2026-11-09 | Phase 15 |
 | SQL logging | Only with `DATABASE_ECHO`, whole app (DECISION-024) | 2026-11-09 | Logging, privacy |
+| Collection export | Excel job, filters in `params.json`, list scope, no deleted rows (DECISION-028) | 2026-11-12 | Phase 21 |
 | GSD Workflow | Active in repository under `.gsd/` | 2026-10 | Planning, execution, and state memory |
 | Excel processing | Background jobs, fresh ContextVar context, batch commits (DECISION-001) | 2026-10-25 | Phases 1–5 |
 | Excel library | openpyxl 3.1.5 read_only / write_only (DECISION-002) | 2026-10-25 | Phases 1–4 |
@@ -67,11 +70,13 @@ updated: 2026-11-08T00:00:00+05:30
 
 ## Blockers
 
-- Phase 20, Plan 20.3: PostgreSQL is not installed on this machine yet. The user installs it and gives the connection details; then run the suite with `TEST_DATABASE_URL` and a real start.
+- None. (Plan 20.3 ran on a portable PostgreSQL 16 from `pip install pgserver` in a Python 3.12 scratch venv, with `tzdata`'s zoneinfo copied to its `share/postgresql/timezone`.)
 
 ## Concerns
 
 - MCC edit fails with 422 when the FAT / SNF limits were left blank: the form sends the text "None" (found in Phase 18, not fixed).
+- PostgreSQL servers: users whose password was changed from the MCC edit form before 4b56c89 must have it set again once.
+- `test_owner_options_super_admin` is order-dependent: the owner list is paged (20) and sorted by name, so with many users in the session the Super Admin can fall off page 1.
 - Open question for Plan 3.3: may Super Admin pick "Self" as VLCC owner? (DECISION-004)
 - MCC treated as a locked VLCC owner — assumption, confirm during Phase 3.
 - Confirm the server's SQLite version is ≥ 3.35 (`claim_next` uses UPDATE … RETURNING); `.venv` has 3.50.4.

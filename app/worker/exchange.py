@@ -345,6 +345,21 @@ def register_processors(container: Any, worker: ExchangeWorker) -> None:
     worker.register(FormulaExportProcessor(database=database, repository=formula_repo))
     worker.register(FormulaImportProcessor(database=database, repository=formula_repo))
 
+    from app.modules.collections.mcc_collection.infrastructure.repository import MccCollectionRepository
+    from app.modules.collections.vlcc_collection.infrastructure.repository import VlccCollectionRepository
+    from app.modules.dataexchange.application.collection_export import (
+        MccCollectionExportProcessor,
+        VlccCollectionExportProcessor,
+    )
+
+    storage = container.resolve(ExchangeStorage)
+    worker.register(MccCollectionExportProcessor(
+        database=database, repository=MccCollectionRepository(database), storage=storage,
+    ))
+    worker.register(VlccCollectionExportProcessor(
+        database=database, repository=VlccCollectionRepository(database), storage=storage,
+    ))
+
 
 
 def _configure_logging() -> None:

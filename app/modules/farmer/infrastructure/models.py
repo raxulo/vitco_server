@@ -56,8 +56,9 @@ class FarmerModel(Base, UUIDMixin, AuditMixin, SoftDeleteMixin):
         onupdate=None
     )
 
+    # 50, not 30: a soft delete appends "__del_<6 hex>" to free the code (migration 0002)
     farmer_code: Mapped[str] = mapped_column(
-        String(30),
+        String(50),
         nullable=False,
         index=True,
     )

@@ -437,3 +437,71 @@ FORMULA_KEYS = (
 )
 
 
+# =========================================================
+# COLLECTIONS (export only, DECISION-028)
+# =========================================================
+
+def _entry(key: str, header: str, kind: ColumnKind = ColumnKind.TEXT) -> ColumnSpec:
+    return ColumnSpec(key=key, header=header, section=Section.ENTITY, kind=kind, export_only=True)
+
+
+def _party(key: str, header: str, kind: ColumnKind = ColumnKind.TEXT) -> ColumnSpec:
+    return ColumnSpec(key=key, header=header, section=Section.USER, kind=kind, export_only=True)
+
+
+def _milk(key: str, header: str, kind: ColumnKind = ColumnKind.FLOAT) -> ColumnSpec:
+    return ColumnSpec(key=key, header=header, section=Section.MILK_QUALITY, kind=kind, export_only=True)
+
+
+def _bill(key: str, header: str, kind: ColumnKind = ColumnKind.FLOAT) -> ColumnSpec:
+    return ColumnSpec(key=key, header=header, section=Section.RATE, kind=kind, export_only=True)
+
+
+MCC_COLLECTION_SHEET = SheetSpec(
+    name="MCC Collections",
+    key_column="date",
+    columns=(
+        _entry("date", "Date"),
+        _entry("time", "Time"),
+        _entry("shift", "Shift"),
+        _entry("sample_number", "Sample No", ColumnKind.INT),
+        _party("mcc_code", "MCC Code", ColumnKind.CODE),
+        _party("mcc_name", "MCC Name"),
+        _party("vlcc_code", "VLCC Code", ColumnKind.CODE),
+        _party("vlcc_name", "VLCC Name"),
+        _milk("milk_type", "Milk Type", ColumnKind.TEXT),
+        _milk("can_count", "Cans", ColumnKind.INT),
+        _milk("quantity", "Quantity"),
+        _milk("fat_percent", "FAT %"),
+        _milk("snf_percent", "SNF %"),
+        _milk("clr_value", "CLR"),
+        _bill("rate_per_unit", "Rate"),
+        _bill("total_amount", "Amount"),
+        _bill("status", "Status", ColumnKind.TEXT),
+        _bill("payment_mode", "Payment Mode", ColumnKind.TEXT),
+    ),
+)
+
+VLCC_COLLECTION_SHEET = SheetSpec(
+    name="VLCC Collections",
+    key_column="date",
+    columns=(
+        _entry("date", "Date"),
+        _entry("time", "Time"),
+        _entry("shift", "Shift"),
+        _party("vlcc_code", "VLCC Code", ColumnKind.CODE),
+        _party("vlcc_name", "VLCC Name"),
+        _party("farmer_code", "Farmer Code", ColumnKind.CODE),
+        _party("farmer_name", "Farmer Name"),
+        _milk("milk_type", "Milk Type", ColumnKind.TEXT),
+        _milk("quantity", "Quantity"),
+        _milk("fat_percent", "FAT %"),
+        _milk("snf_percent", "SNF %"),
+        _bill("rate_per_unit", "Rate"),
+        _bill("total_amount", "Amount"),
+        _bill("status", "Status", ColumnKind.TEXT),
+        _bill("payment_mode", "Payment Mode", ColumnKind.TEXT),
+    ),
+)
+
+

@@ -68,6 +68,7 @@ from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeH
 from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandler
 from app.modules.dataexchange.application.prodata_exchange import ProdataExchangeHandler
 from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
+from app.modules.dataexchange.application.collection_exchange import CollectionExchangeHandler
 from app.modules.dataexchange.infrastructure.vlcc_scope import VlccScope
 from app.modules.dataexchange.infrastructure.owner_scope import OwnerScope
 from app.modules.marketplace.application.handler import MarketplaceCatalogHandler
@@ -358,6 +359,7 @@ class ModuleConfigurator:
             uploads=uploads,
             storage=container.resolve(ExchangeStorage),
         ))
+        container.register(CollectionExchangeHandler, CollectionExchangeHandler(jobs=handler))
 
 
         supervisor = WorkerSupervisor(

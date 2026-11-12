@@ -1,10 +1,17 @@
 {# Header, totals, filter fields and pager shared by the VLCC and MCC collection lists. #}
 
-{% macro page_head(title, count_label, new_url=none) %}
+{% macro page_head(title, count_label, new_url=none, export_kind=none) %}
 <div class="cl-head">
     <h2 class="cl-title">{{ title }}</h2>
     <div class="cl-head-side">
         <span class="cl-count">{{ count_label }}</span>
+        {% if export_kind %}
+        {# Exports the entries matching the filters in the page URL (DECISION-028) #}
+        <button type="button" class="cl-btn-export" onclick="exportCollectionsToExcel('{{ export_kind }}')"
+                title="Download every entry matching the current filters as an Excel file">
+            <i class="fa-solid fa-file-excel" aria-hidden="true"></i> Export Excel
+        </button>
+        {% endif %}
         {% if new_url %}
         <a class="cl-btn-primary" href="{{ new_url }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> New Collection</a>
         {% endif %}

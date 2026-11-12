@@ -33,6 +33,7 @@
         'My Milk Collections' if is_farmer else 'Vlcc Milk Collections',
         (total_items or 0) ~ ' Collections Found',
         none if is_farmer else '/vlcc-collections/create',
+        'vlcc-collections',
     ) }}
 
     {{ ui.totals_row(totals) }}

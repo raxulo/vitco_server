@@ -19,6 +19,8 @@ class ExcelJobKind(IntEnum):
     PRODATA_IMPORT = 6
     FORMULA_EXPORT = 7
     FORMULA_IMPORT = 8
+    MCC_COLLECTION_EXPORT = 9       # export only (DECISION-028)
+    VLCC_COLLECTION_EXPORT = 10     # export only (DECISION-028)
 
     @property
     def is_import(self) -> bool:

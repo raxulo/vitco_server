@@ -18,6 +18,7 @@ from app.modules.dataexchange.application.farmer_exchange import FarmerExchangeH
 from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandler
 from app.modules.dataexchange.application.prodata_exchange import ProdataExchangeHandler
 from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
+from app.modules.dataexchange.application.collection_exchange import CollectionExchangeHandler
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -106,6 +107,10 @@ class GetHandler:
     @staticmethod
     def formula_exchange_handler(request: Request) -> FormulaExchangeHandler:
         return request.app.state.application.container.resolve(FormulaExchangeHandler)
+
+    @staticmethod
+    def collection_exchange_handler(request: Request) -> CollectionExchangeHandler:
+        return request.app.state.application.container.resolve(CollectionExchangeHandler)
 
 
     @staticmethod

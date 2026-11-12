@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 from app.middleware.authentication import CurrentUser
@@ -19,6 +20,7 @@ class SubmitExportCommand:
     kind: ExcelJobKind
     owner: CurrentUser
     target_id: UUID | None = None
+    params: dict[str, Any] | None = None    # JSON-safe options, stored as the job's params.json (DECISION-028)
 
 
 @dataclass(slots=True, kw_only=True)
