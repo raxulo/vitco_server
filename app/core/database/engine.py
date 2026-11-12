@@ -9,7 +9,9 @@ Python 3.13+
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
+
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -30,6 +32,8 @@ class EngineOptions:
     pool_timeout: int = 30
     pool_recycle: int = 1800
     pool_pre_ping: bool = True
+    # Passed to the DBAPI connect(), e.g. asyncpg's server_settings
+    connect_args: dict[str, Any] = field(default_factory=dict)
 
 
 class EngineFactory:
@@ -62,4 +66,5 @@ class EngineFactory:
             pool_recycle=options.pool_recycle,
             pool_pre_ping=options.pool_pre_ping,
             pool_reset_on_return="rollback",
+            connect_args=options.connect_args,
         )

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import (
 from app.config.database import DatabaseConfig
 
 from app.core.database.drivers.base import BaseDatabaseDriver
+from app.core.database.migrator import SchemaMigrator
 from app.core.database.session import SessionManager
 from app.core.database.transaction import TransactionManager
 
@@ -63,6 +64,9 @@ class DatabaseManager:
             return
 
         await self._driver.start()
+
+        # Tables come from the Alembic migrations, on the primary only (DECISION-026)
+        await SchemaMigrator(self._driver.engine).upgrade()
 
         self._session_manager = SessionManager(
             engine=self._driver.engine,

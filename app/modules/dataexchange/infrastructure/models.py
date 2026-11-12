@@ -12,7 +12,6 @@ from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
-    DateTime,
     Enum,
     ForeignKey,
     Index,
@@ -26,6 +25,7 @@ from app.core.database.mixins import (
     TimestampMixin,
     UUIDMixin,
 )
+from app.core.database.types import NaiveDateTime
 from app.modules.dataexchange.domain.enums import (
     ExcelJobKind,
     ExcelJobStatus,
@@ -129,12 +129,12 @@ class ExcelJobModel(Base, UUIDMixin, TimestampMixin):
 
     worker_pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(NaiveDateTime(), nullable=True)
 
-    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(NaiveDateTime(), nullable=True)
 
     finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime,
+        NaiveDateTime(),
         nullable=True,
         index=True,
     )

@@ -12,7 +12,6 @@ from __future__ import annotations
 from sqlalchemy import event
 
 from app.core.config import config
-from app.core.database.base import Base
 from app.core.database.drivers.base import BaseDatabaseDriver
 from app.core.database.engine import (
     EngineFactory,
@@ -53,57 +52,17 @@ class SQLiteDriver(BaseDatabaseDriver):
             echo=config.database.echo,
         )
 
-        self._engine = EngineFactory.create(options)
+        try:
+            self._engine = EngineFactory.create(options)
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "DATABASE_URL points at SQLite, but this Python has no sqlite3 module. "
+                "Set a postgresql+asyncpg:// DATABASE_URL in .env.local (see docs/DATABASE.md)."
+            ) from exc
         self._install_events()
         self._session_manager = SessionManager(self.engine)
 
-        # Create tables & auto-migrate columns (development only)
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            def _sync_alter(raw_conn):
-                try:
-                    cur = raw_conn.cursor()
-                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='animals';")
-                    if cur.fetchone():
-                        cur.execute("PRAGMA table_info(animals);")
-                        cols = [c[1] for c in cur.fetchall()]
-                        if "image_url" not in cols:
-                            cur.execute("ALTER TABLE animals ADD COLUMN image_url VARCHAR(500);")
-                        if "images" not in cols:
-                            cur.execute("ALTER TABLE animals ADD COLUMN images JSON;")
-                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='marketplace_orders';")
-                    if cur.fetchone():
-                        cur.execute("PRAGMA table_info(marketplace_orders);")
-                        cols = [c[1] for c in cur.fetchall()]
-                        if "buyer_id" not in cols:
-                            # Nullable: older / guest orders have no buyer
-                            cur.execute("ALTER TABLE marketplace_orders ADD COLUMN buyer_id UUID REFERENCES users(id);")
-                            cur.execute("CREATE INDEX IF NOT EXISTS ix_marketplace_orders_buyer_id ON marketplace_orders (buyer_id);")
-                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mkt_orders';")
-                    if cur.fetchone():
-                        cur.execute("PRAGMA table_info(mkt_orders);")
-                        cols = [c[1] for c in cur.fetchall()]
-                        if "checkout_token" not in cols:
-                            # SQLite cannot add a UNIQUE column, so uniqueness comes from the index
-                            cur.execute("ALTER TABLE mkt_orders ADD COLUMN checkout_token VARCHAR(36);")
-                            cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_mkt_orders_checkout_token ON mkt_orders (checkout_token);")
-                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='vlcc_master';")
-                    if cur.fetchone():
-                        cur.execute("PRAGMA table_info(vlcc_master);")
-                        cols = [c[1] for c in cur.fetchall()]
-                        if "vlcc_type" not in cols:
-                            # Existing VLCCs are normal (VlccType.NORMAL = 0)
-                            cur.execute("ALTER TABLE vlcc_master ADD COLUMN vlcc_type SMALLINT NOT NULL DEFAULT 0;")
-                        cur.execute("PRAGMA table_info(mcc_master);")
-                        cols = [c[1] for c in cur.fetchall()]
-                        if cols and "visible_member" not in cols:
-                            # Existing MCCs keep showing VLCC names, as they always have
-                            cur.execute("ALTER TABLE mcc_master ADD COLUMN visible_member BOOLEAN NOT NULL DEFAULT 1;")
-                    cur.close()
-                except Exception:
-                    pass
-            await conn.run_sync(lambda raw_conn: _sync_alter(raw_conn.connection))
-            
+        # Tables and columns come from the Alembic migrations (SchemaMigrator)
         self._connected = True
 
     async def disconnect(self) -> None:

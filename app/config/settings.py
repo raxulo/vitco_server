@@ -47,8 +47,10 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str
     ADMIN_PASSWORD: str
 
+    # `.env` is the shared template (tracked, shipped by deploys). `.env.local` is per
+    # machine (git-ignored, never deployed) and wins, e.g. the server's Postgres DATABASE_URL.
     model_config = SettingsConfigDict(
-        env_file=str(BASE_DIR / ".env"),
+        env_file=(str(BASE_DIR / ".env"), str(BASE_DIR / ".env.local")),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -97,15 +99,22 @@ class Settings(BaseSettings):
     # Database
     # ==========================================================
 
+    # PostgreSQL by default (DECISION-025); put the password in .env.
+    # SQLite still works: sqlite+aiosqlite:///storage/database/realtime_transfer.db
     DATABASE_URL: str = (
-        "sqlite+aiosqlite:///storage/database/realtime_transfer.db"
+        "postgresql+asyncpg://postgres@localhost:5432/quickyee"
     )
 
     DATABASE_ECHO: bool = False
 
-    DATABASE_POOL_SIZE: int = 20
+    # Per process: the API and the exchange worker each hold a pool, so the
+    # defaults (2 x 30) stay under PostgreSQL's 100 connections
+    DATABASE_POOL_SIZE: int = 10
 
-    DATABASE_MAX_OVERFLOW: int = 50
+    DATABASE_MAX_OVERFLOW: int = 20
+
+    # PostgreSQL only: longest a single statement may run; 0 turns the limit off
+    DATABASE_STATEMENT_TIMEOUT_MS: int = 120_000
     
 
     # ==========================================================

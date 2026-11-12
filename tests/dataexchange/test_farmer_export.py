@@ -93,11 +93,19 @@ async def test_ensure_indexes_is_idempotent(database):
     await ensure_indexes(database)
 
     async with database.transaction() as session:
-        names = [row[1] for row in (await session.execute(text("PRAGMA index_list(users)"))).all()]
-        plan = (await session.execute(text("EXPLAIN QUERY PLAN SELECT id FROM users WHERE lower(email) IN ('a@b.c')"))).all()
+        if session.bind.dialect.name == "postgresql":
+            names = list((await session.scalars(text("SELECT indexname FROM pg_indexes WHERE tablename = 'users'"))).all())
+            definition = await session.scalar(
+                text("SELECT indexdef FROM pg_indexes WHERE indexname = 'ix_users_email_lower'")
+            )
+            # The planner may still scan a tiny table, so check what the index covers instead
+            assert "lower((email)::text)" in definition
+        else:
+            names = [row[1] for row in (await session.execute(text("PRAGMA index_list(users)"))).all()]
+            plan = (await session.execute(text("EXPLAIN QUERY PLAN SELECT id FROM users WHERE lower(email) IN ('a@b.c')"))).all()
+            assert "ix_users_email_lower" in plan[0][-1]
 
     assert names.count("ix_users_email_lower") == 1
-    assert "ix_users_email_lower" in plan[0][-1]
 
 
 def test_template_is_built_once_and_reused(tmp_path):

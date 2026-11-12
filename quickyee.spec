@@ -22,13 +22,19 @@ from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 datas = [
     ("app/web/templates", "app/web/templates"),
     ("app/web/static", "app/web/static"),
+    # Alembic reads migration scripts from disk, not from the import system
+    ("app/core/database/migrations", "app/core/database/migrations"),
 ]
 datas += collect_data_files("tzdata")  # ZoneInfo("Asia/Kolkata") needs the tz DB
+datas += collect_data_files("alembic")  # script templates Alembic loads at runtime
 
 # ---- Modules PyInstaller's static scan can miss ---------------------------
 hiddenimports = []
-hiddenimports += collect_submodules("app")       # every app.* module
+# Every app.* module, except the migration scripts: they only run inside Alembic
+hiddenimports += collect_submodules("app", filter=lambda name: ".database.migrations" not in name)
 hiddenimports += collect_submodules("uvicorn")   # loops / protocols / lifespan
+hiddenimports += collect_submodules("asyncpg")   # PostgreSQL driver (default)
+hiddenimports += collect_submodules("alembic")   # migrations run at startup
 hiddenimports += [
     "aiosqlite",
     "argon2",

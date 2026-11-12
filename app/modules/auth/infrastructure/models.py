@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
-    DateTime,
     ForeignKey,
     Index,
     String,
@@ -40,6 +39,7 @@ from app.core.database.mixins import (
 
 from app.core.database.types import (
     GUID,
+    NaiveDateTime,
 )
 
 
@@ -140,7 +140,7 @@ class UserModel(
 
 
     last_login_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
+        NaiveDateTime(),
         nullable=True,
     )
 
@@ -232,7 +232,7 @@ class RefreshTokenModel(
 
     expires_at: Mapped[datetime] = mapped_column(
 
-        DateTime(timezone=True),
+        NaiveDateTime(),
 
         nullable=False,
 
@@ -322,7 +322,7 @@ class OTPModel(
 
     expires_at: Mapped[datetime] = mapped_column(
 
-        DateTime(timezone=True),
+        NaiveDateTime(),
 
         nullable=False,
 

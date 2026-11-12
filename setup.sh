@@ -15,7 +15,8 @@ echo "==========================================="
 echo ""
 echo "1. Finding Python 3.13+ ..."
 PY=""
-for candidate in python3.14 python3.13 python3; do
+# Newest first: 3.15, 3.14, 3.13, then whatever python3 is (if it is 3.13+)
+for candidate in python3.15 python3.14 python3.13 python3; do
     if command -v "$candidate" >/dev/null 2>&1 &&
         "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 13) else 1)' 2>/dev/null; then
         PY="$candidate"
@@ -23,7 +24,7 @@ for candidate in python3.14 python3.13 python3; do
     fi
 done
 if [ -z "$PY" ]; then
-    echo "[ERROR] Python 3.13 or newer was not found (python3.14 / python3.13 / python3)."
+    echo "[ERROR] Python 3.13 or newer was not found (python3.15 / python3.14 / python3.13 / python3)."
     exit 1
 fi
 echo "Using: $PY ($("$PY" --version))"

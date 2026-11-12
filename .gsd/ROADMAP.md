@@ -178,6 +178,18 @@ updated: 2026-11-08T00:00:00+05:30
 
 **Verification:** [VERIFICATION.md](phases/18/VERIFICATION.md)
 
+### Phase 20: PostgreSQL Support
+**Status:** 🔄 In progress (planned 2026-11-11), on branch `feature/postgresql-support`
+**Objective:** PostgreSQL becomes the default database, with the schema managed by Alembic. SQLite keeps working through `DATABASE_URL` (DECISION-025, DECISION-026). Requested by the user.
+**Depends on:** Nothing in the marketplace
+
+**Plans:**
+- [x] Plan 20.1: Postgres driver & configuration — [1-PLAN.md](phases/20/1-PLAN.md)
+- [x] Plan 20.2: Alembic migrations — [2-PLAN.md](phases/20/2-PLAN.md) (verified on SQLite)
+- [ ] Plan 20.3: Postgres compatibility & docs — [3-PLAN.md](phases/20/3-PLAN.md)
+
+**Research:** [RESEARCH.md](phases/20/RESEARCH.md)
+
 ---
 
 ## Progress Summary
@@ -195,6 +207,7 @@ updated: 2026-11-08T00:00:00+05:30
 | 16 | ✅ | 1/1 | 100% |
 | 17 | ✅ | 1/1 | 100% |
 | 18 | ✅ | 1/1 | 100% |
+| 20 | 🔄 | 2/3 | 67% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

@@ -33,7 +33,7 @@ set "PY=.venv\Scripts\python.exe"
 if not exist "%PY%" (
     echo ==^> .venv not found - creating it with a supported Python ^(3.13+^)
     set "BASEPY="
-    for %%V in (3.14 3.13) do (
+    for %%V in (3.15 3.14 3.13) do (
         if not defined BASEPY (
             py -%%V -c "import sys" >nul 2>&1 && set "BASEPY=py -%%V"
         )

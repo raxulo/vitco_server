@@ -9,7 +9,6 @@ from uuid import UUID
 from app.core.clock import now_naive_ist
 
 from sqlalchemy import (
-    DateTime,
     ForeignKey,
     Index,
     Text,
@@ -25,6 +24,7 @@ from app.core.database.mixins import (
     TimestampMixin,
     UUIDMixin,
 )
+from app.core.database.types import NaiveDateTime
 
 
 class AdvanceRecordModel(
@@ -52,7 +52,7 @@ class AdvanceRecordModel(
     # =========================================================
 
     advance_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        NaiveDateTime(),
         nullable=False,
     )
 
@@ -80,9 +80,7 @@ class AdvanceRecordModel(
     # =========================================================
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(
-            timezone=True
-        ),
+        NaiveDateTime(),
 
         server_default=func.now(),
         # App-side IST time (the DB server default would be UTC on SQLite)

@@ -6,7 +6,11 @@ httptools==0.8.0
 
 SQLAlchemy==2.0.51
 SQLAlchemy[asyncio]==2.0.51
+# PostgreSQL is the default database; SQLite still works through DATABASE_URL
+asyncpg==0.32.0
 aiosqlite==0.22.1
+# Schema migrations, run at startup (app/core/database/migrations)
+alembic==1.20.1
 tzdata==2026.5
 
 # Non-blocking file reads/writes

@@ -6,6 +6,9 @@ __pycache__/
 .venv/
 venv/
 
+# Per-machine settings that override .env (never committed or deployed)
+.env.local
+
 # Local databases
 *.db
 *.sqlite

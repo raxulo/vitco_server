@@ -17,11 +17,12 @@ from app.core.clock import get_ist_now
 
 from sqlalchemy import (
     Boolean,
-    DateTime,
     func,
 )
 
 from sqlalchemy.dialects.postgresql import UUID
+
+from app.core.database.types import NaiveDateTime
 
 from sqlalchemy.orm import (
     Mapped,
@@ -82,18 +83,14 @@ class TimestampMixin:
 
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(
-            timezone=True
-        ),
+        NaiveDateTime(),
         server_default=func.now(),
         default=get_ist_now,
         nullable=False,
     )
 
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(
-            timezone=True
-        ),
+        NaiveDateTime(),
         server_default=func.now(),
         default=get_ist_now,
         onupdate=get_ist_now,
@@ -118,9 +115,7 @@ class SoftDeleteMixin:
 
     deleted_at: Mapped[datetime | None] = mapped_column(
 
-        DateTime(
-            timezone=True
-        ),
+        NaiveDateTime(),
 
         nullable=True,
 

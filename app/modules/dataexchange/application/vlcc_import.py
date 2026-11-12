@@ -129,7 +129,7 @@ class VlccImportProcessor:
 
         reader = XlsxSheetReader(source, VLCC_SHEET, scratch_dir=ctx.job_dir)
         await asyncio.to_thread(reader.__enter__)
-        seen = SeenKeys(ctx.job_dir / "seen_keys.sqlite3")
+        seen = SeenKeys(ctx.job_dir / "seen_keys.bin")
         pool = ThreadPoolExecutor(max_workers=self._hash_workers, thread_name_prefix="vlcc-import-hash")
         batches = reader.iter_batches(self._read_batch)
         prefetch: asyncio.Future | None = None

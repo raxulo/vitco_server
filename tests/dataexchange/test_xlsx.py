@@ -211,12 +211,14 @@ def test_shared_strings_spill_to_disk_and_resolve_correctly(tmp_path):
                 shared=shared)
 
     with XlsxSheetReader(path, SHEET, scratch_dir=tmp_path, memory_strings=50) as reader:
-        assert (tmp_path / "shared_strings.sqlite3").exists()
+        assert (tmp_path / "shared_strings.bin").exists()
+        assert (tmp_path / "shared_strings.idx").exists()
         rows = [row for batch in reader.iter_batches(64) for row in batch]
 
     assert len(rows) == 300
     assert rows[299].cells == {"farmer_code": "F299", "name": "Unique Name 299", "mobile": "9800000299"}
-    assert not (tmp_path / "shared_strings.sqlite3").exists()     # scratch file removed on close
+    assert not (tmp_path / "shared_strings.bin").exists()         # scratch files removed on close
+    assert not (tmp_path / "shared_strings.idx").exists()
 
 
 def test_reader_parses_cell_types_formulas_rich_text_and_gaps(tmp_path):

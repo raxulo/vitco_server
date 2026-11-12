@@ -1,5 +1,10 @@
 """
-Test harness — runs every test against a real, temporary SQLite database.
+Test harness — runs every test against a real, throw-away database.
+
+- Default: a temporary SQLite file.
+- `TEST_DATABASE_URL` set to a PostgreSQL server URL (any existing database on it,
+  e.g. `postgresql+asyncpg://postgres:secret@localhost:5432/postgres`): the run
+  creates `quickyee_test_<hex>` there and drops it at the end.
 
 The environment is set before anything from `app` is imported, because the
 settings object is read once at import time.
@@ -13,10 +18,21 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+from uuid import uuid4 as _uuid4
+
+from sqlalchemy.engine import make_url
 
 _TEST_ROOT = Path(tempfile.mkdtemp(prefix="quickyee-tests-"))
 
-os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_TEST_ROOT / 'test.db').as_posix()}"
+_SERVER_URL = os.environ.get("TEST_DATABASE_URL", "").strip()
+_TEST_DB_NAME = f"quickyee_test_{_uuid4().hex[:12]}"
+
+if _SERVER_URL:
+    os.environ["DATABASE_URL"] = (
+        make_url(_SERVER_URL).set(database=_TEST_DB_NAME).render_as_string(hide_password=False)
+    )
+else:
+    os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_TEST_ROOT / 'test.db').as_posix()}"
 os.environ["EXCHANGE_PATH"] = str(_TEST_ROOT / "exchange")
 os.environ["EXCHANGE_WORKER_ENABLED"] = "false"
 os.environ["LOG_PATH"] = str(_TEST_ROOT / "logs")
@@ -47,16 +63,35 @@ def test_root() -> Path:
     return _TEST_ROOT
 
 
+async def _server_execute(statement: str) -> None:
+    """Run CREATE / DROP DATABASE on the Postgres server, outside a transaction."""
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    engine = create_async_engine(_SERVER_URL, isolation_level="AUTOCOMMIT")
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text(statement))
+    finally:
+        await engine.dispose()
+
+
 @pytest.fixture(scope="session")
 async def database() -> AsyncIterator[DatabaseManager]:
     # Also catches `app` having been imported before this file set DATABASE_URL
-    assert _TEST_ROOT.as_posix() in database_config.url, "tests must never run against a real database"
+    marker = _TEST_DB_NAME if _SERVER_URL else _TEST_ROOT.as_posix()
+    assert marker in database_config.url, "tests must never run against a real database"
+
+    if _SERVER_URL:
+        await _server_execute(f'CREATE DATABASE "{_TEST_DB_NAME}"')
     manager = DatabaseFactory(database_config).create()
-    await manager.startup()
     try:
+        await manager.startup()
         yield manager
     finally:
         await manager.shutdown()
+        if _SERVER_URL:
+            await _server_execute(f'DROP DATABASE IF EXISTS "{_TEST_DB_NAME}" WITH (FORCE)')
         shutil.rmtree(_TEST_ROOT, ignore_errors=True)
 
 

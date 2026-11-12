@@ -16,7 +16,7 @@ echo ===========================================
 echo.
 echo 1. Finding Python 3.13+ ...
 set "PY="
-for %%V in (3.14 3.13) do (
+for %%V in (3.15 3.14 3.13) do (
     if not defined PY (
         py -%%V -c "import sys" >nul 2>&1 && set "PY=py -%%V"
     )

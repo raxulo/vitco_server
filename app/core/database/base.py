@@ -9,11 +9,13 @@ SQLAlchemy 2.x
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import (DeclarativeBase,declared_attr)
 
 from app.core.database.metadata import metadata
+from app.core.database.types import NaiveDateTime
 
 
 __all__ = (
@@ -29,6 +31,11 @@ class Base(DeclarativeBase):
     """
 
     metadata = metadata
+
+    # `Mapped[datetime]` without an explicit type is naive IST too (DECISION-025)
+    type_annotation_map = {
+        datetime: NaiveDateTime(),
+    }
 
 
     # ---------------------------------------------------------

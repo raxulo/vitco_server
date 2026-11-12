@@ -7,13 +7,14 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 18 - MCC Visible Member
+**Phase:** 20 - PostgreSQL Support (Plans 20.1, 20.2 done; 20.3 waits for the user's PostgreSQL). Earlier: 18 - MCC Visible Member
 **Status:** ✅ Complete (verified 2026-11-09); not committed yet. Phases 8 to 17 are committed
 **Plan:** Next is the user's review and approval of the commit message
 **Branch:** `feature/mcc-visible-member`, from `feature/collection-summary-filters`; commit after `/verify` and user approval
 
 ## Last Action
 
+- 2026-11-11: Phase 20 (PostgreSQL Support) on `feature/postgresql-support`, from `bugfix/mcc-weight-hide-analyzer-type` (8194f01). DECISION-025, DECISION-026. Plans 20.1 and 20.2 done and verified on SQLite (946 passed, 1 order-dependent failure that passes alone; real legacy DB copy adopted with every row kept). **Blocked:** Plan 20.3 needs the user's local PostgreSQL and its connection details.
 - 2026-11-09: Phase 18 executed and verified: Visible Member on FAT / SNF and Fixed Rate MCCs. Full suite: 918 passed, and the 1 failure also occurs on `a345c6f`.
 - 2026-11-09: Phase 17 executed and verified: totals and fuller filters on the VLCC and MCC collection lists. Totals match direct SQL; axe clean on the new parts.
 - 2026-11-09: Phase 16 executed and verified: Control Center refresh with tab counts and latest orders. The store redesign was undone at the user's request, so the store keeps its earlier look. Added `scripts/seed_marketplace_demo.py` and seeded the local database after a backup. axe clean on 52 of 52 checks.
@@ -66,7 +67,7 @@ updated: 2026-11-08T00:00:00+05:30
 
 ## Blockers
 
-None.
+- Phase 20, Plan 20.3: PostgreSQL is not installed on this machine yet. The user installs it and gives the connection details; then run the suite with `TEST_DATABASE_URL` and a real start.
 
 ## Concerns
 

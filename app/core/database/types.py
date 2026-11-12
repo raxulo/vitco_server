@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import String
+from sqlalchemy import DateTime, String
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -23,7 +23,25 @@ from sqlalchemy.types import (
 
 __all__ = (
     "GUID",
+    "NaiveDateTime",
 )
+
+
+class NaiveDateTime(TypeDecorator):
+    """
+    `TIMESTAMP WITHOUT TIME ZONE` holding naive IST (DECISION-025).
+
+    An aware value keeps its wall-clock time and loses its tzinfo, which is what
+    SQLite always did. asyncpg would reject it for a naive column instead.
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value: Any, dialect: Any) -> Any:
+        if isinstance(value, datetime) and value.tzinfo is not None:
+            return value.replace(tzinfo=None)
+        return value
 
 RequestId = NewType("RequestId", UUID)
 

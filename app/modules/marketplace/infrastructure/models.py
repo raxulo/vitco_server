@@ -19,7 +19,6 @@ from sqlalchemy import (
     JSON,
     Boolean,
     CheckConstraint,
-    DateTime,
     Enum,
     ForeignKey,
     Index,
@@ -33,6 +32,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database.base import Base
 from app.core.database.mixins import AuditMixin, SoftDeleteMixin, UUIDMixin
+from app.core.database.types import NaiveDateTime
 from app.modules.marketplace.domain.enums import (
     AnimalGender,
     AnimalStatus,
@@ -292,8 +292,8 @@ class MarketplaceBannerModel(Base, UUIDMixin, AuditMixin):
     placement: Mapped[BannerPlacement] = mapped_column(
         _enum(BannerPlacement, "mkt_banner_placement"), nullable=False, default=BannerPlacement.HOME_HERO
     )
-    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    starts_at: Mapped[datetime | None] = mapped_column(NaiveDateTime(), nullable=True)
+    ends_at: Mapped[datetime | None] = mapped_column(NaiveDateTime(), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 

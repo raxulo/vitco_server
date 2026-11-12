@@ -31,6 +31,11 @@ class DatabaseConfig:
     pool_timeout: int
     pool_recycle: int
     pool_pre_ping: bool
+    statement_timeout_ms: int
+
+    @property
+    def is_sqlite(self) -> bool:
+        return self.driver == "sqlite"
 
     @property
     def driver(self) -> str:
@@ -57,4 +62,5 @@ database_config = DatabaseConfig(
     pool_timeout=30,
     pool_recycle=1800,
     pool_pre_ping=True,
+    statement_timeout_ms=settings.DATABASE_STATEMENT_TIMEOUT_MS,
 )

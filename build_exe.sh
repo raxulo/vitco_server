@@ -39,7 +39,7 @@ PY=".venv/bin/python"
 if [ ! -x "$PY" ]; then
     echo "==> .venv not found - creating it with a supported Python (3.13+)"
     BASEPY=""
-    for candidate in python3.14 python3.13 python3; do
+    for candidate in python3.15 python3.14 python3.13 python3; do
         if command -v "$candidate" >/dev/null 2>&1 &&
             "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 13) else 1)' 2>/dev/null; then
             BASEPY="$candidate"
@@ -47,7 +47,7 @@ if [ ! -x "$PY" ]; then
         fi
     done
     if [ -z "$BASEPY" ]; then
-        echo "[ERROR] Python 3.13 or newer was not found (python3.14 / python3.13 / python3)."
+        echo "[ERROR] Python 3.13 or newer was not found (python3.15 / python3.14 / python3.13 / python3)."
         exit 1
     fi
     echo "==> Using $BASEPY ($("$BASEPY" --version)) to create .venv"

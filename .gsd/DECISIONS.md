@@ -447,4 +447,52 @@ errors are still logged.
 
 ---
 
+## [DECISION-025] PostgreSQL is the default database; SQLite stays supported
+
+**Date**: 2026-11-11
+**Status**: Accepted (Phase 20)
+
+### Decision
+The default `DATABASE_URL` is PostgreSQL (`postgresql+asyncpg`). A `sqlite+aiosqlite` URL still works, so every
+query must run on both. Postgres starts empty; SQLite data is not copied. Timestamp columns are naive on both, in IST.
+
+### Why
+The user asked for PostgreSQL. Keeping SQLite leaves the offline Windows exe and quick local runs working.
+Naive timestamps keep the `now_naive_ist()` rule: `TIMESTAMPTZ` would read values back as UTC-aware and shift them.
+
+---
+
+## [DECISION-026] Alembic manages the schema, run at startup
+
+**Date**: 2026-11-11
+**Status**: Accepted (Phase 20)
+
+### Decision
+Migrations live in `app/core/database/migrations/`. Each process runs `alembic upgrade head` when it connects,
+under a Postgres advisory lock. An existing SQLite database without `alembic_version` gets the old
+`create_all` and column patches once and is then stamped at the baseline.
+
+### Why
+Startup `ALTER` patches only worked on SQLite and hid their errors. Versioned migrations work on both dialects
+and can be reviewed. Running them at startup keeps setup to one step, as before.
+
+---
+
+## [DECISION-027] Excel scratch data in plain files, never sqlite3
+
+**Date**: 2026-11-11
+**Status**: Accepted (Phase 20; amends how DECISION-011 keeps dedupe on disk)
+
+### Decision
+The import's duplicate detector (`SeenKeys`) is an mmap hash table file of 128-bit BLAKE2b digests, and large
+shared-string tables spill to a text file plus a fixed-size offset index. Both live in the job folder and are
+deleted when the job ends. Only a SQLite `DATABASE_URL` uses `sqlite3`.
+
+### Why
+The server's Python 3.15 was built without `_sqlite3`, and the API would not even load because of these scratch
+stores. The user chose files over temporary database tables: they work the same with either database, add no
+database load during big imports, and keep memory flat (1M keys: 0.4 MB traced, 6.7 s vs 6.2 s with SQLite).
+
+---
+
 *Last updated: 2026-11-08*

@@ -6,7 +6,6 @@ from app.core.clock import get_ist_now
 
 from sqlalchemy import (
     Boolean,
-    DateTime,
     Enum,
     ForeignKey,
     Index,
@@ -20,6 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
 from app.core.database.mixins import TimestampMixin, UUIDMixin
+from app.core.database.types import NaiveDateTime
 from app.modules.collections.mcc_collection.domain.enums import (
     CollectionShift,
     CollectionStatus,
@@ -69,7 +69,7 @@ class MccCollectionModel(
     # =========================================================
 
     collected_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        NaiveDateTime(),
         nullable=False,
         default=get_ist_now
     )

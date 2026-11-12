@@ -7,7 +7,7 @@ Both sides keep memory flat whatever the row count (DECISION-012):
   inline strings, styles / validations / freeze panes set up front, and an
   automatic continuation sheet every 1,048,575 data rows.
 - `XlsxSheetReader` — stdlib zipfile + expat: rows are parsed straight from the
-  compressed stream; shared strings spill to a scratch SQLite file when large;
+  compressed stream; shared strings spill to plain scratch files when large;
   DOCTYPE / entity declarations are refused (XML bomb protection).
 
 Both classes are synchronous: callers run them in a worker thread / process.
@@ -17,9 +17,10 @@ Python 3.13+
 
 from __future__ import annotations
 
+import mmap
 import posixpath
 import re
-import sqlite3
+import struct
 import zipfile
 from collections import OrderedDict
 from collections.abc import Iterable, Iterator, Sequence
@@ -261,21 +262,35 @@ class _Shared(int):
     __slots__ = ()
 
 
+# Index file record per shared string: (byte offset, byte length) in the text file
+_SPAN = struct.Struct("<QI")
+
+
 class _SharedStrings:
     """
-    Shared strings kept in a list while small, spilled to a scratch SQLite file
-    when large, so memory does not grow with the number of unique values.
+    Shared strings kept in a list while small, spilled to scratch files when
+    large, so memory does not grow with the number of unique values.
+
+    Spilled: UTF-8 text appended to `shared_strings.bin`, and one fixed-size
+    (offset, length) record per string in `shared_strings.idx`, so string N is
+    found at N * record size. Plain files: no sqlite3 needed.
     """
 
-    __slots__ = ("_memory", "_db", "_path", "_limit", "_count", "_pending", "_cache")
+    __slots__ = (
+        "_memory", "_data_path", "_index_path", "_data", "_index",
+        "_data_map", "_index_map", "_offset", "_limit", "_cache",
+    )
 
     def __init__(self, scratch_dir: Path, limit: int) -> None:
         self._memory: list[str] | None = []
-        self._db: sqlite3.Connection | None = None
-        self._path = scratch_dir / "shared_strings.sqlite3"
+        self._data_path = scratch_dir / "shared_strings.bin"
+        self._index_path = scratch_dir / "shared_strings.idx"
+        self._data = None
+        self._index = None
+        self._data_map: mmap.mmap | None = None
+        self._index_map: mmap.mmap | None = None
+        self._offset = 0
         self._limit = limit
-        self._count = 0
-        self._pending: list[tuple[int, str]] = []
         self._cache: OrderedDict[int, str] = OrderedDict()
 
     def add(self, text: str) -> None:
@@ -284,61 +299,66 @@ class _SharedStrings:
             if len(self._memory) > self._limit:
                 self._spill()
         else:
-            self._pending.append((self._count, text))
-            if len(self._pending) >= 10_000:
-                self._flush()
-        self._count += 1
+            self._write(text)
 
     def finish(self) -> None:
-        if self._db is not None:
-            self._flush()
-            self._db.commit()
+        """All strings are in: map the files for reading (batches are read one after another)."""
+        if self._index is None or self._index_map is not None:
+            return
+        self._data.flush()
+        self._index.flush()
+        self._index_map = mmap.mmap(self._index.fileno(), 0, access=mmap.ACCESS_READ)
+        if self._offset:                                    # mmap can't map an empty file
+            self._data_map = mmap.mmap(self._data.fileno(), 0, access=mmap.ACCESS_READ)
 
     def resolve(self, indexes: set[int]) -> dict[int, str]:
         if self._memory is not None:
             memory = self._memory
             return {index: memory[index] for index in indexes if index < len(memory)}
 
+        self.finish()
+        total = len(self._index_map) // _SPAN.size
         found: dict[int, str] = {}
-        missing: list[int] = []
         for index in indexes:
             text = self._cache.get(index)
-            if text is None:
-                missing.append(index)
-            else:
+            if text is not None:
                 self._cache.move_to_end(index)
-                found[index] = text
-        for start in range(0, len(missing), 900):
-            chunk = missing[start:start + 900]
-            marks = ",".join("?" * len(chunk))
-            for index, text in self._db.execute(f"SELECT idx, text FROM ss WHERE idx IN ({marks})", chunk):
-                found[index] = text
+            elif 0 <= index < total:
+                offset, length = _SPAN.unpack_from(self._index_map, index * _SPAN.size)
+                text = self._data_map[offset:offset + length].decode("utf-8") if length else ""
                 self._cache[index] = text
+            else:
+                continue
+            found[index] = text
         while len(self._cache) > 50_000:
             self._cache.popitem(last=False)
         return found
 
     def close(self) -> None:
-        if self._db is not None:
-            self._db.close()
-            self._db = None
-            self._path.unlink(missing_ok=True)
+        for view in (self._data_map, self._index_map):
+            if view is not None:
+                view.close()
+        self._data_map = self._index_map = None
+        if self._index is not None:
+            self._data.close()
+            self._index.close()
+            self._data = self._index = None
+            self._data_path.unlink(missing_ok=True)
+            self._index_path.unlink(missing_ok=True)
 
     def _spill(self) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        # Batches are read in a worker thread, one after another (never concurrently)
-        self._db = sqlite3.connect(self._path, check_same_thread=False)
-        self._db.execute("PRAGMA journal_mode=OFF")
-        self._db.execute("PRAGMA synchronous=OFF")
-        self._db.execute("CREATE TABLE ss (idx INTEGER PRIMARY KEY, text TEXT NOT NULL)")
-        self._pending = list(enumerate(self._memory))
-        self._memory = None
-        self._flush()
+        self._data_path.parent.mkdir(parents=True, exist_ok=True)
+        self._data = open(self._data_path, "w+b")
+        self._index = open(self._index_path, "w+b")
+        memory, self._memory = self._memory, None
+        for text in memory:
+            self._write(text)
 
-    def _flush(self) -> None:
-        if self._pending:
-            self._db.executemany("INSERT INTO ss (idx, text) VALUES (?, ?)", self._pending)
-            self._pending = []
+    def _write(self, text: str) -> None:
+        raw = text.encode("utf-8")
+        self._index.write(_SPAN.pack(self._offset, len(raw)))
+        self._data.write(raw)
+        self._offset += len(raw)
 
 
 class XlsxSheetReader:

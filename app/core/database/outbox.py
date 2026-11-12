@@ -14,11 +14,12 @@ from datetime import datetime, timezone
 from app.core.clock import get_ist_now
 from typing import Sequence
 
-from sqlalchemy import Column, String, DateTime, Text, Boolean, select, delete
+from sqlalchemy import Column, String, Text, Boolean, select, delete
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database.base import Base
+from app.core.database.types import NaiveDateTime
 
 
 class OutboxMessage(Base):
@@ -32,12 +33,12 @@ class OutboxMessage(Base):
     event_type = Column(String(255), nullable=False, index=True)
     payload = Column(Text, nullable=False)
     created_at = Column(
-        DateTime(timezone=True),
+        NaiveDateTime(),
         default=get_ist_now,
         nullable=False,
     )
     processed = Column(Boolean, default=False, nullable=False, index=True)
-    processed_at = Column(DateTime(timezone=True), nullable=True)
+    processed_at = Column(NaiveDateTime(), nullable=True)
 
 
 class OutboxRepository:
