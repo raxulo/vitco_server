@@ -5,7 +5,7 @@ from operator import and_
 from sqlalchemy.orm import aliased
 from sqlalchemy import alias
 from dataclasses import asdict
-from sqlalchemy import func, update
+from sqlalchemy import case, func, update
 from app.modules.administration.application.command import UpdateUserCommand
 from app.modules.administration.domain.entities import UserDto
 from app.modules.administration.domain.enums import Role
@@ -180,12 +180,16 @@ class UserRepository(IUserRepository):
                     UserModel.role == Role.FARMER,
                 ),
             )
+            # Email ignores case and surrounding spaces; an exact match still wins
+            # when older rows differ only by case
             .where(
                 or_(
-                    UserModel.email == clean_val,
+                    func.lower(func.trim(UserModel.email)) == clean_val.lower(),
                     UserModel.mobile == clean_val,
                 )
             )
+            .order_by(case((UserModel.email == clean_val, 0), else_=1))
+            .limit(1)
         )
 
         result = await self._database.session.execute(stmt)

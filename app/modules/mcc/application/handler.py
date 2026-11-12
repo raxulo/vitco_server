@@ -320,19 +320,21 @@ class MccHandler:
             # ---------------------------------------------
             # USER
             # ---------------------------------------------
-            _password_hash = None
-            if command.user.password_hash:
-                _password_hash = self._password.hash(command.user.password_hash)
-                
+            # The password changes only when the form gives one; a blank field keeps the
+            # current one. ProfileService.update hashes it, so the plain text is passed
+            # here (hashing it here as well stored a hash of a hash and broke the login).
+            new_password = (command.user.password_hash or "").strip() or None
+            email = str(command.user.email).strip().lower()
+
             await self._profile.update(
                 user_data=UpdateUserCommand(
                     id=mcc_relation.user_id,
                     name=command.user.name,
-                    email=command.user.email,
+                    email=email,
                     mobile=command.user.mobile,
                     role=Role.MCC,
                     is_active=command.user.is_active,
-                    password_hash=_password_hash,
+                    password_hash=new_password,
                     updated_by=command.updated_by,
                     profile_image=command.user.profile_image,
                 )
