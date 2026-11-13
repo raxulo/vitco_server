@@ -55,6 +55,7 @@ class MccAssembler:
                 sample_start= form.sample_start,
                 sample_end= form.sample_end,
                 visible_member= form.visible_member or not form.mcc_type.supports_visible_member,
+                shift_delay= form.shift_delay,
                 is_active= form.is_active,
                 created_by=created_by,
                 profile_image=form.profile_image
@@ -147,6 +148,7 @@ class MccAssembler:
                 sample_start= form.sample_start,
                 sample_end= form.sample_end,
                 visible_member= form.visible_member or not form.mcc_type.supports_visible_member,
+                shift_delay= form.shift_delay,
                 is_active= form.is_active,
             ),
             address= AddressData(

@@ -107,6 +107,7 @@ class MccRepository(IMccRepository):
         model.sample_start = entity.sample_start
         model.sample_end = entity.sample_end
         model.visible_member = entity.visible_member
+        model.shift_delay = entity.shift_delay or "00:00"
 
         model.address_id = entity.address_id
         model.bank_account_id = entity.bank_account_id

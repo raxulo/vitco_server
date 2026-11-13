@@ -7,12 +7,16 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 21 - Collection Excel Export, plus Plan 20.3 (Postgres compatibility)
-**Status:** ✅ Complete and verified 2026-11-12; not committed yet
+**Phase:** 22 - MCC Shift Delay and live entry date / shift
+**Status:** ✅ Complete and verified 2026-11-14; not committed yet
 **Plan:** Next is the user's review and approval of the commit message
-**Branch:** `feature/collection-excel-export`, from `bugfix/mcc-credentials-update` (4b56c89); commit after user approval
+**Branch:** `feature/mcc-shift-delay`, from `feature/collection-excel-export` (f2d93a1); commit after user approval
 
 ## Last Action
+
+- 2026-11-14: Phase 22 on `feature/mcc-shift-delay`. User: MCC Shift Delay ("HH:MM", default 00:00) in the MCC form and sync; web MCC entries saved at now - delay; entry date and shift read-only and live on both collection forms, shift from the unit's timings. DECISION-029, REQ-50 to REQ-52, migration `0003`. /verify on PostgreSQL 16/16. Found: MCC and VLCC collection edit pages fail (stale `collection_number`), not linked from any page; not fixed.
+- 2026-11-13: `docs/MARKETPLACE_API.md` rewritten for app developers (uncommitted, carried on the working tree).
+- 2026-11-12: Phase 21 committed (f2d93a1).
 
 - 2026-11-12: Plan 20.3 and Phase 21 on `feature/collection-excel-export`. User: Sub Admin VLCC / farmer Excel failed on PostgreSQL only; asked for MCC / VLCC collection Excel export. Root cause: untyped `literal(owner.id)` in `Hierarchy` with asyncpg UUIDs; also soft delete overflowed `users.mobile` VARCHAR(20) on PostgreSQL. Migration `0002`. DECISION-028, REQ-48, REQ-49. Suites: 972 passed on PostgreSQL and on SQLite, only the known order-dependent failure. /verify on PostgreSQL passed.
 - 2026-11-12: `bugfix/mcc-credentials-update` committed (4b56c89): MCC edit no longer double-hashes the password.
@@ -53,6 +57,7 @@ updated: 2026-11-08T00:00:00+05:30
 | Admin REST API | Not built; Control Center is the website (DECISION-023) | 2026-11-09 | Phase 15 |
 | SQL logging | Only with `DATABASE_ECHO`, whole app (DECISION-024) | 2026-11-09 | Logging, privacy |
 | Collection export | Excel job, filters in `params.json`, list scope, no deleted rows (DECISION-028) | 2026-11-12 | Phase 21 |
+| Web entry time | Server stamps now - MCC shift delay; shift from morning end; API unchanged (DECISION-029) | 2026-11-14 | Phase 22 |
 | GSD Workflow | Active in repository under `.gsd/` | 2026-10 | Planning, execution, and state memory |
 | Excel processing | Background jobs, fresh ContextVar context, batch commits (DECISION-001) | 2026-10-25 | Phases 1–5 |
 | Excel library | openpyxl 3.1.5 read_only / write_only (DECISION-002) | 2026-10-25 | Phases 1–4 |
@@ -73,6 +78,8 @@ updated: 2026-11-08T00:00:00+05:30
 - None. (Plan 20.3 ran on a portable PostgreSQL 16 from `pip install pgserver` in a Python 3.12 scratch venv, with `tzdata`'s zoneinfo copied to its `share/postgresql/timezone`.)
 
 ## Concerns
+
+- MCC and VLCC collection edit (`/mcc-collections/edit/{id}`, `/vlcc-collections/edit/{id}`) fail: the controllers read `collection_number`, which the DTOs and models no longer have. No page links to them. Found in Phase 22, not fixed.
 
 - MCC edit fails with 422 when the FAT / SNF limits were left blank: the form sends the text "None" (found in Phase 18, not fixed).
 - PostgreSQL servers: users whose password was changed from the MCC edit form before 4b56c89 must have it set again once.

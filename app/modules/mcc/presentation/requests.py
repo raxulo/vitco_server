@@ -5,12 +5,14 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 from app.core.validators import (
     apply_milk_quality_rules,
     apply_sample_rules,
+    apply_shift_delay_rule,
     apply_shift_time_rules,
     digits_only,
     limit_at_most,
     min_not_above_max,
     mobile_number,
     sample_code,
+    shift_delay as shift_delay_value,
 )
 
 # FAT / SNF limit fields: 2 digits, "." and 2 digits at most (99.99)
@@ -66,6 +68,8 @@ class CreateMccRequest(BaseModel):
     sample_start: int |None = 0
     sample_end: int |None = 0
     visible_member: bool = True
+    # "HH:MM" taken off the clock for web collection entries; blank means "00:00" (DECISION-029)
+    shift_delay: str = Field(default="00:00", validate_default=True)
     is_active: bool | None = True
     profile_image: UploadFile | None = None
 
@@ -117,6 +121,11 @@ class CreateMccRequest(BaseModel):
     def _sample_end_digits(cls, value):
         return sample_code(value, "Sample end code")
 
+    @field_validator("shift_delay", mode="before")
+    @classmethod
+    def _shift_delay(cls, value):
+        return shift_delay_value(value)
+
     @model_validator(mode="after")
     def _quality_rules(self):
         apply_sample_rules(self, MccType.WEIGHT)
@@ -125,6 +134,10 @@ class CreateMccRequest(BaseModel):
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
         apply_shift_time_rules(self)
+        # Only FAT / SNF MCCs have a shift delay; the hidden field of other types counts as none
+        if not self.mcc_type.supports_shift_delay:
+            self.shift_delay = "00:00"
+        apply_shift_delay_rule(self)
         return self
 
     @field_validator("password")
@@ -195,6 +208,8 @@ class UpdateMccRequest(BaseModel):
     sample_start: int |None = 0
     sample_end: int |None = 0
     visible_member: bool = True
+    # "HH:MM"; blank means "00:00" (DECISION-029)
+    shift_delay: str = Field(default="00:00", validate_default=True)
     is_active: bool | None = True
     profile_image: UploadFile | None = None
 
@@ -246,6 +261,11 @@ class UpdateMccRequest(BaseModel):
     def _sample_end_digits(cls, value):
         return sample_code(value, "Sample end code")
 
+    @field_validator("shift_delay", mode="before")
+    @classmethod
+    def _shift_delay(cls, value):
+        return shift_delay_value(value)
+
     @model_validator(mode="after")
     def _quality_rules(self):
         apply_sample_rules(self, MccType.WEIGHT)
@@ -254,6 +274,10 @@ class UpdateMccRequest(BaseModel):
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
         apply_shift_time_rules(self)
+        # Only FAT / SNF MCCs have a shift delay; the hidden field of other types counts as none
+        if not self.mcc_type.supports_shift_delay:
+            self.shift_delay = "00:00"
+        apply_shift_delay_rule(self)
         return self
 
     @model_validator(mode="before")

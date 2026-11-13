@@ -150,6 +150,14 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | REQ-48 | MCC collections can be exported to Excel from their list, with the list's filters (search, MCC, VLCC, milk type, date and shift range); the file holds exactly the rows the list shows that user, without deleted entries, plus a Summary sheet with the filters and totals (DECISION-028) | User 2026-11-12 | 21 | Complete |
 | REQ-49 | VLCC collections can be exported to Excel the same way, with the VLCC list's filters (farmer search, VLCC, milk type, date and shift range) (DECISION-028) | User 2026-11-12 | 21 | Complete |
 
+**Collection entry time**
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-50 | A FAT / SNF MCC has a Shift Delay (field hidden for other types, which have no delay; "HH:MM", default 00:00, the ":" typed by the form, hours ≤ 23, minutes ≤ 59, at most the morning shift start time), set in the MCC form's Collection Shifts section and sent by sync as `mcc_info.shift_delay` (DECISION-029) | User 2026-11-14 | 22 | Complete |
+| REQ-51 | An MCC collection entered on the web is saved at now - the MCC's shift delay (previous day when it crosses midnight); API collections are not changed (DECISION-029) | User 2026-11-14 | 22 | Complete |
+| REQ-52 | On the MCC and VLCC collection forms, entry date and shift are read-only; a new entry's date and time follow the live clock, and its shift comes from the selected MCC's / VLCC's shift timings (DECISION-029) | User 2026-11-14 | 22 | Complete |
+
 **Marketplace quality**
 
 | ID | Requirement | Category | Phase | Status |

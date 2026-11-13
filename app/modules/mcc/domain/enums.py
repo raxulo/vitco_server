@@ -36,6 +36,11 @@ class MccType(IntEnum):
     def shows_member_name(self, visible_member: bool) -> bool:
         return visible_member or not self.supports_visible_member
 
+    @property
+    def supports_shift_delay(self) -> bool:
+        """Only FAT / SNF MCCs have a shift delay; every other type records at the real time (DECISION-029)."""
+        return self == MccType.FAT_SNF
+
 
 class AnalyzerType(IntEnum):
     TYPE_A = 0

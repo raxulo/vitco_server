@@ -157,7 +157,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', path='js/collection_form.js') }}?v=3"></script>
+<script src="{{ url_for('static', path='js/collection_form.js') }}?v=4"></script>
 <script>
     const getRateInput = () => document.getElementById("cf-rate");
 
@@ -272,10 +272,10 @@
                     event.preventDefault(); // Stop default tab navigation
                     firstItem.click(); // Select first item
                     
-                    // Move focus to next input field (cf-date)
-                    const dateInput = document.getElementById('cf-date');
-                    if (dateInput) {
-                        dateInput.focus();
+                    // Move focus to the weight (date and shift are read-only)
+                    const qtyInput = document.getElementById('cf-qty');
+                    if (qtyInput) {
+                        qtyInput.focus();
                     }
                 }
             }

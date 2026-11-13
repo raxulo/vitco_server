@@ -62,6 +62,32 @@ def _minutes(value: str | None, label: str) -> int | None:
     return int(match.group(1)) * 60 + int(match.group(2))
 
 
+def shift_delay(value: str | None) -> str:
+    """
+    MCC shift delay as 'HH:MM' (hours 00-23, minutes 00-59). Empty means no delay ('00:00').
+    A single-digit hour ('5:30') is padded to '05:30'.
+    """
+    value = (value or "").strip()
+    if not value:
+        return "00:00"
+    if re.fullmatch(r"\d:\d\d", value):
+        value = f"0{value}"
+    if not _TIME.fullmatch(value):
+        raise ValueError("Shift delay must be hours and minutes as HH:MM (00:00 to 23:59)")
+    return value
+
+
+def apply_shift_delay_rule(model) -> None:
+    """The MCC shift delay can be at most the morning shift start time (user, 2026-11-14)."""
+    delay = _minutes(model.shift_delay, "Shift delay")
+    morning_start = _minutes(model.morning_collection_start, "Morning shift start time")
+    if delay is not None and morning_start is not None and delay > morning_start:
+        raise ValueError(
+            f"Shift delay ({model.shift_delay}) cannot be more than the morning shift start time "
+            f"({model.morning_collection_start[:5]})"
+        )
+
+
 def apply_shift_time_rules(model) -> None:
     """
     Collection shifts on a request model: each shift starts before it ends,

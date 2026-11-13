@@ -57,6 +57,9 @@ class Mcc:
 
     visible_member: bool = True
 
+    # "HH:MM" taken off the clock for web collection entries (DECISION-029)
+    shift_delay: str = "00:00"
+
 
 @dataclass(slots=True, frozen=True)
 class MccRelations:

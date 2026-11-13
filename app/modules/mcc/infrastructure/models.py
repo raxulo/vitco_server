@@ -99,6 +99,14 @@ class MccModel(
         server_default=true(),
     )
 
+    # "HH:MM" taken off the clock when a collection is entered on the web (DECISION-029)
+    shift_delay: Mapped[str] = mapped_column(
+        String(5),
+        nullable=False,
+        default="00:00",
+        server_default="00:00",
+    )
+
     # =========================================================
     # Common References
     # =========================================================

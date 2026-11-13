@@ -203,9 +203,10 @@
                                 event.preventDefault(); // Stop default tab focus
                                 visibleItems[0].click(); // Select first item
                                 
-                                const dateInput = document.getElementById('cf-date');
-                                if (dateInput) {
-                                    dateInput.focus();
+                                // Date and shift are read-only: go on to the weight
+                                const qtyInput = document.getElementById('cf-qty');
+                                if (qtyInput) {
+                                    qtyInput.focus();
                                 }
                             }
                         }
@@ -284,19 +285,24 @@
             })();
         </script>
 
+        {# Entry date and shift are never typed in (DECISION-029). A new entry follows the server's clock live
+           and the VLCC's shift timings (static/js/collection_form.js); an edit keeps the stored values. #}
+        {% set entry_shift = collection.shift|int if collection else (clock_shift if clock_shift is defined else 0) %}
+
         <!-- Entry Date -->
         <div class="form-group">
-            <label>Entry Date *</label>
-            <input type="datetime-local" name="collection_date" id="cf-date" class="form-control" required
-                value="{{ default_date }}">
+            <label for="cf-date">Entry Date *<span class="cf-auto-hint"><i class="fa-solid fa-lock"></i> {{ 'saved' if collection else 'live' }}</span></label>
+            <input type="datetime-local" step="1" name="collection_date" id="cf-date" class="form-control cf-locked" required readonly
+                value="{{ default_date }}"{% if not collection and clock_now is defined %} data-live-clock="{{ clock_now }}"{% endif %}>
         </div>
 
         <!-- Shift -->
         <div class="form-group">
-            <label>Shift *</label>
-            <select name="shift" id="cf-shift" class="form-control">
-                <option value="0" {{ 'selected' if collection and collection.shift|int==0 else '' }}>Morning</option>
-                <option value="1" {{ 'selected' if collection and collection.shift|int==1 else '' }}>Evening</option>
+            <label for="cf-shift">Shift *<span class="cf-auto-hint"><i class="fa-solid fa-lock"></i> {{ 'saved' if collection else 'auto' }}</span></label>
+            <select name="shift" id="cf-shift" class="form-control cf-locked" tabindex="-1" aria-readonly="true"
+                {% if not collection %}data-morning-end="{{ morning_end or '' }}"{% endif %}>
+                <option value="0" {{ 'selected' if entry_shift == 0 else '' }}>Morning</option>
+                <option value="1" {{ 'selected' if entry_shift == 1 else '' }}>Evening</option>
             </select>
         </div>
 

@@ -1,5 +1,5 @@
 {# data-cattle-type: 0 = Cow / Buffalo (milk type from FAT), 1 = Mixed. See static/js/collection_form.js #}
-<form hx-post="/mcc-collections/create" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection"
+<form hx-post="{% if collection %}/mcc-collections/edit/{{ collection.id }}{% else %}/mcc-collections/create{% endif %}" hx-target="#form-collection" hx-swap="outerHTML" id="form-collection"
     data-cattle-type="{{ setting.cattle_type|int if setting and setting.cattle_type is not none else 0 }}"
     data-buffalo-min-fat="{{ buffalo_min_fat if buffalo_min_fat is not none else '' }}">
 
@@ -133,25 +133,30 @@
 
         {% endif %}
 
+        {# Entry date and shift are never typed in (DECISION-029). A new entry follows the server's clock
+           minus the MCC's shift delay, live (static/js/collection_form.js); an edit keeps the stored values. #}
+        {% set entry_shift = collection.shift|int if collection else (clock_shift if clock_shift is defined else 0) %}
+
         <div class="form-group">
 
-            <label>Entry Date *</label>
+            <label for="cf-date">Entry Date *<span class="cf-auto-hint"><i class="fa-solid fa-lock"></i> {{ 'saved' if collection else 'live' }}</span></label>
 
-            <input type="datetime-local" name="collection_date" id="cf-date" class="form-control" required
+            <input type="datetime-local" step="1" name="collection_date" id="cf-date" class="form-control cf-locked" required readonly
 
-                value="{{ default_date }}">
+                value="{{ default_date }}"{% if not collection and clock_now is defined %} data-live-clock="{{ clock_now }}"{% endif %}>
 
         </div>
 
         <div class="form-group">
 
-            <label>Shift *</label>
+            <label for="cf-shift">Shift *<span class="cf-auto-hint"><i class="fa-solid fa-lock"></i> {{ 'saved' if collection else 'auto' }}</span></label>
 
-            <select name="shift" id="cf-shift" class="form-control">
+            <select name="shift" id="cf-shift" class="form-control cf-locked" tabindex="-1" aria-readonly="true"
+                {% if not collection %}data-morning-end="{{ morning_end or '' }}"{% endif %}>
 
-                <option value="0">Morning</option>
+                <option value="0" {{ 'selected' if entry_shift == 0 else '' }}>Morning</option>
 
-                <option value="1">Evening</option>
+                <option value="1" {{ 'selected' if entry_shift == 1 else '' }}>Evening</option>
 
             </select>
 

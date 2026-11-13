@@ -514,4 +514,28 @@ migration, for the two new enum values. Using the list's scope means the file ca
 
 ---
 
+## [DECISION-029] MCC shift delay; the server stamps web collection entries
+
+**Date**: 2026-11-14
+**Status**: Accepted (Phase 22)
+
+### Decision
+FAT / SNF MCCs (only) have `shift_delay` ("HH:MM", 00:00 to 23:59, default "00:00"); the field is hidden for other
+types, which always count as no delay (a value left from a type change is ignored and reset on the next save). It is at most the MCC's morning shift start
+time, compared as a whole time (user, 2026-11-14: 05:44 is allowed with a 06:00 start). The form types the ":"
+itself and never lets hours pass 23 or minutes pass 59. A new collection entered on the web
+is stamped by the server: entry time = now (IST) - the MCC's shift delay, which can fall on the previous day; for
+VLCC collections there is no delay. The shift is taken from that time: Morning before the unit's morning shift end,
+otherwise Evening (the dashboard's rule for the current shift); without settings the split is 12:00. Posted dates
+and shifts are ignored, and an edit keeps the stored ones. The forms show both read-only, ticking from the server's
+clock. Collections saved through the API keep the date and shift the app sends; sync gives the app
+`mcc_info.shift_delay` so it applies the delay itself.
+
+### Why
+The user asked for it: an MCC receiving milk late records it at the time it was collected, and entry date / shift
+must not be typed in. Stamping on the server means a wrong PC clock, time zone or edited form cannot change the
+record; using the delayed time for the shift keeps late milk in the shift it was collected in.
+
+---
+
 *Last updated: 2026-11-08*

@@ -35,6 +35,7 @@ from app.modules.collections.vlcc_collection.presentation.requests import (
     UpdateVlccCollectionRequest,
 )
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift, MilkType
+from app.modules.collections.mcc_collection.domain.clock import collection_moment
 from app.core.clock import now_naive_ist
 
 
@@ -119,6 +120,35 @@ class VlccCollectionController:
             raise ForbiddenException("Action not permitted for this account")
 
     @staticmethod
+    def _clock(setting) -> tuple[datetime, CollectionShift]:
+        """Entry time (now; VLCCs have no shift delay) and its shift from the VLCC's morning shift end."""
+        return collection_moment(
+            now_naive_ist(),
+            morning_end=getattr(setting, "morning_collection_end", None),
+        )
+
+    @staticmethod
+    async def _entry_moment(request: Request, vlcc_id: UUID) -> tuple[datetime, CollectionShift]:
+        """The server's entry time and shift for a new entry of this VLCC; the form's own values are ignored."""
+        setting = None
+        try:
+            vlcc = await GetHandler.vlcc_handler(request).get(GetVlccQuery(id=vlcc_id, owner=request.state.user))
+            if vlcc.settings_id:
+                setting = await GetHandler.settings_handler(request).get_by_id(settings_id=vlcc.settings_id)
+        except Exception:
+            pass
+        return VlccCollectionController._clock(setting)
+
+    @staticmethod
+    def _apply_clock(model: dict) -> None:
+        """Live clock values for a new entry's read-only date and shift (DECISION-029)."""
+        moment, shift = VlccCollectionController._clock(model.get("setting"))
+        model["default_date"] = moment.strftime("%Y-%m-%dT%H:%M:%S")
+        model["clock_now"] = model["default_date"]
+        model["clock_shift"] = int(shift)
+        model["morning_end"] = getattr(model.get("setting"), "morning_collection_end", None) or ""
+
+    @staticmethod
     async def _form_model(request: Request, vlcc_id: UUID | None) -> dict:
         """
         Everything the collection form needs for one VLCC:
@@ -177,7 +207,7 @@ class VlccCollectionController:
     async def get_create_page(request: Request):
         VlccCollectionController._deny_farmer(request)
         model = await VlccCollectionController._form_model(request, None)
-        model["default_date"] = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        VlccCollectionController._apply_clock(model)
 
         return Renderer.page(
             request=request,
@@ -201,7 +231,8 @@ class VlccCollectionController:
         collection = await handler.get(GetVlccCollectionQuery(id=collection_id), owner=owner)
         model = await VlccCollectionController._form_model(request, collection.vlcc_id)
 
-        default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        # The stored date and shift stay as they are (read-only on the form)
+        default_date = collection.collected_at.strftime("%Y-%m-%dT%H:%M:%S")
 
         model.update({
             "collection": collection,
@@ -270,6 +301,16 @@ class VlccCollectionController:
         VlccCollectionController._deny_farmer(request)
         form_data = dict(await request.form())
 
+        # Entry date and shift are the server's, from the VLCC's shift timings (DECISION-029)
+        try:
+            entry_vlcc_id = UUID(str(form_data.get("vlcc_id", "")).strip())
+        except ValueError:
+            entry_vlcc_id = None
+        if entry_vlcc_id is not None:
+            collected_at, shift = await VlccCollectionController._entry_moment(request, entry_vlcc_id)
+            form_data["collection_date"] = collected_at
+            form_data["shift"] = int(shift)
+
         data = CreateVlccCollectionRequest.model_validate(form_data)
         command = VlccCollectionAssembler.create(data=data)
         handler = GetHandler.vlcc_collection_handler(request)
@@ -287,7 +328,7 @@ class VlccCollectionController:
 
             # A fresh, empty form for the next entry (the summary box resets with it)
             model = await VlccCollectionController._form_model(request, data.vlcc_id)
-            model["default_date"] = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+            VlccCollectionController._apply_clock(model)
             model["new_item"] = {
                 "farmer_name": farmer_name,
                 "date": result.collected_at.strftime("%d/%m %H:%M"),
@@ -322,6 +363,9 @@ class VlccCollectionController:
         handler = GetHandler.vlcc_collection_handler(request)
         existing = await handler.get(GetVlccCollectionQuery(id=collection_id), owner=user)
         form_data["collection_number"] = existing.collection_number
+        # Entry date and shift cannot be changed (DECISION-029)
+        form_data["collection_date"] = existing.collected_at
+        form_data["shift"] = int(existing.shift)
 
         if "quantity_collection_mode" not in form_data:
             form_data["quantity_collection_mode"] = "MANUAL"
@@ -385,8 +429,9 @@ class VlccCollectionController:
         vlcc_id: UUID | None = None,
         collected_at: datetime | None = None,
     ):
+        # A new entry's form: the date and shift follow the chosen VLCC's clock (DECISION-029)
         model = await VlccCollectionController._form_model(request, vlcc_id)
-        model["default_date"] = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        VlccCollectionController._apply_clock(model)
         return Renderer.partial(
             request=request,
             template="pages/vlcc_collection/collection_form.html",

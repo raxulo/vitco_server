@@ -191,12 +191,21 @@ updated: 2026-11-08T00:00:00+05:30
 **Research:** [RESEARCH.md](phases/20/RESEARCH.md)
 
 ### Phase 21: Collection Excel Export
-**Status:** ✅ Complete (verified 2026-11-12), on branch `feature/collection-excel-export`; commit pending approval
+**Status:** ✅ Complete (verified 2026-11-12), committed f2d93a1 on `feature/collection-excel-export`
 **Objective:** Export MCC and VLCC collections to Excel from their list pages, with the list's filters (REQ-48, REQ-49, DECISION-028). Requested by the user.
 **Depends on:** Phase 20 (Postgres migration for the new job kinds)
 
 **Plans:**
 - [x] Plan 21.1: Collection Excel export — [1-PLAN.md](phases/21/1-PLAN.md), [1-SUMMARY.md](phases/21/1-SUMMARY.md)
+
+### Phase 22: MCC Shift Delay and live entry date / shift
+**Status:** ✅ Complete (verified 2026-11-14), on branch `feature/mcc-shift-delay`; commit pending approval
+**Objective:** MCC Shift Delay; web collection entries stamped by the server at now - delay; read-only, live entry
+date and shift from the unit's shift timings (REQ-50 to REQ-52, DECISION-029). Requested by the user.
+**Depends on:** Phase 21 (migration 0002)
+
+**Plans:**
+- [x] Plan 22.1: Shift delay and live entry date / shift — [1-PLAN.md](phases/22/1-PLAN.md), [1-SUMMARY.md](phases/22/1-SUMMARY.md)
 
 ---
 
@@ -217,6 +226,7 @@ updated: 2026-11-08T00:00:00+05:30
 | 18 | ✅ | 1/1 | 100% |
 | 20 | ✅ | 3/3 | 100% |
 | 21 | ✅ | 1/1 | 100% |
+| 22 | ✅ | 1/1 | 100% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

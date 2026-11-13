@@ -15,6 +15,7 @@ from app.modules.collections.mcc_collection.domain.dto import MccCollectionResul
 from app.modules.collections.mcc_collection.domain.dto import MccSampleResult
 from app.modules.mcc.domain.enums import MccType
 from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.modules.collections.mcc_collection.domain.clock import collection_moment
 from app.modules.collections.mcc_collection.application.command import GetNextSampleNumberQuery
 from datetime import datetime
 from app.modules.mcc.application.command import GetMccQuery
@@ -138,6 +139,39 @@ class MccCollectionController:
     # =========================================================
 
     @staticmethod
+    def _clock(mcc, setting) -> tuple[datetime, CollectionShift]:
+        """
+        Entry time and shift of a new web entry (DECISION-029): now - the MCC's shift delay
+        (FAT / SNF MCCs only), and the shift of that time from the MCC's morning shift end.
+        """
+        return collection_moment(
+            now_naive_ist(),
+            shift_delay=getattr(mcc, "applied_shift_delay", None),
+            morning_end=getattr(setting, "morning_collection_end", None),
+        )
+
+    @staticmethod
+    async def _entry_moment(request: Request, mcc_id: UUID) -> tuple[datetime, CollectionShift]:
+        """The server's entry time and shift for a new entry of this MCC; the form's own values are ignored."""
+        mcc = setting = None
+        try:
+            mcc = await GetHandler.mcc_handler(request).get(GetMccQuery(id=mcc_id, owner=request.state.user))
+            if mcc.settings_id:
+                setting = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id)
+        except Exception:
+            pass
+        return MccCollectionController._clock(mcc, setting)
+
+    @staticmethod
+    def _apply_clock(model: dict) -> None:
+        """Live clock values for a new entry's read-only date and shift."""
+        moment, shift = MccCollectionController._clock(model.get("mcc"), model.get("setting"))
+        model["default_date"] = moment.strftime("%Y-%m-%dT%H:%M:%S")
+        model["clock_now"] = model["default_date"]
+        model["clock_shift"] = int(shift)
+        model["morning_end"] = getattr(model.get("setting"), "morning_collection_end", None) or ""
+
+    @staticmethod
     async def _form_model(
         request: Request,
         mcc_id: UUID | None,
@@ -151,6 +185,7 @@ class MccCollectionController:
         - its assigned rate charts in rank order (index 0 = R1; a VLCC's rank selects one),
         - its supplying VLCCs, the next sample number (weight MCCs),
         - buffalo minimum FAT (milk type is derived from FAT for Cow / Buffalo MCCs).
+        Without a date / shift the next sample number is for the new entry's clock (DECISION-029).
         """
         user = request.state.user
         mcc_handler = GetHandler.mcc_handler(request)
@@ -184,11 +219,13 @@ class MccCollectionController:
         if mcc.settings_id:
             model["setting"] = await GetHandler.settings_handler(request).get_by_id(settings_id=mcc.settings_id) or {}
         if mcc.mcc_type == MccType.WEIGHT:
+            if collected_at is None or shift is None:
+                collected_at, shift = MccCollectionController._clock(mcc, model["setting"])
             sample_result: MccSampleResult = await GetHandler.mcc_collection_handler(request).genext_sample_number(
                 query=GetNextSampleNumberQuery(
                     mcc_id=mcc.id,
-                    collected_at=collected_at or now_naive_ist(),
-                    shift=shift or CollectionShift.MORNING,
+                    collected_at=collected_at,
+                    shift=shift,
                 )
             )
             model["next_sample_number"] = sample_result.next_sample_number
@@ -224,7 +261,7 @@ class MccCollectionController:
     async def get_create_page(request: Request):
         MccCollectionController._deny_vlcc(request)
         model = await MccCollectionController._form_model(request, None)
-        model["default_date"] = now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        MccCollectionController._apply_clock(model)
 
         return Renderer.page(
             request=request,
@@ -246,9 +283,12 @@ class MccCollectionController:
         user = request.state.user
 
         collection = await handler.get(GetMccCollectionQuery(id=collection_id), owner=user)
-        model = await MccCollectionController._form_model(request, collection.mcc_id)
+        model = await MccCollectionController._form_model(
+            request, collection.mcc_id, shift=collection.shift, collected_at=collection.collected_at
+        )
         model["collection"] = collection
-        model["default_date"] = collection.collected_at.strftime("%Y-%m-%dT%H:%M") if collection and collection.collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        # The stored date and shift stay as they are (read-only on the form)
+        model["default_date"] = collection.collected_at.strftime("%Y-%m-%dT%H:%M:%S")
 
         return Renderer.page(
             request=request,
@@ -337,6 +377,16 @@ class MccCollectionController:
         if "total_amount" in form_data and form_data["total_amount"] == "":
             form_data["total_amount"] = 0.0
 
+        # Entry date and shift are the server's: now - the MCC's shift delay (DECISION-029)
+        try:
+            entry_mcc_id = UUID(str(form_data.get("mcc_id", "")).strip())
+        except ValueError:
+            entry_mcc_id = None
+        if entry_mcc_id is not None:
+            collected_at, shift = await MccCollectionController._entry_moment(request, entry_mcc_id)
+            form_data["collection_date"] = collected_at
+            form_data["shift"] = int(shift)
+
         data = CreateMccCollectionRequest.model_validate(form_data)
 
         command = MccCollectionAssembler.create(data=data)
@@ -356,10 +406,8 @@ class MccCollectionController:
                         vlcc_name = supplier.name
 
             # A fresh, empty form for the next entry (the summary box resets with it)
-            model = await MccCollectionController._form_model(
-                request, data.mcc_id, shift=data.shift, collected_at=data.collection_date
-            )
-            model["default_date"] = data.collection_date.strftime("%Y-%m-%dT%H:%M") if data.collection_date else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+            model = await MccCollectionController._form_model(request, data.mcc_id)
+            MccCollectionController._apply_clock(model)
             model["new_item"] = {
                 "vlcc_name": "VLCC" if model["hide_member_names"] else vlcc_name,
                 "date": result.collected_at.strftime("%d/%m %H:%M"),
@@ -394,6 +442,9 @@ class MccCollectionController:
 
         existing = await handler.get(GetMccCollectionQuery(id=collection_id), owner=user)
         form_data["collection_number"] = existing.collection_number
+        # Entry date and shift cannot be changed (DECISION-029)
+        form_data["collection_date"] = existing.collected_at
+        form_data["shift"] = int(existing.shift)
 
         if "sample_number" not in form_data or not form_data["sample_number"]:
             form_data["sample_number"] = 0
@@ -522,8 +573,9 @@ class MccCollectionController:
         shift: CollectionShift | None = None,
         collected_at: datetime | None = None,
     ):
-        model = await MccCollectionController._form_model(request, mcc_id, shift=shift, collected_at=collected_at)
-        model["default_date"] = collected_at.strftime("%Y-%m-%dT%H:%M") if collected_at else now_naive_ist().strftime("%Y-%m-%dT%H:%M")
+        # A new entry's form: the date and shift follow the chosen MCC's clock (DECISION-029)
+        model = await MccCollectionController._form_model(request, mcc_id)
+        MccCollectionController._apply_clock(model)
 
         return Renderer.page(
             request=request,
@@ -556,15 +608,10 @@ class MccCollectionController:
 
         # Parse datetime from collection_date
         dt = None
-        if collection_date:
-            try:
-                dt = datetime.strptime(collection_date.split(".")[0], "%Y-%m-%dT%H:%M")
-            except ValueError:
-                try:
-                    dt = datetime.strptime(collection_date.split(".")[0], "%Y-%m-%d")
-                except ValueError:
-                    dt = now_naive_ist()
-        else:
+        # "YYYY-MM-DDTHH:MM[:SS]" from the read-only date field (or a plain date)
+        try:
+            dt = datetime.fromisoformat(collection_date.split(".")[0]) if collection_date else now_naive_ist()
+        except ValueError:
             dt = now_naive_ist()
 
         sample_query = GetCollectionBySampleNumberQuery(

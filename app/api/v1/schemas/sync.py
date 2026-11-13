@@ -74,6 +74,8 @@ class MccExtraInfoSyncDto:
     sample_end: int | None
     # False: the app must not show VLCC names (always True unless FAT / SNF or Fixed Rate)
     visible_member: bool = True
+    # "HH:MM" the app takes off the clock when it records a collection (DECISION-029)
+    shift_delay: str = "00:00"
 
 @dataclass(slots=True, kw_only=True)
 class FarmerExtraInfoSyncDto:

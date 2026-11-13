@@ -188,4 +188,50 @@
             }
         }, true);
     });
+
+    /*
+     * Live entry date and shift of a new entry (DECISION-029). Both fields are read-only.
+     * #cf-date[data-live-clock] holds the server's entry time when the form was rendered
+     * (IST, already minus the MCC's shift delay); it then moves on with the browser's
+     * elapsed time, so a wrong PC clock or time zone does not matter. #cf-shift follows it:
+     * Morning before data-morning-end (12:00 when not set), otherwise Evening.
+     * The server stamps the saved entry itself; these fields only show what it will use.
+     */
+    const clockAnchors = new WeakMap();
+    const pad = (value) => String(value).padStart(2, "0");
+
+    function serverMillis(text) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/.exec(text || "");
+        if (!m) return null;
+        return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0));
+    }
+
+    function tickEntryClock() {
+        const input = document.querySelector("#form-collection #cf-date[data-live-clock]");
+        if (!input) return;
+        let anchor = clockAnchors.get(input);
+        if (!anchor) {
+            const server = serverMillis(input.dataset.liveClock);
+            if (server === null) return;
+            anchor = { server, client: Date.now() };
+            clockAnchors.set(input, anchor);
+        }
+        const at = new Date(anchor.server + (Date.now() - anchor.client));
+        const hours = at.getUTCHours();
+        const minutes = at.getUTCMinutes();
+        input.value = `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}` +
+            `T${pad(hours)}:${pad(minutes)}:${pad(at.getUTCSeconds())}`;
+
+        const shift = byId("cf-shift");
+        if (shift && shift.dataset.morningEnd !== undefined) {
+            const end = /^(\d{1,2}):(\d{2})/.exec(shift.dataset.morningEnd) || [null, "12", "00"];
+            const morning = hours * 60 + minutes < (+end[1]) * 60 + (+end[2]);
+            const next = morning ? "0" : "1";
+            if (shift.value !== next) shift.value = next;
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", tickEntryClock);
+    document.body.addEventListener("htmx:afterSwap", tickEntryClock);
+    setInterval(tickEntryClock, 1000);
 })();

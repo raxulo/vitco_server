@@ -42,6 +42,8 @@ class CreateMccCommand:
 
     visible_member: bool = True
 
+    shift_delay: str = "00:00"
+
 
 @dataclass(slots=True)
 class UpdateMccCommand:
@@ -74,6 +76,9 @@ class UpdateMccCommand:
 
     # None keeps the stored value
     visible_member: bool | None = None
+
+    # None keeps the stored value
+    shift_delay: str | None = None
 
 
 

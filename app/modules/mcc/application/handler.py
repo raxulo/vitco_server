@@ -504,6 +504,9 @@ class MccHandler:
                     visible_member=(
                         mcc.visible_member if command.mcc.visible_member is None else command.mcc.visible_member
                     ),
+                    shift_delay=(
+                        mcc.shift_delay if command.mcc.shift_delay is None else command.mcc.shift_delay
+                    ),
                     route_code=command.mcc.route_code,
                     address_id=address_id,
                     bank_account_id=bank_account_id,
@@ -801,6 +804,7 @@ class MccHandler:
             sample_start=command.sample_start,
             sample_end=command.sample_end,
             visible_member=command.visible_member,
+            shift_delay=command.shift_delay or "00:00",
             address_id=address_id,
             bank_account_id=bank_account_id,
             settings_id=settings_id,
@@ -932,6 +936,7 @@ class MccHandler:
             sample_start=mcc.sample_start,
             sample_end=mcc.sample_end,
             visible_member=mcc.visible_member,
+            shift_delay=mcc.shift_delay,
             profile_image=mcc.profile_image,
             is_active=mcc.is_active,
             settings_id=mcc.settings_id,

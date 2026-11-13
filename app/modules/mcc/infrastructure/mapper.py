@@ -24,6 +24,7 @@ class MccMapper:
             sample_start=entity.sample_start,
             sample_end=entity.sample_end,
             visible_member=entity.visible_member,
+            shift_delay=entity.shift_delay or "00:00",
 
             address_id=entity.address_id,
             bank_account_id=entity.bank_account_id,
@@ -60,6 +61,7 @@ class MccMapper:
             sample_start=model.sample_start,
             sample_end=model.sample_end,
             visible_member=model.visible_member,
+            shift_delay=model.shift_delay or "00:00",
 
             address_id=model.address_id,
             bank_account_id=model.bank_account_id,

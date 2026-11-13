@@ -14,6 +14,7 @@ class MccResponse(BaseModel):
     sample_start: int | None
     sample_end: int | None
     visible_member: bool = True
+    shift_delay: str = "00:00"
     address_id: UUID | None
     bank_account_id: UUID | None
     dairy_config_id: UUID | None
