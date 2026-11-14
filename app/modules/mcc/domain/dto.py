@@ -42,11 +42,6 @@ class MccDto:
     shift_delay: str = "00:00"
 
     @property
-    def applied_shift_delay(self) -> str:
-        """The delay collections use: the stored one for FAT / SNF MCCs, otherwise none."""
-        return (self.shift_delay or "00:00") if self.mcc_type.supports_shift_delay else "00:00"
-
-    @property
     def shows_member_name(self) -> bool:
         return self.mcc_type.shows_member_name(self.visible_member)
 

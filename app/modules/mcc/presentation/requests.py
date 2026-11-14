@@ -134,9 +134,6 @@ class CreateMccRequest(BaseModel):
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
         apply_shift_time_rules(self)
-        # Only FAT / SNF MCCs have a shift delay; the hidden field of other types counts as none
-        if not self.mcc_type.supports_shift_delay:
-            self.shift_delay = "00:00"
         apply_shift_delay_rule(self)
         return self
 
@@ -274,9 +271,6 @@ class UpdateMccRequest(BaseModel):
         min_not_above_max(self.min_fat, self.max_fat, "Fixed rate FAT")
         min_not_above_max(self.min_snf, self.max_snf, "Fixed rate SNF")
         apply_shift_time_rules(self)
-        # Only FAT / SNF MCCs have a shift delay; the hidden field of other types counts as none
-        if not self.mcc_type.supports_shift_delay:
-            self.shift_delay = "00:00"
         apply_shift_delay_rule(self)
         return self
 

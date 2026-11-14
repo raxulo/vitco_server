@@ -141,12 +141,12 @@ class MccCollectionController:
     @staticmethod
     def _clock(mcc, setting) -> tuple[datetime, CollectionShift]:
         """
-        Entry time and shift of a new web entry (DECISION-029): now - the MCC's shift delay
-        (FAT / SNF MCCs only), and the shift of that time from the MCC's morning shift end.
+        Entry time and shift of a new web entry (DECISION-029): now - the MCC's shift delay,
+        and the shift of that time from the MCC's morning shift end.
         """
         return collection_moment(
             now_naive_ist(),
-            shift_delay=getattr(mcc, "applied_shift_delay", None),
+            shift_delay=getattr(mcc, "shift_delay", None),
             morning_end=getattr(setting, "morning_collection_end", None),
         )
 

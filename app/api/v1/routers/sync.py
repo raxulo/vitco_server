@@ -158,7 +158,7 @@ async def mcc_data(request: Request, current_user:CurrentUser):
             sample_start=mcc.sample_start if mcc.mcc_type==MccType.WEIGHT else None,
             sample_end=mcc.sample_end if mcc.mcc_type==MccType.WEIGHT else None,
             visible_member=mcc.shows_member_name,
-            shift_delay=mcc.applied_shift_delay,
+            shift_delay=mcc.shift_delay or "00:00",
         ),
         settings=MccSettingSyncDto(
             config=setting,

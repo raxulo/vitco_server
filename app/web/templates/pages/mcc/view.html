@@ -290,13 +290,11 @@
                         <div class="shift-meta"><i class="fa-solid fa-cloud-moon"></i> Evening Shift</div>
                         <span class="shift-time">{{ setting.evening_collection_start }} - {{ setting.evening_collection_end }}</span>
                     </div>
-                    {% if mcc.mcc_type.supports_shift_delay %}
-                    <!-- Shift Delay (DECISION-029): FAT / SNF MCCs only -->
+                    <!-- Shift Delay (DECISION-029) -->
                     <div class="shift-row">
                         <div class="shift-meta"><i class="fa-solid fa-hourglass-half"></i> Shift Delay</div>
                         <span class="shift-time">{{ mcc.shift_delay or '00:00' }}</span>
                     </div>
-                    {% endif %}
 
                     <hr style="border: none; border-top: 1px dashed var(--border-soft); margin: 16px 0;">
                     

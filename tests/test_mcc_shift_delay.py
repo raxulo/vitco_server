@@ -149,20 +149,11 @@ def test_delay_at_most_the_morning_start(model, delay, morning_start, allowed):
             model.model_validate(data)
 
 
-@pytest.mark.parametrize("mcc_type", [MccType.NORMAL, MccType.WEIGHT, MccType.FIXED_RATE])
-def test_other_types_never_keep_a_delay(mcc_type):
-    """The field is hidden for them; anything still sent counts as no delay and is not checked."""
-    form = _form("123456", mcc_type=str(int(mcc_type)), shift_delay="05:44", morning_collection_start="05:00",
-                 sample_start="1", sample_end="100")
-    assert CreateMccRequest.model_validate(form).shift_delay == "00:00"
-    assert UpdateMccRequest.model_validate(form).shift_delay == "00:00"
-
-
-@pytest.mark.parametrize(("mcc_type", "supported"), [
-    (MccType.FAT_SNF, True), (MccType.NORMAL, False), (MccType.WEIGHT, False), (MccType.FIXED_RATE, False),
-])
-def test_only_fat_snf_supports_a_delay(mcc_type, supported):
-    assert mcc_type.supports_shift_delay is supported
+@pytest.mark.parametrize("mcc_type", list(MccType))
+def test_every_type_keeps_its_delay(mcc_type):
+    form = _form("123456", mcc_type=str(int(mcc_type)), shift_delay="05:44", sample_start="1", sample_end="100")
+    assert CreateMccRequest.model_validate(form).shift_delay == "05:44"
+    assert UpdateMccRequest.model_validate(form).shift_delay == "05:44"
 
 
 async def _mcc(
@@ -202,32 +193,28 @@ async def test_sync_reports_the_delay(api, database):
     assert response.json()["mcc_info"]["shift_delay"] == "05:44"
 
 
-async def test_a_delay_left_from_a_type_change_is_not_used(api, database, token_for, monkeypatch):
-    """A Normal MCC that still holds a delay (e.g. it was FAT / SNF): sync reports none and entries use the real time."""
+async def test_a_normal_mcc_uses_its_delay(api, database, token_for, monkeypatch):
     admin = await create_user(database, role=Role.ADMIN)
-    user_id, mcc_id = await _mcc(database, admin, shift_delay="05:44", mcc_type=MccType.NORMAL)
-    token = JWTService(secret_key=settings.SECRET_KEY).create_access_token(
-        str(user_id), {"role": str(int(Role.MCC)), "name": "MCC", "own_id": str(mcc_id)}
-    )
-    assert (await api.get("/api/v1/sync/", headers={"Authorization": f"Bearer {token}"})).json()["mcc_info"]["shift_delay"] == "00:00"
-
+    _, mcc_id = await _mcc(database, admin, shift_delay="05:44", mcc_type=MccType.NORMAL)
     _freeze(monkeypatch, "mcc_collection", datetime(2026, 11, 14, 10, 44, 0))
+
     page = (await api.get("/mcc-collections/load-form", params={"mcc_id": str(mcc_id)},
                           headers=token_for(admin, Role.ADMIN) | HTML)).text
-    assert 'data-live-clock="2026-11-14T10:44:00"' in page
+
+    assert 'data-live-clock="2026-11-14T05:00:00"' in page
 
 
-@pytest.mark.parametrize(("mcc_type", "shown"), [(MccType.FAT_SNF, True), (MccType.NORMAL, False), (MccType.FIXED_RATE, False)])
-async def test_mcc_form_shows_the_field_only_for_fat_snf(api, database, token_for, mcc_type, shown):
+@pytest.mark.parametrize("mcc_type", list(MccType))
+async def test_mcc_form_shows_the_field_for_every_type(api, database, token_for, mcc_type):
     admin = await create_user(database, role=Role.ADMIN)
-    _, mcc_id = await _mcc(database, admin, mcc_type=mcc_type)
+    _, mcc_id = await _mcc(database, admin, shift_delay="05:44", mcc_type=mcc_type)
 
     page = (await api.get(f"/mcc/edit/{mcc_id}", headers=token_for(admin, Role.ADMIN) | HTML)).text
 
     card = re.search(r'id="field-shift-delay" style="([^"]*)"', page).group(1)
     field = re.search(r'<input[^>]*id="shift-delay"[^>]*>', page, re.S).group(0)
-    assert ("display:none" not in card) is shown
-    assert ("disabled" not in field) is shown
+    assert "display:none" not in card and "disabled" not in field
+    assert 'value="05:44"' in field
 
 
 # =========================================================

@@ -154,7 +154,7 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 
 | ID | Requirement | Source | Phase | Status |
 |----|-------------|--------|-------|--------|
-| REQ-50 | A FAT / SNF MCC has a Shift Delay (field hidden for other types, which have no delay; "HH:MM", default 00:00, the ":" typed by the form, hours ≤ 23, minutes ≤ 59, at most the morning shift start time), set in the MCC form's Collection Shifts section and sent by sync as `mcc_info.shift_delay` (DECISION-029) | User 2026-11-14 | 22 | Complete |
+| REQ-50 | Every MCC (any type) has a Shift Delay ("HH:MM", default 00:00, the ":" typed by the form, hours ≤ 23, minutes ≤ 59, at most the morning shift start time), set in the MCC form's Collection Shifts section and sent by sync as `mcc_info.shift_delay` (DECISION-029) | User 2026-11-14 | 22 | Complete |
 | REQ-51 | An MCC collection entered on the web is saved at now - the MCC's shift delay (previous day when it crosses midnight); API collections are not changed (DECISION-029) | User 2026-11-14 | 22 | Complete |
 | REQ-52 | On the MCC and VLCC collection forms, entry date and shift are read-only; a new entry's date and time follow the live clock, and its shift comes from the selected MCC's / VLCC's shift timings (DECISION-029) | User 2026-11-14 | 22 | Complete |
 

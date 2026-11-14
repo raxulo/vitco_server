@@ -15,9 +15,8 @@ verified: 2026-11-14
 - Follow-up (user, 2026-11-14): the field types the ":" itself ("0544" -> "05:44", "7" -> "07:"), hours stop at
   23 and minutes at 59, and the delay can be at most the morning shift start time as a whole time (checked live
   in the form and by `apply_shift_delay_rule` on the server).
-- Follow-up 2 (user, 2026-11-14): FAT / SNF MCCs only (`MccType.supports_shift_delay`). The field is shown and
-  enabled only for that type (also on the first render); other types save "00:00", and `MccDto.applied_shift_delay`
-  makes sync and web entries ignore a delay left from a type change. The MCC view shows it for FAT / SNF only.
+- Follow-up 2 (user, 2026-11-14): briefly FAT / SNF only, then the user asked for every MCC type again; the
+  type-specific code was removed. Tests check the field and the delay for every type.
 - `collection_moment(now, shift_delay, morning_end)` in `mcc_collection/domain/clock.py`: entry time =
   now - delay (to the second) and its shift (Morning before morning end, otherwise Evening; 12:00 without settings).
 - Web create (MCC and VLCC): the server stamps the date and shift and ignores the posted ones. VLCC: no delay,
@@ -31,7 +30,7 @@ verified: 2026-11-14
 ## Verification
 - `tests/test_mcc_shift_delay.py`: 32 passed (SQLite and PostgreSQL), including the user's two examples
   (10:44 - 05:44 = 05:00 Morning; 11/10 00:30 - 05:20 = 10/10 19:10 Evening).
-- Full suite on SQLite after both follow-ups: 1025 passed; 1 failure is the known order-dependent `test_owner_options_super_admin`.
+- Full suite on SQLite after both follow-ups: 1023 passed; 1 failure is the known order-dependent `test_owner_options_super_admin`.
   `test_large_import_throughput` misses its 1,000 rows/s bar on this busy machine (759/s), and does the same on
   f2d93a1 (790/s), so it is not caused by this change.
 - PostgreSQL: related suites 61 passed. /verify on a real server with a PostgreSQL database at 0002: 16/16 (form,

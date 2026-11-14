@@ -1427,9 +1427,8 @@
                 </div>
 
 
-                <!-- SHIFT DELAY (DECISION-029): FAT / SNF MCCs only; shown / hidden with the MCC type -->
-                {% set delay_shown = mcc and mcc.mcc_type|int == 1 %}
-                <div class="shift-card" id="field-shift-delay" style="grid-column: 1 / -1;{{ '' if delay_shown else ' display:none;' }}">
+                <!-- SHIFT DELAY (DECISION-029): every MCC type -->
+                <div class="shift-card" id="field-shift-delay" style="grid-column: 1 / -1;">
 
                     <div class="shift-fields">
 
@@ -1449,7 +1448,6 @@
                                 pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
                                 title="Hours and minutes as HH:MM, at most the morning shift start time"
                                 aria-describedby="shift-delay-error"
-                                {{ '' if delay_shown else 'disabled' }}
                                 value="{{ mcc.shift_delay if mcc and mcc.shift_delay else '00:00' }}"
                             />
 
@@ -1808,17 +1806,6 @@ document.addEventListener("DOMContentLoaded", function () {
             show(visibleMemberField);
         } else {
             hide(visibleMemberField);
-        }
-
-        // Shift Delay applies to FAT / SNF MCCs only; while hidden it is disabled (not sent, not checked)
-        const shiftDelayField = document.getElementById("field-shift-delay");
-        const shiftDelayInput = document.getElementById("shift-delay");
-        if (type === "1") {
-            show(shiftDelayField);
-            if (shiftDelayInput) shiftDelayInput.disabled = false;
-        } else {
-            hide(shiftDelayField);
-            if (shiftDelayInput) shiftDelayInput.disabled = true;
         }
 
 
