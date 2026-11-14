@@ -548,15 +548,8 @@
         document.getElementById('mccReportPreviewModal').style.display = 'none';
     }
 
-    // Print only the preview receipt: the generated result's own print styles
-    // would otherwise print it too, below the receipt.
-    function printReportPreview() {
-        document.body.classList.add('printing-preview');
-        window.addEventListener('afterprint', function () {
-            document.body.classList.remove('printing-preview');
-        }, { once: true });
-        window.print();
-    }
+    // printReportPreview(): static/js/report_print.js (prints only the preview, each member on its own page)
 </script>
+<script src="{{ url_for('static', path='js/report_print.js') }}?v=1"></script>
 {% include "pages/reports/partials/filter_inputs.html" %}
 {% endblock %}

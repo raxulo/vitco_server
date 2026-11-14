@@ -14,6 +14,8 @@ updated: 2026-11-08T00:00:00+05:30
 
 ## Last Action
 
+- 2026-11-14: Phase 23 (uncommitted, same working tree as Phase 22): reports print each member on its own page (`report_preview.html` page breaks, new `static/js/report_print.js` prints from a frame). Headless Chrome PDF: 3 members -> 3 pages.
+
 - 2026-11-14: Phase 22 on `feature/mcc-shift-delay`. User: MCC Shift Delay ("HH:MM", default 00:00) in the MCC form and sync; web MCC entries saved at now - delay; entry date and shift read-only and live on both collection forms, shift from the unit's timings. DECISION-029, REQ-50 to REQ-52, migration `0003`. /verify on PostgreSQL 16/16. Found: MCC and VLCC collection edit pages fail (stale `collection_number`), not linked from any page; not fixed.
 - 2026-11-13: `docs/MARKETPLACE_API.md` rewritten for app developers (uncommitted, carried on the working tree).
 - 2026-11-12: Phase 21 committed (f2d93a1).

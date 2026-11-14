@@ -25,6 +25,14 @@
             .no-print {
                 display: none !important;
             }
+            /* Every member's ledger starts on its own page; the "****" line between them is screen only */
+            .rp-member-start {
+                break-before: page;
+                page-break-before: always;
+            }
+            .rp-separator {
+                display: none !important;
+            }
         }
     </style>
 
@@ -37,7 +45,8 @@
         {# Per-animal ledgers (VLCC Shift Summary) share one page header; every ledger still gets its own table #}
         {% if "Animal Type" not in data.head or firstindex %}
 
-            <div style="text-align: center; margin-bottom: 24px; line-height: 1.4;">
+            {# A new member (any ledger after the first) starts a new printed page #}
+            <div class="{{ '' if firstindex else 'rp-member-start' }}" style="text-align: center; margin-bottom: 24px; line-height: 1.4;">
                 <h2 style="margin: 0; font-size: 22px; font-weight: bold; letter-spacing: 1px;">VITCO</h2>
                 {% if metadata.owner_name %}
                 <h2 style="margin: 0; font-size: 18px; font-weight: bold; letter-spacing: 1px;">{{ metadata.owner_name }}</h2>
@@ -196,7 +205,7 @@
 
             <!-- Asterisk separator between ledgers -->
             {% if not loop.last and "Animal Type" not in data.head %}
-            <div style="margin: 16px 0 24px 0; font-weight: bold; white-space: nowrap; overflow: hidden; letter-spacing: 2px;">{{ '*' * 200 }}</div>
+            <div class="rp-separator" style="margin: 16px 0 24px 0; font-weight: bold; white-space: nowrap; overflow: hidden; letter-spacing: 2px;">{{ '*' * 200 }}</div>
             {% endif %}
     {% endfor %}
 

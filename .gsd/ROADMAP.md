@@ -207,6 +207,13 @@ date and shift from the unit's shift timings (REQ-50 to REQ-52, DECISION-029). R
 **Plans:**
 - [x] Plan 22.1: Shift delay and live entry date / shift — [1-PLAN.md](phases/22/1-PLAN.md), [1-SUMMARY.md](phases/22/1-SUMMARY.md)
 
+### Phase 23: One member per printed page
+**Status:** ✅ Complete (verified 2026-11-14); commit pending approval
+**Objective:** Printing a report with several members puts each member on its own PDF page. Requested by the user.
+
+**Plans:**
+- [x] Plan 23.1: Page break per member — [1-SUMMARY.md](phases/23/1-SUMMARY.md)
+
 ---
 
 ## Progress Summary
@@ -227,6 +234,7 @@ date and shift from the unit's shift timings (REQ-50 to REQ-52, DECISION-029). R
 | 20 | ✅ | 3/3 | 100% |
 | 21 | ✅ | 1/1 | 100% |
 | 22 | ✅ | 1/1 | 100% |
+| 23 | ✅ | 1/1 | 100% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*
