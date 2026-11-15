@@ -4,23 +4,25 @@
     name="viewport"
     content="width=device-width, initial-scale=1">
 
-<title>
-    {% block title %}
-        ArrowMilk
-    {% endblock %}
-</title>
+<title>{% block title %}VITCO - Dairy Management{% endblock %}</title>
 
-<meta
-    name="theme-color"
-    content="#0d6efd">
+<meta name="description" content="VITCO Dairy Management: milk collection, MCC and VLCC management, rate charts, payments and reports.">
+<meta name="application-name" content="VITCO">
+<meta name="apple-mobile-web-app-title" content="VITCO">
+{# The management system is private: robots.txt already disallows it, this keeps any page that gets linked out of search results #}
+<meta name="robots" content="noindex, nofollow">
+
+<meta name="theme-color" content="#4f6ef7">
 
 <meta
     http-equiv="X-UA-Compatible"
     content="IE=edge">
 
-<link
-    rel="icon"
-    href="{{ url_for('static', path='images/favicon.ico') }}">
+<!-- Site icon (built from images/logo.png); /favicon.ico serves the same file for browsers that ask the root -->
+<link rel="icon" href="{{ url_for('static', path='images/favicon.ico') }}" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='images/favicon-32x32.png') }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', path='images/apple-touch-icon.png') }}">
+<link rel="manifest" href="{{ url_for('static', path='site.webmanifest') }}">
 
 <!-- <link
     rel="stylesheet"

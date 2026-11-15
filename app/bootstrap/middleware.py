@@ -138,6 +138,6 @@ class MiddlewareRegistrar:
                 "/openapi.json",
                 "/api/v1/auth/login",
                 "/login", "/auth/login",
-                "/robots.txt", "/sitemap.xml",
+                "/robots.txt", "/sitemap.xml", "/favicon.ico",
             },
         )

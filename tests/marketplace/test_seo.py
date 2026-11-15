@@ -145,6 +145,23 @@ async def test_robots_opens_only_the_store(api):
     assert next(line for line in lines if line.startswith("Sitemap:")).endswith("/sitemap.xml")
 
 
+async def test_favicon_is_served_at_the_root_without_login(api):
+    response = await api.get("/favicon.ico")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/x-icon"
+    assert response.content[:4] == b"\x00\x00\x01\x00"  # ICO header
+
+
+async def test_management_pages_link_working_icons_and_stay_out_of_search(api):
+    html = (await api.get("/login", headers=HTML)).text
+    assert '<meta name="robots" content="noindex, nofollow">' in html
+    assert "<title>" in html and "ArrowMilk" not in html
+    icons = re.findall(r'<link rel="(?:icon|apple-touch-icon|manifest)"[^>]*href="([^"]+)"', html)
+    assert len(icons) == 4
+    for href in icons:
+        assert (await api.get(href)).status_code == 200, href
+
+
 async def test_sitemap_lists_only_live_listings(api, database, seller):
     live = await _product(database, seller, "Live")
     draft = await _product(database, seller, "Draft", status=ProductStatus.DRAFT)

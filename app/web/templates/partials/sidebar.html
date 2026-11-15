@@ -54,9 +54,15 @@
 
         {% for group in navigation %}
 
-        <div class="menu-group">
+        {# "mcc-group-header" -> "mcc-group": the group's colour, see "Group colours" below.
+           The section holding the current page is rendered open and its item active, so nothing
+           opens or animates on load (app.main.js uses the same match rule). #}
+        {% set current_path = request.url.path %}
+        {% set ns = namespace(open=false) %}
+        {% for item in group.items %}{% if current_path == item.match or current_path == item.match ~ '/' %}{% set ns.open = true %}{% endif %}{% endfor %}
+        <div class="menu-group {{ group.css_class | replace('-header', '') }}{% if ns.open %} expanded{% endif %}">
 
-            <div class="menu-group-header {{ group.css_class }}" role="button" tabindex="0" aria-expanded="false">
+            <div class="menu-group-header {{ group.css_class }}" role="button" tabindex="0" aria-expanded="{{ 'true' if ns.open else 'false' }}">
                 <span>{{ group.label }}</span>
                 <i class="fa-solid fa-chevron-right toggle-icon"></i>
             </div>
@@ -65,7 +71,7 @@
 
                 {% for item in group.items %}
 
-                <a href="{{ item.href }}" class="menu-item" data-match="{{ item.match }}" data-tooltip="{{ item.label }}">
+                <a href="{{ item.href }}" class="menu-item{% if current_path == item.match or current_path == item.match ~ '/' %} active{% endif %}" data-match="{{ item.match }}" data-tooltip="{{ item.label }}">
                     <span class="menu-icon"><i class="{{ item.icon }}"></i></span>
                     <span>{{ item.label }}</span>
                 </a>
@@ -305,6 +311,46 @@
     }
     .sidebar .menu-item.active i { color: #ffffff; }
     .sidebar .menu-item.active::before { display: none; }
+
+    /* ── Group colours ─────────────────────────────────────────
+       Each section has its own bright colour on its heading and rule; the
+       selected item is filled with it. Items that are not selected stay
+       neutral grey (hover too). --g is the colour, --g-rgb its tints. */
+    .sidebar .menu-group               { --g: #64748b; --g-rgb: 100, 116, 139; } /* a new group without a colour yet */
+    .sidebar .menu-group.general-group { --g: #3b82f6; --g-rgb: 59, 130, 246; }
+    .sidebar .menu-group.mcc-group     { --g: #f97316; --g-rgb: 249, 115, 22; }
+    .sidebar .menu-group.dairy-group   { --g: #22c55e; --g-rgb: 34, 197, 94; }
+    .sidebar .menu-group.config-group  { --g: #a855f7; --g-rgb: 168, 85, 247; }
+    .sidebar .menu-group.payment-group { --g: #06b6d4; --g-rgb: 6, 182, 212; }
+    .sidebar .menu-group.market-group  { --g: #ec4899; --g-rgb: 236, 72, 153; }
+
+    .sidebar .menu-group .menu-group-header,
+    .sidebar .menu-group .menu-group-header:hover { color: var(--g); }
+    .sidebar .menu-group .menu-group-header span::after { background: rgba(var(--g-rgb), .3); }
+    .sidebar .menu-group .menu-group-header .toggle-icon { color: rgba(var(--g-rgb), .6); }
+    .sidebar .menu-group .menu-group-header:hover .toggle-icon { color: var(--g); }
+    .sidebar .menu-group .menu-group-header:focus-visible { outline-color: var(--g); }
+
+    /* Not selected: neutral */
+    .sidebar .menu-group .menu-item:hover { background: #f1f5f9; color: #1e293b; }
+    .sidebar .menu-group .menu-item:hover .menu-icon { background: #e2e8f0; }
+    .sidebar .menu-group .menu-item:hover i { color: #334155; }
+    .sidebar .menu-group .menu-item:focus-visible { outline-color: var(--g); }
+
+    /* Selected: the section's colour */
+    .sidebar .menu-group .menu-item.active {
+        background: linear-gradient(135deg, var(--g) 0%, rgba(var(--g-rgb), .85) 100%);
+        color: #ffffff;
+        box-shadow: 0 6px 16px rgba(var(--g-rgb), .3);
+    }
+    .sidebar .menu-group .menu-item.active:hover { color: #ffffff; }
+    .sidebar .menu-group .menu-item.active .menu-icon { background: rgba(255, 255, 255, .2); }
+    .sidebar .menu-group .menu-item.active i { color: #ffffff; }
+
+    /* Collapsed icon rail: the section rule takes the section's colour */
+    @media (min-width: 993px) {
+        html.sidebar-collapsed .sidebar .menu-group .menu-group-header { background: rgba(var(--g-rgb), .3); }
+    }
 
     /* ── Footer: logout ─────────────────────────────────────── */
     .sidebar-footer {

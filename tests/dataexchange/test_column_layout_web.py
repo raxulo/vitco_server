@@ -144,5 +144,13 @@ def test_excel_maps_is_not_shown_to_centres_or_farmers(role):
 
 async def test_sidebar_links_to_the_page(api, people):
     page = await api.get(PAGE, cookies=_cookies(people["sub"], Role.SUB_ADMIN))
-    assert f'href="{PAGE}" class="menu-item" data-match="{PAGE}"' in page.text
+    assert f'href="{PAGE}" class="menu-item active" data-match="{PAGE}"' in page.text
     assert "Back</a>" not in page.text  # own order: a sidebar page, no Back button
+
+
+async def test_sidebar_renders_the_current_section_open(api, people):
+    """The current page's section is open in the HTML itself, so it does not animate open on load."""
+    html = (await api.get(PAGE, cookies=_cookies(people["sub"], Role.SUB_ADMIN))).text
+    assert 'class="menu-group config-group expanded"' in html
+    assert 'class="menu-group mcc-group"' in html  # other sections stay closed
+    assert html.count("menu-item active") == 1

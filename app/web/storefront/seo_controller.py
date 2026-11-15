@@ -1,5 +1,5 @@
 """
-robots.txt and sitemap.xml.
+robots.txt, sitemap.xml and /favicon.ico.
 
 Python 3.13+
 """
@@ -7,10 +7,11 @@ Python 3.13+
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from xml.sax.saxutils import escape
 
 from fastapi import APIRouter, Request
-from starlette.responses import PlainTextResponse, Response
+from starlette.responses import FileResponse, PlainTextResponse, Response
 
 from app.modules.dependencies import GetHandler
 from app.web.storefront.seo import store_url
@@ -19,6 +20,13 @@ router = APIRouter(tags=["Web Store"], include_in_schema=False)
 
 _CACHE = "public, max-age=3600"
 _POLICY_KEYS = ("shipping", "returns", "terms", "privacy")
+_FAVICON = Path(__file__).resolve().parents[1] / "static" / "images" / "favicon.ico"
+
+
+@router.get("/favicon.ico")
+async def favicon() -> Response:
+    # Browsers and crawlers ask the site root for the icon (pages also link /static/images/favicon.ico)
+    return FileResponse(_FAVICON, media_type="image/x-icon", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/robots.txt")

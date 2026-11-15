@@ -8,11 +8,19 @@ updated: 2026-11-08T00:00:00+05:30
 
 **Milestone:** v1.2.0 - Marketplace Revamp
 **Phase:** 24 - Collection Excel column order, deleted rows and new columns
-**Status:** ✅ Executed and verified 2026-11-15 (plans 24.1 to 24.3); waiting for the user's commit approval
-**Plan:** Next: user review, then one Conventional Commit for Phase 24 (local only)
-**Branch:** `feature/collection-export-column-order`, from `bugfix/report-member-page-break` (11777d4)
+**Status:** ✅ Phase 24 committed by the user (946b061 on `feature/collection-export-column-order`)
+**Plan:** Quick task: sidebar section colours, waiting for the user's review and commit
+**Branch:** `feature/sidebar-group-colors`, from `feature/collection-export-column-order` (946b061)
 
 ## Last Action
+
+- 2026-11-15: Quick task on `feature/sidebar-group-colors` (uncommitted). Each sidebar section heading has its own
+  bright colour (General blue, MCC Management orange, VLCC Management green, System Setup purple, Payments cyan,
+  Marketplace pink); only the selected item is filled with it, other items stay neutral. The current page's section
+  is rendered open and its item active by the server (no open animation on load). Site icon fixed: favicons built
+  from `images/logo.png` (`favicon.ico`, 32px, apple-touch, 192/512 + `site.webmanifest`), `/favicon.ico` route
+  (public), `head.html` title "VITCO - Dairy Management", description, `noindex, nofollow` for management pages.
+  Checked by desktop screenshots; 143 related tests passed.
 
 - 2026-11-15: Phase 24 executed (uncommitted). Combined collection column catalogue + Chart Rank / Quantity Mode /
   Measurement Mode / Deleted; deleted rows exported in red; per-user layout table `excel_column_layouts`

@@ -1,0 +1,12 @@
+{
+    "name": "VITCO Dairy Management",
+    "short_name": "VITCO",
+    "icons": [
+        { "src": "/static/images/icon-192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/static/images/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ],
+    "start_url": "/dashboard",
+    "display": "standalone",
+    "theme_color": "#4f6ef7",
+    "background_color": "#ffffff"
+}
