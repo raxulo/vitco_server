@@ -113,6 +113,11 @@ class AuthController:
                 # Everyone edits their own profile through the restricted self-service form
                 "edit_url": "/profile/edit",
                 "view_url": view_url,
+                # Excel column order of the collection exports (Phase 24): managers only
+                "column_layout_url": (
+                    "/sub-admins/column-layout"
+                    if user.role_type in (Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN) else None
+                ),
             }
         )
 

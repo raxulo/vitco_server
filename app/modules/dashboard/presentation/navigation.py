@@ -240,6 +240,14 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 ALL_ROLES,
                 "/ratecharts",
             ),
+            # Own collection Excel column order (Phase 24); Admins / Sub Admins of others open it from their pages
+            item(
+                "Excel Maps",
+                "/sub-admins/column-layout",
+                "fa-solid fa-table-columns",
+                MANAGEMENT_ROLES,
+                "/sub-admins/column-layout",
+            ),
         ),
     ),
 

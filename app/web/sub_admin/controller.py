@@ -199,6 +199,13 @@ class SubAdminController:
         if not SubAdminController._manages(user, profile.user):
             raise ForbiddenException("You are not authorized to view this profile")
 
+        # Excel column order (Phase 24): own, or an Admin / Sub Admin this user manages
+        column_layout_url = None
+        if str(profile.user.id) == str(user.id):
+            column_layout_url = "/sub-admins/column-layout"
+        elif int(profile.user.role) in (Role.ADMIN.value, Role.SUB_ADMIN.value):
+            column_layout_url = f"/sub-admins/column-layout?user_id={profile.user.id}"
+
         return Renderer.page(
             request=request,
             template="pages/sub_admin/view.html",
@@ -206,6 +213,7 @@ class SubAdminController:
                 "user": profile.user,
                 "address": profile.address,
                 "bank_account": profile.bank_account,
+                "column_layout_url": column_layout_url,
             },
         )
 

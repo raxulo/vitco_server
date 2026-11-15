@@ -538,4 +538,27 @@ record; using the delayed time for the shift keeps late milk in the shift it was
 
 ---
 
+## [DECISION-030] Per-user collection Excel column layout; deleted rows exported in red
+
+**Date**: 2026-11-15
+**Status**: Accepted (Phase 24, implemented and verified 2026-11-15)
+
+### Decision
+One combined catalogue of collection columns (`COLLECTION_COLUMNS`); the MCC and VLCC sheets each take the
+columns that apply to them. Super Admin, Admin and Sub Admin each have one stored layout (order + visible) in
+`excel_column_layouts` (unique per user and sheet group, JSON items); no row means the default, so nothing is
+written when a user is created and later columns reach default users by themselves. Stored layouts are normalised
+on read (unknown keys dropped, new catalogue keys inserted visible). The worker picks the layout: managers their
+own; an MCC login its MCC's creator; a VLCC login its VLCC's creator, walked up to the MCC's creator when that is an
+MCC user; anything else the default. Edits: self, Super Admin for any Admin / Sub Admin, Admin for its own Sub
+Admins (user, 2026-11-15). Deleted entries are now exported (replaces that part of DECISION-028) with a red row
+and Deleted = Yes; Summary totals still exclude them, as the list does.
+
+### Why
+The user wants every manager's downloads, and those of their MCCs / VLCCs, in the manager's chosen order, with one
+list to maintain (user chose combined over per-sheet). Resolving in the worker keeps the API and mobile clients
+unchanged. Keeping totals without deleted entries means the file still agrees with the list.
+
+---
+
 *Last updated: 2026-11-08*

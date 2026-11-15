@@ -7,12 +7,22 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 22 - MCC Shift Delay and live entry date / shift
-**Status:** ✅ Complete and verified 2026-11-14; not committed yet
-**Plan:** Next is the user's review and approval of the commit message
-**Branch:** `feature/mcc-shift-delay`, from `feature/collection-excel-export` (f2d93a1); commit after user approval
+**Phase:** 24 - Collection Excel column order, deleted rows and new columns
+**Status:** ✅ Executed and verified 2026-11-15 (plans 24.1 to 24.3); waiting for the user's commit approval
+**Plan:** Next: user review, then one Conventional Commit for Phase 24 (local only)
+**Branch:** `feature/collection-export-column-order`, from `bugfix/report-member-page-break` (11777d4)
 
 ## Last Action
+
+- 2026-11-15: Phase 24 executed (uncommitted). Combined collection column catalogue + Chart Rank / Quantity Mode /
+  Measurement Mode / Deleted; deleted rows exported in red; per-user layout table `excel_column_layouts`
+  (migration `0004`), API `/api/v1/excel/column-layouts/collections`, web page `/sub-admins/column-layout` with
+  links on profile / list / view. SQLite full suite 1050 passed (+ the order-dependent owner-options test, now fixed);
+  Phase 24 suites 48 passed on PostgreSQL; /verify on PostgreSQL with the real worker passed.
+- 2026-11-15: Phase 24 planned. User: per-user collection Excel column order (combined list, hide / show), MCC /
+  VLCC logins use their owner's order (MCC-created VLCC → MCC's creator), upward edit rights, deleted rows in red,
+  Chart Rank / Quantity Mode / Measurement Mode. DECISION-030, REQ-53 to REQ-57. Phases 22 and 23 were committed
+  (bc2328f / ee6669d, 11777d4).
 
 - 2026-11-14: Phase 23 (uncommitted, same working tree as Phase 22): reports print each member on its own page (`report_preview.html` page breaks, new `static/js/report_print.js` prints from a frame). Headless Chrome PDF: 3 members -> 3 pages.
 

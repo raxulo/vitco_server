@@ -157,6 +157,11 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | REQ-50 | Every MCC (any type) has a Shift Delay ("HH:MM", default 00:00, the ":" typed by the form, hours ≤ 23, minutes ≤ 59, at most the morning shift start time), set in the MCC form's Collection Shifts section and sent by sync as `mcc_info.shift_delay` (DECISION-029) | User 2026-11-14 | 22 | Complete |
 | REQ-51 | An MCC collection entered on the web is saved at now - the MCC's shift delay (previous day when it crosses midnight); API collections are not changed (DECISION-029) | User 2026-11-14 | 22 | Complete |
 | REQ-52 | On the MCC and VLCC collection forms, entry date and shift are read-only; a new entry's date and time follow the live clock, and its shift comes from the selected MCC's / VLCC's shift timings (DECISION-029) | User 2026-11-14 | 22 | Complete |
+| REQ-53 | MCC and VLCC collection exports carry Chart Rank (`R{rank}`, blank without a rank), Quantity Mode and Measurement Mode (Manual / Automatic) (DECISION-030) | User 2026-11-15 | 24 | Complete |
+| REQ-54 | Collection exports include deleted entries; each deleted row has a red background and Deleted = Yes; Summary totals still exclude them and show the deleted count (DECISION-030) | User 2026-11-15 | 24 | Complete |
+| REQ-55 | Super Admin, each Admin and each Sub Admin has one collection column layout (order + hide / show, at least one visible) covering both exports; new users start on the default (DECISION-030) | User 2026-11-15 | 24 | Complete |
+| REQ-56 | A collection export uses the layout of: the user itself for Super Admin / Admin / Sub Admin; the MCC's creator for an MCC login; the VLCC's creator for a VLCC login, or that MCC's creator when the VLCC was created by an MCC user (DECISION-030) | User 2026-11-15 | 24 | Complete |
+| REQ-57 | A layout can be changed by its user, by Super Admin (any Admin / Sub Admin) and by an Admin (its own Sub Admins), on the website and through `/api/v1/excel/column-layouts/collections` (DECISION-030) | User 2026-11-15 | 24 | Complete |
 
 **Marketplace quality**
 

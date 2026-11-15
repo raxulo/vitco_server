@@ -46,7 +46,7 @@ class MccWeightShiftSummaryExecutor(ReportExecutor):
             .select_from(m)
             .join(v, v.id == m.vlcc_id)
             .where(*filters)
-            .order_by(v.vlcc_code, m.collected_at, m.id)
+            .order_by(m.collected_at,v.vlcc_code, m.id)
             .offset(query.offset)
             .limit(query.size)
         )

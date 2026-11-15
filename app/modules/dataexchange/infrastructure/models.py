@@ -10,18 +10,23 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
+from typing import Any
+
 from sqlalchemy import (
+    JSON,
     Boolean,
     Enum,
     ForeignKey,
     Index,
     Integer,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database.base import Base
 from app.core.database.mixins import (
+    AuditMixin,
     TimestampMixin,
     UUIDMixin,
 )
@@ -138,3 +143,28 @@ class ExcelJobModel(Base, UUIDMixin, TimestampMixin):
         nullable=True,
         index=True,
     )
+
+
+class ExcelColumnLayoutModel(Base, UUIDMixin, AuditMixin):
+    """
+    A user's export column order and visibility (REQ-55, DECISION-030).
+
+    No row = the default layout, so nothing is written when a user is created.
+    `columns` is read whole and normalised in Python; it is never queried inside.
+    """
+
+    __tablename__ = "excel_column_layouts"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "sheet", name="uq_excel_column_layouts_user_sheet"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    sheet: Mapped[str] = mapped_column(String(40), nullable=False)
+
+    columns: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)    # [{"key", "visible"}]

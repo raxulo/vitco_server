@@ -8,7 +8,8 @@ Shared by the web panel and the mobile app:
     jobs:     GET /excel/jobs, GET /excel/jobs/{id} (poll), GET /excel/jobs/{id}/file, POST /excel/jobs/{id}/cancel
 
 Entity endpoints (`/excel/farmers/...`, `/excel/vlccs/...`, `/excel/ratecharts/...`)
-are added by later phases. Upload routes run without the request-wide DB
+are added by later phases. `/excel/column-layouts/collections` reads and sets the
+collection export column order (Phase 24). Upload routes run without the request-wide DB
 transaction (DECISION-009).
 
 Python 3.13+
@@ -25,6 +26,8 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from app.api.v1.schemas.excel import (
     CollectionExportRequest,
+    ColumnLayoutRequest,
+    ColumnLayoutResponse,
     CreateUploadRequest,
     ExcelJobResponse,
     FarmerExportRequest,
@@ -47,9 +50,12 @@ from app.modules.collections.mcc_collection.domain.enums import CollectionShift
 from app.modules.dataexchange.application.collection_export import CollectionExportFilters
 from app.modules.dataexchange.application.command import (
     CancelExcelJobCommand,
+    GetColumnLayoutQuery,
     GetExcelJobFileQuery,
     GetExcelJobQuery,
     ListExcelJobsQuery,
+    ResetColumnLayoutCommand,
+    UpdateColumnLayoutCommand,
 )
 from app.modules.dataexchange.domain.enums import ExcelJobKind, ExcelJobStatus, ImportMode
 from app.modules.dataexchange.domain.exceptions import ExcelJobCapacityException, ExcelJobConflictException
@@ -417,6 +423,45 @@ async def export_vlcc_collections(request: Request, payload: CollectionExportReq
     except (ExcelJobConflictException, ExcelJobCapacityException) as busy:
         return excel_busy_response(busy)
     return _accepted(dto)
+
+
+# =========================================================
+# COLLECTION COLUMN ORDER (REQ-55, REQ-57, DECISION-030)
+# =========================================================
+# Super Admin, Admin and Sub Admin each have one order for both collection exports.
+# `user_id` (optional) manages another user's order: Super Admin -> any Admin / Sub Admin,
+# Admin -> its own Sub Admins. MCC and VLCC exports follow their owner's order.
+
+_COLLECTION_LAYOUT = "/column-layouts/collections"
+
+
+@router.get(_COLLECTION_LAYOUT)
+async def get_collection_column_layout(request: Request, user_id: UUID | None = Query(None)):
+    user = _user(request)
+    dto = await GetHandler.column_layout_handler(request).get(GetColumnLayoutQuery(owner=user, user_id=user_id))
+    return _single(ColumnLayoutResponse.from_dto(dto), "Column order fetched successfully")
+
+
+@router.put(_COLLECTION_LAYOUT)
+async def update_collection_column_layout(
+    request: Request,
+    payload: ColumnLayoutRequest,
+    user_id: UUID | None = Query(None),
+):
+    user = _user(request)
+    dto = await GetHandler.column_layout_handler(request).update(UpdateColumnLayoutCommand(
+        owner=user,
+        user_id=user_id,
+        columns=[(column.key, column.visible) for column in payload.columns],
+    ))
+    return _single(ColumnLayoutResponse.from_dto(dto), "Column order saved successfully")
+
+
+@router.delete(_COLLECTION_LAYOUT)
+async def reset_collection_column_layout(request: Request, user_id: UUID | None = Query(None)):
+    user = _user(request)
+    dto = await GetHandler.column_layout_handler(request).reset(ResetColumnLayoutCommand(owner=user, user_id=user_id))
+    return _single(ColumnLayoutResponse.from_dto(dto), "Column order reset to default")
 
 
 # =========================================================

@@ -371,12 +371,10 @@ class MccCollectionRepository(IMccCollectionRepository):
         return totals_from_row((await self._session.execute(stmt)).one())
 
     # =========================================================
-    # EXPORT (DECISION-028)
+    # EXPORT (DECISION-028, DECISION-030)
     # =========================================================
-
-    def _export_conditions(self, owner: CurrentUser, filters: MccCollectionFilters | None) -> list:
-        """The list's own scope and filters, without deleted entries (as in the totals)."""
-        return [*self._list_conditions(owner, filters=filters), MccCollectionModel.is_deleted.is_(False)]
+    # The list's own scope and filters, deleted entries included (the file paints them red;
+    # `totals` still leaves them out).
 
     async def count_export(self, owner: CurrentUser, filters: MccCollectionFilters | None = None) -> int:
         stmt = (
@@ -384,7 +382,7 @@ class MccCollectionRepository(IMccCollectionRepository):
             .select_from(MccCollectionModel)
             .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)
             .outerjoin(VlccModel, VlccModel.id == MccCollectionModel.vlcc_id)
-            .where(*self._export_conditions(owner, filters))
+            .where(*self._list_conditions(owner, filters=filters))
         )
         return int(await self._session.scalar(stmt) or 0)
 
@@ -399,7 +397,7 @@ class MccCollectionRepository(IMccCollectionRepository):
         The next `limit` entries after the `(collected_at, id)` key, oldest first.
         Keyset paging keeps every page equally fast however far the export has got.
         """
-        conditions = self._export_conditions(owner, filters)
+        conditions = self._list_conditions(owner, filters=filters)
         if after is not None:
             last_at, last_id = after
             conditions.append(
@@ -421,13 +419,17 @@ class MccCollectionRepository(IMccCollectionRepository):
                 MccCollectionModel.milk_type,
                 MccCollectionModel.can_count,
                 MccCollectionModel.quantity,
+                MccCollectionModel.quantity_collection_mode.label("quantity_mode"),
                 MccCollectionModel.fat_percent,
                 MccCollectionModel.snf_percent,
                 MccCollectionModel.clr_value,
+                MccCollectionModel.measurement_mode,
+                MccCollectionModel.rank,
                 MccCollectionModel.rate_per_unit,
                 MccCollectionModel.total_amount,
                 MccCollectionModel.status,
                 MccCollectionModel.payment_mode,
+                MccCollectionModel.is_deleted,
             )
             .select_from(MccCollectionModel)
             .join(MccModel, MccModel.id == MccCollectionModel.mcc_id)

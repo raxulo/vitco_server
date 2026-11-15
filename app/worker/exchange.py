@@ -351,13 +351,15 @@ def register_processors(container: Any, worker: ExchangeWorker) -> None:
         MccCollectionExportProcessor,
         VlccCollectionExportProcessor,
     )
+    from app.modules.dataexchange.infrastructure.column_layout_repository import ColumnLayoutRepository
 
     storage = container.resolve(ExchangeStorage)
+    layouts = ColumnLayoutRepository(database)          # each user's column order (REQ-55, REQ-56)
     worker.register(MccCollectionExportProcessor(
-        database=database, repository=MccCollectionRepository(database), storage=storage,
+        database=database, repository=MccCollectionRepository(database), storage=storage, layouts=layouts,
     ))
     worker.register(VlccCollectionExportProcessor(
-        database=database, repository=VlccCollectionRepository(database), storage=storage,
+        database=database, repository=VlccCollectionRepository(database), storage=storage, layouts=layouts,
     ))
 
 

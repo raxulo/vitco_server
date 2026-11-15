@@ -214,6 +214,20 @@ date and shift from the unit's shift timings (REQ-50 to REQ-52, DECISION-029). R
 **Plans:**
 - [x] Plan 23.1: Page break per member — [1-SUMMARY.md](phases/23/1-SUMMARY.md)
 
+### Phase 24: Collection Excel column order, deleted rows and new columns
+**Status:** ✅ Complete (2026-11-15), branch `feature/collection-export-column-order` from 11777d4
+**Objective:** Each Super Admin / Admin / Sub Admin keeps their own collection Excel column order (with hide / show);
+MCC and VLCC logins export in their owner's order; deleted entries exported as red rows; new Chart Rank, Quantity
+Mode and Measurement Mode columns (REQ-53 to REQ-57, DECISION-030). Requested by the user.
+**Depends on:** Phase 21 (collection export), migration 0003
+
+**Plans:**
+- [x] Plan 24.1: Combined columns, new columns and deleted rows — [1-SUMMARY.md](phases/24/1-SUMMARY.md)
+- [x] Plan 24.2: Per-user column layout and its API — [2-SUMMARY.md](phases/24/2-SUMMARY.md)
+- [x] Plan 24.3: "Excel Column Order" web page — [3-SUMMARY.md](phases/24/3-SUMMARY.md)
+
+**Research:** [RESEARCH.md](phases/24/RESEARCH.md)
+
 ---
 
 ## Progress Summary
@@ -235,6 +249,7 @@ date and shift from the unit's shift timings (REQ-50 to REQ-52, DECISION-029). R
 | 21 | ✅ | 1/1 | 100% |
 | 22 | ✅ | 1/1 | 100% |
 | 23 | ✅ | 1/1 | 100% |
+| 24 | ✅ | 3/3 | 100% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

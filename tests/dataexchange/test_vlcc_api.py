@@ -10,6 +10,7 @@ import io
 import os
 import time
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from openpyxl import load_workbook
@@ -124,10 +125,14 @@ async def test_owner_options_for_admin_and_sub_admin(api, database, token_for):
 
 
 async def test_owner_options_super_admin(api, database, token_for):
-    sa_id = await create_user(database, role=Role.SUPER_ADMIN, name="Super User")
-    admin_id = await create_user(database, role=Role.ADMIN, name="Admin User")
+    # A unique tag: the session database holds other tests' Admins, which would fill the first page
+    tag = uuid4().hex[:8]
+    sa_id = await create_user(database, role=Role.SUPER_ADMIN, name=f"Super User {tag}")
+    admin_id = await create_user(database, role=Role.ADMIN, name=f"Admin User {tag}")
 
-    resp = await api.get("/api/v1/excel/options/owners", headers=token_for(sa_id, Role.SUPER_ADMIN))
+    resp = await api.get(
+        "/api/v1/excel/options/owners", params={"search": tag}, headers=token_for(sa_id, Role.SUPER_ADMIN),
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["locked"] is False

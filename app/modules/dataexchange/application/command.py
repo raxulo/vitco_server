@@ -58,3 +58,26 @@ class CancelExcelJobCommand:
 class GetExcelJobFileQuery:
     id: UUID
     owner: CurrentUser
+
+
+# =========================================================
+# COLUMN LAYOUTS (REQ-55, REQ-57)
+# =========================================================
+
+@dataclass(slots=True, kw_only=True)
+class GetColumnLayoutQuery:
+    owner: CurrentUser
+    user_id: UUID | None = None             # None = the owner's own layout
+
+
+@dataclass(slots=True, kw_only=True)
+class UpdateColumnLayoutCommand:
+    owner: CurrentUser
+    columns: list[tuple[str, bool]]         # (key, visible) in the wanted order
+    user_id: UUID | None = None
+
+
+@dataclass(slots=True, kw_only=True)
+class ResetColumnLayoutCommand:
+    owner: CurrentUser
+    user_id: UUID | None = None

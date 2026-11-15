@@ -40,6 +40,7 @@ EXCEL_MAX_CELL_CHARS = 32_767
 _LIST_SOURCE_LIMIT = 255                        # Excel limit for an inline dropdown list
 _READ_CHUNK = 1 << 20                           # 1 MB of compressed XML per parse step
 _REPORT_FILL = "FECACA"
+_HIGHLIGHT = {"bg_color": "#FFC7CE", "font_color": "#9C0006"}    # Excel's "light red fill, dark red text"
 _DATE_FORMAT = "dd-mm-yyyy"
 _DIMENSION_END = re.compile(r"[A-Z]+([0-9]+)$")
 
@@ -70,6 +71,7 @@ class XlsxSheetWriter:
         "_rows_written",
         "_text_format",
         "_date_format",
+        "_highlight_formats",
         "_header_formats",
         "_text_columns",
         "_lists_sheet",
@@ -102,6 +104,7 @@ class XlsxSheetWriter:
         self._workbook = xlsxwriter.Workbook(str(path), options)
         self._text_format = self._workbook.add_format({"num_format": "@"})
         self._date_format = self._workbook.add_format({"num_format": _DATE_FORMAT})
+        self._highlight_formats: tuple[Any, Any, Any] | None = None
         self._header_formats: dict[str, Any] = {}
         self._text_columns = frozenset(
             index for index, column in enumerate(self._columns) if column.is_text_format
@@ -124,14 +127,23 @@ class XlsxSheetWriter:
 
     # ---------------------------------------------------------
 
-    def write_rows(self, rows: Iterable[Sequence[Any]]) -> None:
+    def write_rows(self, rows: Iterable[Sequence[Any]], highlight: Sequence[bool] | None = None) -> None:
+        """
+        Append rows. `highlight[i]` true paints row i red on every column, blanks included
+        (a deleted collection entry). The format goes on with the cell: constant_memory can't restyle later.
+        """
         text_columns = self._text_columns
         text_format = self._text_format
-        for values in rows:
+        for position, values in enumerate(rows):
             if self._row > self._rows_per_sheet:
                 self._open_sheet()
             worksheet = self._worksheet
             row = self._row
+            if highlight is not None and highlight[position]:
+                self._write_highlighted(worksheet, row, values)
+                self._row += 1
+                self._rows_written += 1
+                continue
             for index, value in enumerate(values):
                 if value is None:
                     continue
@@ -208,6 +220,32 @@ class XlsxSheetWriter:
         self._workbook.close()
 
     # ---------------------------------------------------------
+
+    def _write_highlighted(self, worksheet, row: int, values: Sequence[Any]) -> None:
+        if self._highlight_formats is None:
+            add = self._workbook.add_format
+            self._highlight_formats = (
+                add(dict(_HIGHLIGHT)),
+                add({**_HIGHLIGHT, "num_format": "@"}),
+                add({**_HIGHLIGHT, "num_format": _DATE_FORMAT}),
+            )
+        plain, text, day = self._highlight_formats
+        text_columns = self._text_columns
+        for index in range(len(self._columns) + len(self._extra)):
+            value = values[index] if index < len(values) else None
+            fmt = text if index in text_columns else plain
+            if value is None or value == "":
+                worksheet.write_blank(row, index, None, fmt)
+            elif isinstance(value, str):
+                worksheet.write_string(row, index, value[:EXCEL_MAX_CELL_CHARS], fmt)
+            elif isinstance(value, bool):
+                worksheet.write_boolean(row, index, value, fmt)
+            elif isinstance(value, (int, float)):
+                worksheet.write_number(row, index, value, fmt)
+            elif isinstance(value, date):
+                worksheet.write_datetime(row, index, value, day)
+            else:
+                worksheet.write_string(row, index, str(value)[:EXCEL_MAX_CELL_CHARS], fmt)
 
     def _open_sheet(self) -> None:
         self._sheet_count += 1

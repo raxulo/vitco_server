@@ -69,6 +69,8 @@ from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandl
 from app.modules.dataexchange.application.prodata_exchange import ProdataExchangeHandler
 from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
 from app.modules.dataexchange.application.collection_exchange import CollectionExchangeHandler
+from app.modules.dataexchange.application.column_layout_handler import ColumnLayoutHandler
+from app.modules.dataexchange.infrastructure.column_layout_repository import ColumnLayoutRepository
 from app.modules.dataexchange.infrastructure.vlcc_scope import VlccScope
 from app.modules.dataexchange.infrastructure.owner_scope import OwnerScope
 from app.modules.marketplace.application.handler import MarketplaceCatalogHandler
@@ -227,6 +229,9 @@ class ModuleConfigurator:
         repository = ExcelJobRepository(_database)
         container.register(ExcelJobRepository, repository)
 
+        repository = ColumnLayoutRepository(_database)
+        container.register(ColumnLayoutRepository, repository)
+
         repository = RecycleBinRepository(_database)
         container.register(RecycleBinRepository, repository)
 
@@ -360,6 +365,10 @@ class ModuleConfigurator:
             storage=container.resolve(ExchangeStorage),
         ))
         container.register(CollectionExchangeHandler, CollectionExchangeHandler(jobs=handler))
+        container.register(ColumnLayoutHandler, ColumnLayoutHandler(
+            database=container.database,
+            repository=container.resolve(ColumnLayoutRepository),
+        ))
 
 
         supervisor = WorkerSupervisor(

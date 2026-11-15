@@ -10,6 +10,8 @@ Python 3.13+
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 from app.modules.dataexchange.domain.columns import ColumnKind, ColumnSpec, Section, SheetSpec
 
 MILK_TYPES = (("COW", 0), ("BUFFALO", 1), ("MIXED", 2))
@@ -438,8 +440,19 @@ FORMULA_KEYS = (
 
 
 # =========================================================
-# COLLECTIONS (export only, DECISION-028)
+# COLLECTIONS (export only, DECISION-028, DECISION-030)
 # =========================================================
+
+class CollectionSheet(StrEnum):
+    """The two collection exports that share one column catalogue (and one user layout)."""
+
+    MCC = "mcc"
+    VLCC = "vlcc"
+
+    @property
+    def label(self) -> str:
+        return self.name
+
 
 def _entry(key: str, header: str, kind: ColumnKind = ColumnKind.TEXT) -> ColumnSpec:
     return ColumnSpec(key=key, header=header, section=Section.ENTITY, kind=kind, export_only=True)
@@ -457,51 +470,73 @@ def _bill(key: str, header: str, kind: ColumnKind = ColumnKind.FLOAT) -> ColumnS
     return ColumnSpec(key=key, header=header, section=Section.RATE, kind=kind, export_only=True)
 
 
+_BOTH = frozenset(CollectionSheet)
+_MCC_ONLY = frozenset({CollectionSheet.MCC})
+_VLCC_ONLY = frozenset({CollectionSheet.VLCC})
+
+# Every collection column once, in the default order, with the sheets that have it.
+# A user's layout orders / hides these keys; each sheet skips the columns it does not have.
+COLLECTION_CATALOGUE: tuple[tuple[ColumnSpec, frozenset[CollectionSheet]], ...] = (
+    (_entry("date", "Date"), _BOTH),
+    (_entry("time", "Time"), _BOTH),
+    (_entry("shift", "Shift"), _BOTH),
+    (_entry("sample_number", "Sample No", ColumnKind.INT), _MCC_ONLY),
+    (_party("mcc_code", "MCC Code", ColumnKind.CODE), _MCC_ONLY),
+    (_party("mcc_name", "MCC Name"), _MCC_ONLY),
+    (_party("vlcc_code", "VLCC Code", ColumnKind.CODE), _BOTH),
+    (_party("vlcc_name", "VLCC Name"), _BOTH),
+    (_party("farmer_code", "Farmer Code", ColumnKind.CODE), _VLCC_ONLY),
+    (_party("farmer_name", "Farmer Name"), _VLCC_ONLY),
+    (_milk("milk_type", "Milk Type", ColumnKind.TEXT), _BOTH),
+    (_milk("can_count", "Cans", ColumnKind.INT), _MCC_ONLY),
+    (_milk("quantity", "Quantity"), _BOTH),
+    (_milk("fat_percent", "FAT %"), _BOTH),
+    (_milk("snf_percent", "SNF %"), _BOTH),
+    (_milk("clr_value", "CLR"), _MCC_ONLY),
+    (_milk("quantity_mode", "Quantity Mode", ColumnKind.TEXT), _BOTH),
+    (_milk("measurement_mode", "Measurement Mode", ColumnKind.TEXT), _BOTH),
+    (_bill("chart_rank", "Chart Rank", ColumnKind.TEXT), _BOTH),
+    (_bill("rate_per_unit", "Rate"), _BOTH),
+    (_bill("total_amount", "Amount"), _BOTH),
+    (_bill("status", "Status", ColumnKind.TEXT), _BOTH),
+    (_bill("payment_mode", "Payment Mode", ColumnKind.TEXT), _BOTH),
+    (_entry("deleted", "Deleted", ColumnKind.TEXT), _BOTH),
+)
+
+COLLECTION_COLUMNS: tuple[ColumnSpec, ...] = tuple(spec for spec, _ in COLLECTION_CATALOGUE)
+COLLECTION_COLUMN_KEYS: tuple[str, ...] = tuple(spec.key for spec in COLLECTION_COLUMNS)
+_COLLECTION_SHEETS_BY_KEY = {spec.key: sheets for spec, sheets in COLLECTION_CATALOGUE}
+_COLLECTION_SPECS_BY_KEY = {spec.key: spec for spec in COLLECTION_COLUMNS}
+
+
+def collection_column_sheets(key: str) -> frozenset[CollectionSheet]:
+    """The sheets a catalogue column appears in (KeyError for an unknown key)."""
+    return _COLLECTION_SHEETS_BY_KEY[key]
+
+
+def collection_columns(sheet: CollectionSheet, keys: tuple[str, ...] | list[str] | None = None) -> tuple[ColumnSpec, ...]:
+    """
+    The columns of one collection sheet: `keys` in their order (default: the catalogue's),
+    skipping unknown keys and the columns the sheet does not have.
+    """
+    chosen = COLLECTION_COLUMN_KEYS if keys is None else keys
+    return tuple(
+        _COLLECTION_SPECS_BY_KEY[key]
+        for key in chosen
+        if key in _COLLECTION_SPECS_BY_KEY and sheet in _COLLECTION_SHEETS_BY_KEY[key]
+    )
+
+
 MCC_COLLECTION_SHEET = SheetSpec(
     name="MCC Collections",
     key_column="date",
-    columns=(
-        _entry("date", "Date"),
-        _entry("time", "Time"),
-        _entry("shift", "Shift"),
-        _entry("sample_number", "Sample No", ColumnKind.INT),
-        _party("mcc_code", "MCC Code", ColumnKind.CODE),
-        _party("mcc_name", "MCC Name"),
-        _party("vlcc_code", "VLCC Code", ColumnKind.CODE),
-        _party("vlcc_name", "VLCC Name"),
-        _milk("milk_type", "Milk Type", ColumnKind.TEXT),
-        _milk("can_count", "Cans", ColumnKind.INT),
-        _milk("quantity", "Quantity"),
-        _milk("fat_percent", "FAT %"),
-        _milk("snf_percent", "SNF %"),
-        _milk("clr_value", "CLR"),
-        _bill("rate_per_unit", "Rate"),
-        _bill("total_amount", "Amount"),
-        _bill("status", "Status", ColumnKind.TEXT),
-        _bill("payment_mode", "Payment Mode", ColumnKind.TEXT),
-    ),
+    columns=collection_columns(CollectionSheet.MCC),
 )
 
 VLCC_COLLECTION_SHEET = SheetSpec(
     name="VLCC Collections",
     key_column="date",
-    columns=(
-        _entry("date", "Date"),
-        _entry("time", "Time"),
-        _entry("shift", "Shift"),
-        _party("vlcc_code", "VLCC Code", ColumnKind.CODE),
-        _party("vlcc_name", "VLCC Name"),
-        _party("farmer_code", "Farmer Code", ColumnKind.CODE),
-        _party("farmer_name", "Farmer Name"),
-        _milk("milk_type", "Milk Type", ColumnKind.TEXT),
-        _milk("quantity", "Quantity"),
-        _milk("fat_percent", "FAT %"),
-        _milk("snf_percent", "SNF %"),
-        _bill("rate_per_unit", "Rate"),
-        _bill("total_amount", "Amount"),
-        _bill("status", "Status", ColumnKind.TEXT),
-        _bill("payment_mode", "Payment Mode", ColumnKind.TEXT),
-    ),
+    columns=collection_columns(CollectionSheet.VLCC),
 )
 
 

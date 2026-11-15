@@ -132,6 +132,51 @@ class CollectionExportRequest(BaseModel):
         return data
 
 
+class ColumnLayoutColumn(BaseModel):
+
+    key: str = Field(max_length=40, description="A column key from GET /excel/column-layouts/collections")
+    visible: bool = True
+
+
+class ColumnLayoutRequest(BaseModel):
+    """
+    The whole collection column order (REQ-55). Keys left out are added back visible
+    after the column that precedes them by default.
+    """
+
+    columns: list[ColumnLayoutColumn] = Field(min_length=1, max_length=100)
+
+
+class ColumnLayoutColumnResponse(BaseModel):
+
+    key: str
+    header: str
+    visible: bool
+    sheets: list[str] = Field(description="The exports that have this column: mcc, vlcc")
+
+
+class ColumnLayoutResponse(BaseModel):
+
+    user_id: UUID
+    user_name: str
+    user_role: int
+    is_default: bool = Field(description="True while the user has never saved an order")
+    columns: list[ColumnLayoutColumnResponse]
+
+    @classmethod
+    def from_dto(cls, dto) -> ColumnLayoutResponse:
+        return cls(
+            user_id=dto.user_id,
+            user_name=dto.user_name,
+            user_role=dto.user_role,
+            is_default=dto.is_default,
+            columns=[
+                ColumnLayoutColumnResponse(key=item.key, header=item.header, visible=item.visible, sheets=item.sheets)
+                for item in dto.items
+            ],
+        )
+
+
 class VlccImportRequest(BaseModel):
 
     upload_id: UUID = Field(description="A completed upload from /excel/uploads")

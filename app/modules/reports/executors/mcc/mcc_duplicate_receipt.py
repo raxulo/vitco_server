@@ -5,6 +5,8 @@ Re-prints every collection one VLCC (the MCC's member, picked by VLCC code)
 supplied to the MCC on the selected date and shift.
 """
 
+from sqlalchemy import Integer
+from ctypes import cast
 from sqlalchemy import select
 
 from app.core.numeric import truncate_float
@@ -55,7 +57,7 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
                     m.measurement_mode,
                 )
                 .where(*self.filters(m, query), m.vlcc_id == vlcc["id"])
-                .order_by(m.collected_at, m.id)
+                .order_by(m.collected_at,cast(v.vlcc_code, Integer).asc(), m.id)
             )
             for row in (await session.execute(stmt)).mappings():
                 qty = float(row["quantity"] or 0)

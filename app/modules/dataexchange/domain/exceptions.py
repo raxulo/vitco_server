@@ -92,3 +92,28 @@ class ExcelStorageFullException(ApplicationException):
     code = "EXCEL_STORAGE_FULL"
     message = "Not enough free disk space on the server for this import / export."
     status_code = 507
+
+
+# =========================================================
+# COLUMN LAYOUTS (REQ-55, REQ-57)
+# =========================================================
+
+class ColumnLayoutInvalidException(ApplicationException):
+
+    code = "EXCEL_COLUMN_LAYOUT_INVALID"
+    message = "The column order is not valid."
+    status_code = 422
+
+
+class ColumnLayoutForbiddenException(ApplicationException):
+
+    code = "EXCEL_COLUMN_LAYOUT_FORBIDDEN"
+    message = "Only Super Admin, Admin and Sub Admin accounts have an Excel column order."
+    status_code = 403
+
+
+class ColumnLayoutUserNotFoundException(ApplicationException):
+
+    code = "EXCEL_COLUMN_LAYOUT_USER_NOT_FOUND"
+    message = "The selected user was not found or is outside your hierarchy."
+    status_code = 404

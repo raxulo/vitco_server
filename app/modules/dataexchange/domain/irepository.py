@@ -1,9 +1,47 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
+from app.modules.dataexchange.domain.column_layout import LayoutUser
 from app.modules.dataexchange.domain.entities import ExcelJob
 from app.modules.dataexchange.domain.enums import ExcelJobKind, ExcelJobStatus
+
+
+class IColumnLayoutRepository(ABC):
+    """Stored export column layouts, one row per (user, sheet) (REQ-55, DECISION-030)."""
+
+    @abstractmethod
+    async def get(self, user_id: UUID, sheet: str) -> list[dict[str, Any]] | None:
+        """The stored columns, or None when the user still has the default."""
+        ...
+
+    @abstractmethod
+    async def save(self, user_id: UUID, sheet: str, columns: list[dict[str, Any]], actor_id: UUID) -> None:
+        """Insert or replace the user's layout."""
+        ...
+
+    @abstractmethod
+    async def delete(self, user_id: UUID, sheet: str) -> None:
+        """Back to the default."""
+        ...
+
+    @abstractmethod
+    async def layout_owner(self, user: Any) -> UUID | None:
+        """
+        Whose layout an export by `user` follows: a manager's own; an MCC's creator;
+        a VLCC's creator, or the MCC's creator when an MCC user made the VLCC.
+        None (the default layout) for anyone else or a deleted owner.
+        """
+        ...
+
+    @abstractmethod
+    async def manageable_user(self, actor: Any, user_id: UUID) -> LayoutUser | None:
+        """
+        `user_id` when `actor` may change its layout: itself; any Admin / Sub Admin for
+        a Super Admin; its own Sub Admins for an Admin. None otherwise.
+        """
+        ...
 
 
 class IExcelJobRepository(ABC):

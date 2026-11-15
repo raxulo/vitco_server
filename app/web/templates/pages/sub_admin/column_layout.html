@@ -1,0 +1,368 @@
+{% extends "layouts/dashboard.html" %}
+
+{% block title %}Excel Column Order - VITCO{% endblock %}
+
+{% block content %}
+{# Plan 24.3: order + show / hide of the collection Excel columns (sidebar: System Setup -> Excel Maps).
+   Behaviour: static/js/column_layout.js #}
+{% set total = layout.items | length %}
+{% set reset_url = "/sub-admins/column-layout/reset" ~ ("" if is_self else "?user_id=" ~ layout.user_id) %}
+<div class="xm animate-fadeIn">
+<form id="column-layout" class="xm-form" method="POST" action="{{ action_url }}"
+      hx-post="{{ action_url }}" hx-swap="none">
+
+    <!-- Header: title on the left, page actions on the right -->
+    <header class="xm-head">
+        <div class="xm-head-main">
+            <nav class="xm-crumbs" aria-label="Breadcrumb">
+                <span>System Setup</span>
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                <span>Excel Maps</span>
+                {% if not is_self %}
+                <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+                <span>{{ layout.user_name }}</span>
+                {% endif %}
+            </nav>
+            <div class="xm-title-row">
+                <span class="xm-title-icon" aria-hidden="true"><i class="fa-solid fa-table-columns"></i></span>
+                <div>
+                    <h1 class="xm-title">
+                        Excel Column Order
+                        <span class="xm-pill {{ 'xm-pill-default' if layout.is_default else 'xm-pill-custom' }}" data-role="state-pill">
+                            <span class="xm-pill-dot"></span>{{ "Default order" if layout.is_default else "Custom order" }}
+                        </span>
+                    </h1>
+                    <p class="xm-subtitle">
+                        Arrange the columns of the MCC and VLCC collection Excel downloads.
+                        {% if is_self %}Your MCCs and VLCCs download in this order too.{% else %}This user's MCCs and VLCCs download in this order too.{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="xm-actions" data-role="bar">
+            <span class="xm-status" data-role="status" aria-live="polite">
+                <span class="xm-status-dot"></span><span data-role="status-text">All changes saved</span>
+            </span>
+            <div class="xm-action-buttons">
+                <button type="button" class="xm-btn xm-btn-ghost" data-role="discard" hidden>Discard</button>
+                <button type="button" class="xm-btn xm-btn-ghost" data-role="reset"
+                        hx-post="{{ reset_url }}"
+                        hx-confirm="Go back to the default column order?"
+                        {% if layout.is_default %}disabled{% endif %}>
+                    <i class="fa-solid fa-rotate-left"></i> Reset to default
+                </button>
+                <button type="submit" class="xm-btn xm-btn-primary" data-role="save">
+                    <i class="fa-solid fa-floppy-disk"></i> Save order
+                </button>
+            </div>
+        </div>
+    </header>
+
+    {% if not is_self %}
+    <!-- Whose order this is (opened from an Admin / Sub Admin) -->
+    <div class="xm-context">
+        <i class="fa-solid fa-user-pen" aria-hidden="true"></i>
+        <span>You are editing the column order of <strong>{{ layout.user_name }}</strong> <span class="xm-context-role">{{ target_role }}</span></span>
+        {% if back_url %}<a href="{{ back_url }}" class="xm-context-link">Back to {{ target_role }} <i class="fa-solid fa-arrow-right"></i></a>{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Live counters -->
+    <div class="xm-stats" aria-live="polite">
+        <div class="xm-stat">
+            <span class="xm-stat-icon xm-tone-indigo"><i class="fa-solid fa-eye"></i></span>
+            <div><span class="xm-stat-value"><span data-stat="shown">{{ shown }}</span><small>/ {{ total }}</small></span><span class="xm-stat-label">Columns shown</span></div>
+        </div>
+        <div class="xm-stat">
+            <span class="xm-stat-icon xm-tone-green"><i class="fa-solid fa-truck-ramp-box"></i></span>
+            <div><span class="xm-stat-value" data-stat="mcc">–</span><span class="xm-stat-label">MCC export columns</span></div>
+        </div>
+        <div class="xm-stat">
+            <span class="xm-stat-icon xm-tone-blue"><i class="fa-solid fa-flask"></i></span>
+            <div><span class="xm-stat-value" data-stat="vlcc">–</span><span class="xm-stat-label">VLCC export columns</span></div>
+        </div>
+    </div>
+
+        <div class="xm-grid">
+            <!-- Column list -->
+            <section class="xm-card" aria-labelledby="xm-columns-title">
+                <div class="xm-card-head">
+                    <div>
+                        <h2 id="xm-columns-title" class="xm-card-title">Columns</h2>
+                        <p class="xm-card-hint">Drag <i class="fa-solid fa-grip-vertical"></i> or use the arrows to reorder. Switch a column off to leave it out.</p>
+                    </div>
+                    <button type="button" class="xm-btn xm-btn-ghost xm-btn-sm" data-role="show-all">
+                        <i class="fa-solid fa-eye"></i> Show all
+                    </button>
+                </div>
+
+                <ol class="xm-list" data-role="list" aria-label="Excel columns in order">
+                    {% for item in layout.items %}
+                    <li class="xm-row{% if not item.visible %} is-off{% endif %}" draggable="true"
+                        data-key="{{ item.key }}" data-sheets="{{ item.sheets | join(' ') }}">
+                        <input type="hidden" name="key" value="{{ item.key }}">
+                        <span class="xm-handle" title="Drag to move" aria-hidden="true"><i class="fa-solid fa-grip-vertical"></i></span>
+                        <span class="xm-no" data-role="no">{{ loop.index }}</span>
+                        <span class="xm-name">
+                            <span class="xm-header">{{ item.header }}</span>
+                            <span class="xm-sheets">
+                                {% if 'mcc' in item.sheets %}<span class="xm-tag xm-tag-mcc">MCC</span>{% endif %}
+                                {% if 'vlcc' in item.sheets %}<span class="xm-tag xm-tag-vlcc">VLCC</span>{% endif %}
+                            </span>
+                        </span>
+                        <span class="xm-moves">
+                            <button type="button" class="xm-move" data-move="-1" title="Move up" aria-label="Move {{ item.header }} up"><i class="fa-solid fa-chevron-up"></i></button>
+                            <button type="button" class="xm-move" data-move="1" title="Move down" aria-label="Move {{ item.header }} down"><i class="fa-solid fa-chevron-down"></i></button>
+                        </span>
+                        <label class="xm-switch" title="Show / hide">
+                            <input type="checkbox" name="visible" value="{{ item.key }}" {% if item.visible %}checked{% endif %}
+                                   aria-label="Show {{ item.header }}">
+                            <span class="xm-switch-track" aria-hidden="true"><span class="xm-switch-thumb"></span></span>
+                        </label>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </section>
+
+            <!-- Preview + notes -->
+            <aside class="xm-side">
+                <section class="xm-card" aria-labelledby="xm-preview-title">
+                    <div class="xm-card-head">
+                        <div>
+                            <h2 id="xm-preview-title" class="xm-card-title">Live preview</h2>
+                            <p class="xm-card-hint">Header row of the downloaded file.</p>
+                        </div>
+                        <div class="xm-seg" role="tablist" aria-label="Export">
+                            <button type="button" role="tab" class="is-active" aria-selected="true" data-tab="mcc">MCC</button>
+                            <button type="button" role="tab" aria-selected="false" data-tab="vlcc">VLCC</button>
+                        </div>
+                    </div>
+                    <div class="xm-sheet" role="tabpanel">
+                        <div class="xm-sheet-bar">
+                            <i class="fa-solid fa-file-excel"></i>
+                            <span data-role="sheet-name">MCC Collections.xlsx</span>
+                        </div>
+                        <ol class="xm-sheet-cols" data-preview="mcc"></ol>
+                        <ol class="xm-sheet-cols" data-preview="vlcc" hidden></ol>
+                    </div>
+                    <div class="xm-warning" data-role="warning" hidden>
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Keep at least one column switched on for each export.</span>
+                    </div>
+                </section>
+
+                <section class="xm-card xm-notes">
+                    <h2 class="xm-card-title">Good to know</h2>
+                    <ul>
+                        <li><span class="xm-tag xm-tag-mcc">MCC</span><span class="xm-tag xm-tag-vlcc">VLCC</span> One order serves both files; each skips the columns it does not have.</li>
+                        <li><span class="xm-swatch" aria-hidden="true"></span> Deleted entries are listed in red and left out of the totals.</li>
+                        <li><i class="fa-solid fa-plus"></i> New columns added later appear switched on after their usual neighbour.</li>
+                    </ul>
+                </section>
+            </aside>
+        </div>
+</form>
+</div>
+
+<style>
+    .xm {
+        --xm-ink: #0f172a;
+        --xm-text: #334155;
+        --xm-muted: #64748b;
+        --xm-faint: #94a3b8;
+        --xm-line: #e2e8f0;
+        --xm-soft: #f8fafc;
+        --xm-accent: var(--primary, #4f6ef7);
+        --xm-accent-rgb: var(--primary-rgb, 79, 110, 247);
+        --xm-radius: 14px;
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 24px 32px;
+        box-sizing: border-box;
+        color: var(--xm-text);
+    }
+    .xm *, .xm *::before, .xm *::after { box-sizing: border-box; }
+    .xm [hidden] { display: none !important; }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .xm-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+    .xm-crumbs { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: var(--xm-faint); margin-bottom: 10px; }
+    .xm-crumbs i { font-size: 8px; }
+    .xm-crumbs span:last-child { color: var(--xm-muted); }
+    .xm-title-row { display: flex; gap: 14px; align-items: flex-start; }
+    .xm-title-icon {
+        width: 46px; height: 46px; flex-shrink: 0; border-radius: 12px;
+        display: inline-flex; align-items: center; justify-content: center; font-size: 18px; color: #fff;
+        background: linear-gradient(135deg, var(--xm-accent), #7c93fb);
+        box-shadow: 0 8px 18px rgba(var(--xm-accent-rgb), .25);
+    }
+    .xm-title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--xm-ink); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .xm-subtitle { margin: 4px 0 0; font-size: 13.5px; color: var(--xm-muted); line-height: 1.55; max-width: 560px; }
+    .xm-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid; letter-spacing: 0; }
+    .xm-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .xm-pill-default { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
+    .xm-pill-custom { color: #4338ca; background: #eef2ff; border-color: #e0e7ff; }
+    .xm-head-main { flex: 1 1 420px; min-width: 0; }
+
+    /* Page actions (part of the header, scrolls with the page) */
+    .xm-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
+    .xm-action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .xm-status { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 500; color: var(--xm-muted); white-space: nowrap; }
+    .xm-status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+    .xm-actions.is-dirty .xm-status { color: #b45309; }
+    .xm-actions.is-dirty .xm-status-dot { background: #f59e0b; }
+
+    /* Whose order is being edited */
+    .xm-context {
+        display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+        padding: 12px 16px; margin-bottom: 18px;
+        background: #fff; border: 1px solid var(--xm-line); border-left: 3px solid var(--xm-accent); border-radius: 10px;
+        font-size: 13.5px; color: var(--xm-text);
+    }
+    .xm-context > i { color: var(--xm-accent); font-size: 14px; }
+    .xm-context > span { flex: 1 1 240px; min-width: 0; }
+    .xm-context strong { color: var(--xm-ink); font-weight: 600; }
+    .xm-context-role { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 6px; background: #f1f5f9; color: var(--xm-muted); font-size: 11.5px; font-weight: 600; }
+    .xm-context-link { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--xm-accent); text-decoration: none; white-space: nowrap; }
+    .xm-context-link i { font-size: 11px; transition: transform .15s ease; }
+    .xm-context-link:hover i { transform: translateX(2px); }
+
+    /* ── Stats ──────────────────────────────────────────── */
+    .xm-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .xm-stat { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: #fff; border: 1px solid var(--xm-line); border-radius: var(--xm-radius); }
+    .xm-stat-icon { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+    .xm-tone-indigo { background: #eef2ff; color: #4f46e5; }
+    .xm-tone-green { background: #ecfdf5; color: #047857; }
+    .xm-tone-blue { background: #eff6ff; color: #1d4ed8; }
+    .xm-stat-value { display: block; font-size: 22px; font-weight: 700; color: var(--xm-ink); line-height: 1.1; font-variant-numeric: tabular-nums; }
+    .xm-stat-value small { font-size: 13px; font-weight: 500; color: var(--xm-faint); margin-left: 3px; }
+    .xm-stat-label { display: block; font-size: 12px; color: var(--xm-muted); margin-top: 2px; }
+
+    /* ── Layout + cards ─────────────────────────────────── */
+    .xm-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+    .xm-card { background: #fff; border: 1px solid var(--xm-line); border-radius: var(--xm-radius); box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+    .xm-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--xm-line); }
+    .xm-card-title { margin: 0; font-size: 14.5px; font-weight: 700; color: var(--xm-ink); }
+    .xm-card-hint { margin: 3px 0 0; font-size: 12.5px; color: var(--xm-muted); }
+    .xm-card-hint i { color: var(--xm-faint); font-size: 11px; }
+    .xm-side { display: grid; gap: 18px; position: sticky; top: 16px; }
+
+    /* ── Rows ───────────────────────────────────────────── */
+    .xm-list { list-style: none; margin: 0; padding: 8px; }
+    .xm-row {
+        display: flex; align-items: center; gap: 12px; padding: 6px 12px 6px 8px; min-height: 46px;
+        border: 1px solid transparent; border-radius: 10px; background: #fff;
+        transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+    }
+    .xm-row + .xm-row { margin-top: 2px; }
+    .xm-row:hover, .xm-row:focus-within { background: var(--xm-soft); border-color: var(--xm-line); }
+    .xm-row.is-dragging { opacity: .45; }
+    .xm-row.is-over-top { box-shadow: inset 0 2px 0 var(--xm-accent); }
+    .xm-row.is-over-bottom { box-shadow: inset 0 -2px 0 var(--xm-accent); }
+    .xm-row.is-moved { animation: xm-flash .6s ease; }
+    @keyframes xm-flash { from { background: rgba(var(--xm-accent-rgb), .12); } to { background: var(--xm-soft); } }
+    .xm-handle { width: 22px; display: inline-flex; justify-content: center; color: #cbd5e1; cursor: grab; font-size: 13px; }
+    .xm-row:hover .xm-handle { color: var(--xm-muted); }
+    .xm-row:active .xm-handle { cursor: grabbing; }
+    .xm-no {
+        width: 30px; height: 26px; flex-shrink: 0; border-radius: 7px; background: #f1f5f9; color: var(--xm-muted);
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+    }
+    .xm-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .xm-header { font-size: 14px; font-weight: 600; color: var(--xm-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .xm-sheets { display: inline-flex; gap: 4px; flex-shrink: 0; }
+    .xm-tag { font-size: 10px; font-weight: 700; letter-spacing: .04em; padding: 2px 6px; border-radius: 5px; line-height: 1.4; }
+    .xm-tag-mcc { background: #ecfdf5; color: #047857; }
+    .xm-tag-vlcc { background: #eff6ff; color: #1d4ed8; }
+    .xm-row.is-off .xm-header { color: var(--xm-faint); font-weight: 500; }
+    .xm-row.is-off .xm-no { background: transparent; color: #cbd5e1; }
+    .xm-row.is-off .xm-tag { opacity: .45; }
+
+    .xm-moves { display: inline-flex; gap: 2px; opacity: 0; transition: opacity .15s ease; }
+    .xm-row:hover .xm-moves, .xm-row:focus-within .xm-moves { opacity: 1; }
+    .xm-move {
+        width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--xm-muted);
+        display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px;
+    }
+    .xm-move:hover:not(:disabled) { background: #e2e8f0; color: var(--xm-ink); }
+    .xm-move:disabled { opacity: .3; cursor: default; }
+
+    /* Toggle switch (the real checkbox stays in the form, visually hidden) */
+    .xm-switch { position: relative; display: inline-flex; cursor: pointer; margin: 0; flex-shrink: 0; }
+    .xm-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+    .xm-switch-track { width: 36px; height: 20px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background .18s ease; }
+    .xm-switch-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .25); transition: transform .18s ease; }
+    .xm-switch input:checked + .xm-switch-track { background: var(--xm-accent); }
+    .xm-switch input:checked + .xm-switch-track .xm-switch-thumb { transform: translateX(16px); }
+    .xm-switch input:focus-visible + .xm-switch-track { outline: 2px solid var(--xm-accent); outline-offset: 2px; }
+    .xm-move:focus-visible, .xm-btn:focus-visible, .xm-seg button:focus-visible { outline: 2px solid var(--xm-accent); outline-offset: 2px; }
+
+    /* ── Preview: a mini spreadsheet header ─────────────── */
+    .xm-seg { display: inline-flex; padding: 3px; background: #f1f5f9; border-radius: 9px; flex-shrink: 0; }
+    .xm-seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--xm-muted); cursor: pointer; }
+    .xm-seg button.is-active { background: #fff; color: var(--xm-ink); box-shadow: 0 1px 2px rgba(15, 23, 42, .1); }
+    .xm-sheet { margin: 14px 16px 16px; border: 1px solid var(--xm-line); border-radius: 10px; overflow: hidden; }
+    .xm-sheet-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--xm-soft); border-bottom: 1px solid var(--xm-line); font-size: 12px; font-weight: 600; color: var(--xm-muted); }
+    .xm-sheet-bar i { color: #16a34a; font-size: 14px; }
+    .xm-sheet-cols { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; scrollbar-width: thin; }
+    .xm-sheet-cols li { display: grid; grid-template-columns: 38px 1fr; font-size: 12.5px; border-bottom: 1px solid #f1f5f9; }
+    .xm-sheet-cols li:last-child { border-bottom: 0; }
+    .xm-sheet-cols .xm-col-letter { background: var(--xm-soft); color: var(--xm-faint); font-weight: 600; text-align: center; padding: 7px 0; border-right: 1px solid var(--xm-line); font-variant-numeric: tabular-nums; }
+    .xm-sheet-cols .xm-col-name { padding: 7px 12px; color: var(--xm-ink); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .xm-sheet-cols .xm-empty { display: block; padding: 18px 12px; text-align: center; color: var(--xm-faint); font-size: 12.5px; }
+    .xm-warning { display: flex; gap: 8px; align-items: flex-start; margin: 0 16px 16px; padding: 10px 12px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 12.5px; font-weight: 600; }
+    .xm-warning i { margin-top: 2px; }
+
+    .xm-notes { padding: 16px 18px; }
+    .xm-notes ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 12px; }
+    .xm-notes li { font-size: 12.5px; color: var(--xm-muted); line-height: 1.55; }
+    .xm-notes li .xm-tag { margin-right: 4px; }
+    .xm-notes li > i { width: 18px; color: var(--xm-faint); font-size: 11px; }
+    .xm-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; background: #ffc7ce; border: 1px solid #f9a8b4; vertical-align: -2px; margin-right: 4px; }
+
+    /* ── Buttons ────────────────────────────────────────── */
+    .xm-btn {
+        height: 38px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--xm-line);
+        display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+        font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+        transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+    }
+    .xm-btn-sm { height: 32px; padding: 0 12px; font-size: 12.5px; }
+    .xm-btn-ghost { background: #fff; color: var(--xm-text); }
+    .xm-btn-ghost:hover:not(:disabled) { background: var(--xm-soft); border-color: #cbd5e1; color: var(--xm-ink); }
+    .xm-btn-primary { background: var(--xm-accent); border-color: var(--xm-accent); color: #fff; box-shadow: 0 4px 12px rgba(var(--xm-accent-rgb), .25); }
+    .xm-btn-primary:hover:not(:disabled) { filter: brightness(.95); }
+    .xm-btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; }
+    .xm-btn.htmx-request { opacity: .7; pointer-events: none; }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media (max-width: 1080px) {
+        .xm-grid { grid-template-columns: minmax(0, 1fr); }
+        .xm-side { position: static; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    }
+    @media (hover: none) { .xm-moves { opacity: 1; } }
+    @media (max-width: 640px) {
+        .xm { padding: 16px 16px 0; }
+        .xm-title { font-size: 19px; }
+        .xm-title-icon { width: 40px; height: 40px; font-size: 16px; }
+        .xm-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .xm-stat { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; }
+        .xm-stat-icon { width: 32px; height: 32px; font-size: 13px; }
+        .xm-stat-value { font-size: 18px; }
+        .xm-stat-label { font-size: 11px; }
+        .xm-row { gap: 8px; padding: 8px 10px 8px 4px; }
+        .xm-sheets { display: none; }
+        .xm-moves { opacity: 1; }
+        .xm-actions { width: 100%; justify-content: space-between; }
+        .xm-action-buttons { width: 100%; }
+        .xm-action-buttons .xm-btn { flex: 1; padding: 0 10px; }
+        .xm-context-link { margin-left: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .xm-row, .xm-switch-track, .xm-switch-thumb, .xm-moves { transition: none; animation: none; }
+    }
+</style>
+<script src="{{ url_for('static', path='js/column_layout.js') }}?v=3"></script>
+{% endblock %}

@@ -351,16 +351,14 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         return totals_from_row((await self._session.execute(stmt)).one())
 
     # =========================================================
-    # EXPORT (DECISION-028)
+    # EXPORT (DECISION-028, DECISION-030)
     # =========================================================
-
-    def _export_conditions(self, owner: CurrentUser, filters: VlccCollectionFilters | None) -> list:
-        """The list's own scope and filters, without deleted entries (as in the totals)."""
-        return [*self._list_conditions(owner, filters=filters), VlccCollectionModel.is_deleted.is_(False)]
+    # The list's own scope and filters, deleted entries included (the file paints them red;
+    # `totals` still leaves them out).
 
     async def count_export(self, owner: CurrentUser, filters: VlccCollectionFilters | None = None) -> int:
         stmt = self._with_list_joins(select(func.count(VlccCollectionModel.id))).where(
-            *self._export_conditions(owner, filters)
+            *self._list_conditions(owner, filters=filters)
         )
         return int(await self._session.scalar(stmt) or 0)
 
@@ -375,7 +373,7 @@ class VlccCollectionRepository(IVlccCollectionRepository):
         The next `limit` entries after the `(collected_at, id)` key, oldest first.
         Keyset paging keeps every page equally fast however far the export has got.
         """
-        conditions = self._export_conditions(owner, filters)
+        conditions = self._list_conditions(owner, filters=filters)
         if after is not None:
             last_at, last_id = after
             conditions.append(
@@ -396,12 +394,16 @@ class VlccCollectionRepository(IVlccCollectionRepository):
                     UserModel.name.label("farmer_name"),
                     VlccCollectionModel.milk_type,
                     VlccCollectionModel.quantity,
+                    VlccCollectionModel.quantity_collection_mode.label("quantity_mode"),
                     VlccCollectionModel.fat_percent,
                     VlccCollectionModel.snf_percent,
+                    VlccCollectionModel.measurement_mode,
+                    VlccCollectionModel.rank,
                     VlccCollectionModel.rate_per_unit,
                     VlccCollectionModel.total_amount,
                     VlccCollectionModel.status,
                     VlccCollectionModel.payment_mode,
+                    VlccCollectionModel.is_deleted,
                 )
             )
             .where(*conditions)

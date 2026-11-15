@@ -1,8 +1,10 @@
 """
-Collection Excel export through HTTP + a real ExchangeWorker (Plan 21.1, REQ-48, REQ-49).
+Collection Excel export through HTTP + a real ExchangeWorker (Plan 21.1, Plan 24.1,
+REQ-48, REQ-49, REQ-53, REQ-54).
 
 The file must hold exactly the entries the user's list shows for the same filters:
-nothing from another Admin's tree, no deleted entries, oldest first.
+nothing from another Admin's tree, oldest first. Deleted entries are in it with a
+red row, and the totals leave them out.
 """
 
 from __future__ import annotations
@@ -22,7 +24,11 @@ from openpyxl import load_workbook
 from sqlalchemy import delete, select
 
 from app.modules.administration.domain.enums import Role
-from app.modules.collections.mcc_collection.domain.enums import CollectionShift
+from app.modules.collections.mcc_collection.domain.enums import (
+    CollectionShift,
+    MeasurementMode,
+    QuantityCollectionMode,
+)
 from app.modules.collections.mcc_collection.infrastructure.models import MccCollectionModel
 from app.modules.collections.mcc_collection.infrastructure.repository import MccCollectionRepository
 from app.modules.collections.vlcc_collection.infrastructure.models import VlccCollectionModel
@@ -31,6 +37,7 @@ from app.modules.dataexchange.application.collection_export import (
     MccCollectionExportProcessor,
     VlccCollectionExportProcessor,
 )
+from app.modules.dataexchange.infrastructure.column_layout_repository import ColumnLayoutRepository
 from app.modules.dataexchange.infrastructure.models import ExcelJobModel
 from app.modules.dataexchange.infrastructure.repository import ExcelJobRepository
 from app.modules.dataexchange.infrastructure.storage import ExchangeStorage
@@ -73,11 +80,14 @@ async def worker(database):
         heartbeat_interval_s=1,
     )
     # A small page size so the keyset paging crosses several pages
+    layouts = ColumnLayoutRepository(database)
     instance.register(MccCollectionExportProcessor(
-        database=database, repository=MccCollectionRepository(database), storage=storage, page_size=2,
+        database=database, repository=MccCollectionRepository(database), storage=storage,
+        layouts=layouts, page_size=2,
     ))
     instance.register(VlccCollectionExportProcessor(
-        database=database, repository=VlccCollectionRepository(database), storage=storage, page_size=2,
+        database=database, repository=VlccCollectionRepository(database), storage=storage,
+        layouts=layouts, page_size=2,
     ))
     task = asyncio.create_task(instance.run(), context=contextvars.Context())
     yield instance
@@ -106,19 +116,23 @@ async def _farmer_id(database, vlcc) -> UUID:
         return await session.scalar(select(FarmerModel.id).where(FarmerModel.vlcc_id == vlcc.id))
 
 
-def _mcc_entry(mcc_id, vlcc_id, sample, at, shift, milk, qty, deleted=False) -> MccCollectionModel:
+def _mcc_entry(mcc_id, vlcc_id, sample, at, shift, milk, qty, deleted=False, rank=None, automatic=False):
+    mode = QuantityCollectionMode.AUTOMATIC if automatic else QuantityCollectionMode.MANUAL
     return MccCollectionModel(
         id=uuid4(), mcc_id=mcc_id, vlcc_id=vlcc_id, sample_number=sample, can_count=1, shift=shift,
         milk_type=milk, quantity=Decimal(qty), fat_percent=Decimal("4.0"), snf_percent=Decimal("8.5"),
         rate_per_unit=Decimal("40"), total_amount=Decimal(qty) * 40, collected_at=at, is_deleted=deleted,
+        rank=rank, quantity_collection_mode=mode, measurement_mode=MeasurementMode.MANUAL,
     )
 
 
-def _vlcc_entry(vlcc_id, farmer_id, at, shift, qty, deleted=False) -> VlccCollectionModel:
+def _vlcc_entry(vlcc_id, farmer_id, at, shift, qty, deleted=False, rank=None, automatic=False):
+    mode = MeasurementMode.AUTOMATIC if automatic else MeasurementMode.MANUAL
     return VlccCollectionModel(
         id=uuid4(), vlcc_id=vlcc_id, farmer_id=farmer_id, milk_type=MilkType.COW, shift=shift,
         quantity=Decimal(qty), fat_percent=Decimal("4.2"), snf_percent=Decimal("8.5"),
         rate_per_unit=Decimal("40"), total_amount=Decimal(qty) * 40, collected_at=at, is_deleted=deleted,
+        rank=rank, quantity_collection_mode=QuantityCollectionMode.MANUAL, measurement_mode=mode,
     )
 
 
@@ -140,12 +154,12 @@ async def scene(database):
 
     async with database.transaction() as session:
         session.add_all([
-            _mcc_entry(m1, v1.id, 1, DAY1_MORNING, CollectionShift.MORNING, MilkType.COW, "10"),
-            _mcc_entry(m1, v1.id, 2, DAY1_EVENING, CollectionShift.EVENING, MilkType.BUFFALO, "20"),
+            _mcc_entry(m1, v1.id, 1, DAY1_MORNING, CollectionShift.MORNING, MilkType.COW, "10", rank=1),
+            _mcc_entry(m1, v1.id, 2, DAY1_EVENING, CollectionShift.EVENING, MilkType.BUFFALO, "20", automatic=True),
             _mcc_entry(m1, v1.id, 3, DAY2_MORNING, CollectionShift.MORNING, MilkType.COW, "30", deleted=True),
-            _mcc_entry(m1, v2.id, 4, DAY3_MORNING, CollectionShift.MORNING, MilkType.COW, "40"),
+            _mcc_entry(m1, v2.id, 4, DAY3_MORNING, CollectionShift.MORNING, MilkType.COW, "40", rank=12),
             _mcc_entry(m2, v3.id, 1, DAY1_MORNING, CollectionShift.MORNING, MilkType.COW, "99"),
-            _vlcc_entry(v1.id, f1, DAY1_MORNING, CollectionShift.MORNING, "5"),
+            _vlcc_entry(v1.id, f1, DAY1_MORNING, CollectionShift.MORNING, "5", rank=3, automatic=True),
             _vlcc_entry(v1.id, f1, DAY2_MORNING, CollectionShift.EVENING, "6"),
             _vlcc_entry(v1.id, f1, DAY2_MORNING, CollectionShift.MORNING, "7", deleted=True),
             _vlcc_entry(v2.id, f2, DAY3_MORNING, CollectionShift.MORNING, "8"),
@@ -158,7 +172,20 @@ async def scene(database):
 # HELPERS
 # =========================================================
 
+RED = "FFFFC7CE"
+
+
 async def _export(api, headers, path: str, filters: dict | None = None) -> tuple[list[dict], dict]:
+    content = await _download(api, headers, path, filters)
+    workbook = load_workbook(io.BytesIO(content), read_only=True)
+    data_sheet, summary_sheet = workbook.worksheets[0], workbook["Summary"]
+    header, *body = list(data_sheet.iter_rows(values_only=True))
+    rows = [dict(zip(header, values)) for values in body]
+    summary = {label: value for label, value, *_ in summary_sheet.iter_rows(min_row=3, values_only=True) if label}
+    return rows, summary
+
+
+async def _download(api, headers, path: str, filters: dict | None = None) -> bytes:
     response = await api.post(path, json=filters or {}, headers=headers)
     assert response.status_code == 202, response.text
     job_id = response.json()["data"]["id"]
@@ -174,35 +201,68 @@ async def _export(api, headers, path: str, filters: dict | None = None) -> tuple
 
     file = await api.get(f"/api/v1/excel/jobs/{job_id}/file", headers=headers)
     assert file.status_code == 200
-    workbook = load_workbook(io.BytesIO(file.content), read_only=True)
-    data_sheet, summary_sheet = workbook.worksheets[0], workbook["Summary"]
-    header, *body = list(data_sheet.iter_rows(values_only=True))
-    rows = [dict(zip(header, values)) for values in body]
-    summary = {label: value for label, value, *_ in summary_sheet.iter_rows(min_row=3, values_only=True) if label}
-    return rows, summary
+    return file.content
 
 
 # =========================================================
 # MCC COLLECTIONS
 # =========================================================
 
-async def test_sub_admin_gets_its_line_without_deleted_oldest_first(api, token_for, scene, worker):
+MCC_HEADERS = [
+    "Date", "Time", "Shift", "Sample No", "MCC Code", "MCC Name", "VLCC Code", "VLCC Name", "Milk Type",
+    "Cans", "Quantity", "FAT %", "SNF %", "CLR", "Quantity Mode", "Measurement Mode", "Chart Rank",
+    "Rate", "Amount", "Status", "Payment Mode", "Deleted",
+]
+VLCC_HEADERS = [
+    "Date", "Time", "Shift", "VLCC Code", "VLCC Name", "Farmer Code", "Farmer Name", "Milk Type",
+    "Quantity", "FAT %", "SNF %", "Quantity Mode", "Measurement Mode", "Chart Rank",
+    "Rate", "Amount", "Status", "Payment Mode", "Deleted",
+]
+
+
+async def test_sub_admin_gets_its_line_with_deleted_oldest_first(api, token_for, scene, worker):
     rows, summary = await _export(api, token_for(scene["sub"], Role.SUB_ADMIN), MCC_EXPORT)
 
-    assert [row["Quantity"] for row in rows] == [10, 20, 40]          # no deleted 30, no other Admin's 99
-    assert [row["Sample No"] for row in rows] == [1, 2, 4]
-    assert [row["Shift"] for row in rows] == ["Morning", "Evening", "Morning"]
+    assert list(rows[0]) == MCC_HEADERS                               # the default order
+    assert [row["Quantity"] for row in rows] == [10, 20, 30, 40]      # deleted 30 in date order, no other Admin's 99
+    assert [row["Deleted"] for row in rows] == [None, None, "Yes", None]
+    assert [row["Sample No"] for row in rows] == [1, 2, 3, 4]
+    assert [row["Shift"] for row in rows] == ["Morning", "Evening", "Morning", "Morning"]
     assert rows[1]["Milk Type"] == "Buffalo" and rows[1]["Amount"] == 800
     assert rows[0]["Date"] == datetime(2026, 1, 5)                   # a real Excel date
-    assert rows[2]["VLCC Code"] == scene["v2"].code
+    assert rows[3]["VLCC Code"] == scene["v2"].code
+    # Totals leave the deleted entry out
     assert summary["Entries"] == 3
     assert summary["Total Quantity"] == 70
+    assert summary["Deleted Entries"] == 1
     assert summary["MCC"] == "All"
+
+
+async def test_new_columns_rank_and_modes(api, token_for, scene, worker):
+    rows, _ = await _export(api, token_for(scene["sub"], Role.SUB_ADMIN), MCC_EXPORT)
+    assert [row["Chart Rank"] for row in rows] == ["R1", None, None, "R12"]     # no rank = blank
+    assert [row["Quantity Mode"] for row in rows] == ["Manual", "Automatic", "Manual", "Manual"]
+    assert {row["Measurement Mode"] for row in rows} == {"Manual"}
+
+
+async def test_deleted_row_is_red_on_every_column(api, token_for, scene, worker):
+    content = await _download(api, token_for(scene["sub"], Role.SUB_ADMIN), MCC_EXPORT)
+    sheet = load_workbook(io.BytesIO(content)).worksheets[0]
+    width = len(MCC_HEADERS)
+
+    deleted = [sheet.cell(row=4, column=index) for index in range(1, width + 1)]   # 3rd entry = row 4
+    assert all(cell.fill.fgColor.rgb == RED for cell in deleted)
+    assert sheet.cell(row=4, column=MCC_HEADERS.index("Chart Rank") + 1).value is None   # blank, still red
+    assert sheet.cell(row=4, column=1).number_format == "dd-mm-yyyy"                     # still a date
+    assert sheet.cell(row=4, column=MCC_HEADERS.index("MCC Code") + 1).number_format == "@"
+
+    kept = [sheet.cell(row=3, column=index) for index in range(1, width + 1)]
+    assert not any(cell.fill.fgColor.rgb == RED for cell in kept)
 
 
 async def test_mcc_login_gets_only_its_own_centre(api, token_for, scene, worker):
     rows, _ = await _export(api, token_for(scene["m1_user"], Role.MCC), MCC_EXPORT)
-    assert [row["Quantity"] for row in rows] == [10, 20, 40]
+    assert [row["Quantity"] for row in rows] == [10, 20, 30, 40]
 
 
 async def test_another_admin_never_sees_the_sub_admins_entries(api, token_for, scene, worker):
@@ -214,7 +274,7 @@ async def test_filters_match_the_list(api, token_for, scene, worker):
     headers = token_for(scene["sub"], Role.SUB_ADMIN)
 
     cow, _ = await _export(api, headers, MCC_EXPORT, {"milk_type": "0"})
-    assert [row["Quantity"] for row in cow] == [10, 40]
+    assert [row["Quantity"] for row in cow] == [10, 30, 40]
 
     # Day 1 evening to day 1 evening: a shift with its date is a boundary of the range
     evening, summary = await _export(api, headers, MCC_EXPORT, {
@@ -254,9 +314,17 @@ async def test_bad_filter_values_are_rejected(api, token_for, scene):
 
 async def test_vlcc_collections_for_sub_admin_and_mcc(api, token_for, scene, worker):
     rows, summary = await _export(api, token_for(scene["sub"], Role.SUB_ADMIN), VLCC_EXPORT)
-    assert [row["Quantity"] for row in rows] == [5, 6, 8]             # v1 + v2, no deleted 7, no v3
+    assert list(rows[0]) == VLCC_HEADERS
+    # v1 + v2 + the deleted 7 (DAY2 morning keyset order is by id, so compare as a set), no v3
+    assert rows[0]["Quantity"] == 5 and rows[-1]["Quantity"] == 8
+    assert sorted(row["Quantity"] for row in rows) == [5, 6, 7, 8]
+    assert [row["Quantity"] for row in rows if row["Deleted"] == "Yes"] == [7]
     assert rows[0]["Farmer Code"] and rows[0]["VLCC Code"] == scene["v1"].code
+    assert rows[0]["Chart Rank"] == "R3" and rows[0]["Measurement Mode"] == "Automatic"
+    assert rows[0]["Quantity Mode"] == "Manual"
     assert summary["Entries"] == 3
+    assert summary["Total Quantity"] == 19
+    assert summary["Deleted Entries"] == 1
 
     mcc_rows, _ = await _export(api, token_for(scene["m1_user"], Role.MCC), VLCC_EXPORT)
     assert [row["Quantity"] for row in mcc_rows] == [8]               # only the VLCC its user made
@@ -267,4 +335,4 @@ async def test_vlcc_login_gets_its_own_entries(api, token_for, scene, worker):
     # The VLCC filter cannot reach another VLCC: the scope still applies
     assert rows == []
     own, _ = await _export(api, token_for(scene["v1"].user_id, Role.VLCC), VLCC_EXPORT)
-    assert [row["Quantity"] for row in own] == [5, 6]
+    assert sorted(row["Quantity"] for row in own) == [5, 6, 7]

@@ -43,7 +43,7 @@ class MccMilkBillSummaryExecutor(ReportExecutor):
             .join(v, v.id == m.vlcc_id)
             .where(*filters)
             .group_by(v.id, v.vlcc_code, v.name)
-            .order_by(cast(v.vlcc_code, Integer).asc())
+            .order_by(m.collected_at, cast(v.vlcc_code, Integer).asc())
             .offset(query.offset)
             .limit(query.size)
         )

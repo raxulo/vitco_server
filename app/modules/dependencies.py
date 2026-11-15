@@ -19,6 +19,7 @@ from app.modules.dataexchange.application.vlcc_exchange import VlccExchangeHandl
 from app.modules.dataexchange.application.prodata_exchange import ProdataExchangeHandler
 from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
 from app.modules.dataexchange.application.collection_exchange import CollectionExchangeHandler
+from app.modules.dataexchange.application.column_layout_handler import ColumnLayoutHandler
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -111,6 +112,10 @@ class GetHandler:
     @staticmethod
     def collection_exchange_handler(request: Request) -> CollectionExchangeHandler:
         return request.app.state.application.container.resolve(CollectionExchangeHandler)
+
+    @staticmethod
+    def column_layout_handler(request: Request) -> ColumnLayoutHandler:
+        return request.app.state.application.container.resolve(ColumnLayoutHandler)
 
 
     @staticmethod

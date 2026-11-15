@@ -35,6 +35,11 @@
             >
                 <i class="fa-solid fa-trash-can"></i> Delete Account
             </button>
+            {% if column_layout_url %}
+            <a href="{{ column_layout_url }}" class="btn" style="border: 1px solid #cbd5e1; background: white; color: #166534; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; height: 38px;">
+                <i class="fa-solid fa-table-columns"></i> Excel Column Order
+            </a>
+            {% endif %}
             <a href="/sub-admins/edit/{{ user.id }}" class="btn" style="border: 1px solid #cbd5e1; background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; height: 38px;">
                 <i class="fa-solid fa-pen-to-square"></i> Edit Profile
             </a>
