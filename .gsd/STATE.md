@@ -14,6 +14,11 @@ updated: 2026-11-08T00:00:00+05:30
 
 ## Last Action
 
+- 2026-11-18: **Technical Support planned (no code yet).** Design document `docs/TECHNICAL_SUPPORT_PLAN.md`
+  (decisions D-1 to D-14), DECISION-031 to 033, REQ-58 to REQ-80, ROADMAP "Technical Support (v1.3.0)" with Phases
+  25 to 30 and plans in `.gsd/phases/25..30/`. Next: user reviews the plans, then `/execute 25` on a new branch
+  `feature/technical-support` (from `develop`). Open item: Firebase service-account JSON (Phase 28, can come later).
+
 - 2026-11-15: Quick task on `feature/sidebar-group-colors` (uncommitted). Each sidebar section heading has its own
   bright colour (General blue, MCC Management orange, VLCC Management green, System Setup purple, Payments cyan,
   Marketplace pink); only the selected item is filled with it, other items stay neutral. The current page's section

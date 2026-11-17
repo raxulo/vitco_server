@@ -230,6 +230,77 @@ Mode and Measurement Mode columns (REQ-53 to REQ-57, DECISION-030). Requested by
 
 ---
 
+## Technical Support (v1.3.0, planned 2026-11-18)
+
+> **Goal:** A separate Technical Support portal (own layout and sidebar) where support teams handle tickets and chat
+> from MCC / VLCC / Farmer mobile-app users. Design source: [docs/TECHNICAL_SUPPORT_PLAN.md](../docs/TECHNICAL_SUPPORT_PLAN.md)
+> (DECISION-031, REQ-58 to REQ-80). Version 1 scope only; SLA, auto-assign, CSAT, reports, FAQ are later versions.
+> **Branch:** `feature/technical-support` (from `develop`). One commit per phase after the user approves it.
+
+### Phase 25: Support Foundation — role, teams, members, portal shell
+**Status:** ⬜ Not started
+**Objective:** `Role.SUPPORT`, support teams (Super Admin only, one manager each), members with team-owned support
+roles and `support.*` permissions, audit log table, and the separate professional portal shell (own layout, sidebar,
+design system) with login redirect and route isolation (REQ-58 to REQ-65).
+**Depends on:** Phase 24 (migration 0004)
+
+**Plans:**
+- [ ] Plan 25.1: Support domain, tables, permissions and team / member handlers — [1-PLAN.md](phases/25/1-PLAN.md)
+- [ ] Plan 25.2: Portal shell, design system, login redirect and route isolation — [2-PLAN.md](phases/25/2-PLAN.md)
+- [ ] Plan 25.3: Teams, members and roles screens — [3-PLAN.md](phases/25/3-PLAN.md)
+
+### Phase 26: Tickets Core and Mobile Ticket API
+**Status:** ⬜ Not started
+**Objective:** Categories (with default team), tickets with messages, internal notes, attachments, events; routing by
+category plus manual assign; mobile REST API for MCC / VLCC / Farmer / VLCC_FARMER; portal queues and ticket detail
+(REQ-66 to REQ-72).
+**Depends on:** Phase 25 (migration 0005)
+
+**Plans:**
+- [ ] Plan 26.1: Ticket domain, tables and handlers — [1-PLAN.md](phases/26/1-PLAN.md)
+- [ ] Plan 26.2: Mobile REST API (tickets, messages, attachments) — [2-PLAN.md](phases/26/2-PLAN.md)
+- [ ] Plan 26.3: Portal queues, ticket detail and categories — [3-PLAN.md](phases/26/3-PLAN.md)
+
+### Phase 27: Realtime and Live Chat
+**Status:** ⬜ Not started
+**Objective:** Redis, WebSocket for staff and mobile, permission-filtered live events, no-refresh portal, live
+chat, unread counts, reconnect catch-up (REQ-73 to REQ-75, DECISION-032).
+**Depends on:** Phase 26
+
+**Plans:**
+- [ ] Plan 27.1: Redis, event bus, presence and WebSocket endpoints — [1-PLAN.md](phases/27/1-PLAN.md)
+- [ ] Plan 27.2: Live portal and live chat UI — [2-PLAN.md](phases/27/2-PLAN.md)
+
+### Phase 28: Push Notification Backend
+**Status:** ⬜ Not started
+**Objective:** Device tokens API, notification outbox, FCM sender with presence skip and a disabled mode without
+credentials; mobile side is later (REQ-76, REQ-77, DECISION-033).
+**Depends on:** Phase 27 (presence)
+
+**Plans:**
+- [ ] Plan 28.1: Device tokens, outbox and FCM sender — [1-PLAN.md](phases/28/1-PLAN.md)
+
+### Phase 29: Calls, Audit Views and My Activity
+**Status:** ⬜ Not started
+**Objective:** Click-to-call (`tel:`) with call log and outcome, audit log screens, member "My Activity" dashboard and
+the manager's team view (REQ-78 to REQ-80).
+**Depends on:** Phase 26
+
+**Plans:**
+- [ ] Plan 29.1: Call log and call UI — [1-PLAN.md](phases/29/1-PLAN.md)
+- [ ] Plan 29.2: My Activity dashboard, manager team view and audit screen — [2-PLAN.md](phases/29/2-PLAN.md)
+
+### Phase 30: Hardening, API Document and Verification
+**Status:** ⬜ Not started
+**Objective:** Security and permission review, load check of realtime, `docs/SUPPORT_API.md` for app developers,
+end-to-end `/verify` on PostgreSQL with Redis, UI sign-off.
+**Depends on:** Phases 25 to 29
+
+**Plans:**
+- [ ] Plan 30.1: Review, API document and end-to-end verification — [1-PLAN.md](phases/30/1-PLAN.md)
+
+---
+
 ## Progress Summary
 
 | Phase | Status | Plans | Complete |
@@ -250,6 +321,12 @@ Mode and Measurement Mode columns (REQ-53 to REQ-57, DECISION-030). Requested by
 | 22 | ✅ | 1/1 | 100% |
 | 23 | ✅ | 1/1 | 100% |
 | 24 | ✅ | 3/3 | 100% |
+| 25 | ⬜ | 0/3 | 0% |
+| 26 | ⬜ | 0/3 | 0% |
+| 27 | ⬜ | 0/2 | 0% |
+| 28 | ⬜ | 0/1 | 0% |
+| 29 | ⬜ | 0/2 | 0% |
+| 30 | ⬜ | 0/1 | 0% |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*

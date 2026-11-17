@@ -6,7 +6,7 @@ supplied to the MCC on the selected date and shift.
 """
 
 from sqlalchemy import Integer
-from ctypes import cast
+from typing import cast
 from sqlalchemy import select
 
 from app.core.numeric import truncate_float

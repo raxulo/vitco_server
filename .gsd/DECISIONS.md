@@ -561,4 +561,55 @@ unchanged. Keeping totals without deleted entries means the file still agrees wi
 
 ---
 
+## [DECISION-031] Technical Support module: separate portal, team-owned roles, ticket per conversation
+
+**Date**: 2026-11-18
+**Status**: Accepted (planned in Phases 25 to 30; full design in `docs/TECHNICAL_SUPPORT_PLAN.md`)
+
+### Decision
+New module `app/modules/support/` (DDD + CQRS three layers). Support staff are rows in `users` with new `Role.SUPPORT = 8`
+(1 to 7 unchanged); team, member and role data live in `support_*` tables. Only Super Admin creates a team, together
+with its one Manager. Roles belong to a team and carry `support.*` permission strings; the Manager owns the team and may
+do everything in it. Basic requester info, phone, device and app version are open to every member; dairy data is never
+exposed. Requesters (MCC, VLCC, Farmer, VLCC_FARMER) use the mobile API only. The portal is a separate web area
+(`/support`, `layouts/support.html`, `support.css` with `sp-` prefix) and never uses the dairy sidebar. Version 1 only:
+SLA, auto-assign, availability, canned replies, CSAT, reports, voice notes and FAQ are later versions.
+
+### Why
+The user wants an independent support team structure with granular, manager-controlled permissions and a clean,
+professional UI that has nothing to do with the dairy navigation. Reusing `users` keeps one login system; team-owned
+roles let each manager shape their team without code changes.
+
+---
+
+## [DECISION-032] Redis for support realtime, with graceful fallback
+
+**Date**: 2026-11-18
+**Status**: Accepted (Phase 27)
+
+### Decision
+Redis (pub/sub, presence, unread cache) via `redis.asyncio`; production is one Linux instance. Redis is optional at
+runtime: if it is down the app starts, events are delivered in-process, counts come from the database and the portal
+polls. Configured with `REDIS_URL`; unset means the in-process fallback.
+
+### Why
+The user chose to add Redis now. Making it non-fatal keeps the dairy features (sync, collections) safe from a cache outage.
+
+---
+
+## [DECISION-033] Push notifications: backend now through an outbox, mobile later
+
+**Date**: 2026-11-18
+**Status**: Accepted (Phase 28)
+
+### Decision
+`support_device_tokens` and `support_notification_outbox`; a background sender calls FCM, retries, removes invalid
+tokens, and skips users who are online. Without Firebase credentials it runs disabled and only logs. Mobile
+registration and display are built later by the user.
+
+### Why
+Writing the event inside the ticket transaction and sending afterwards means a push failure never loses a reply.
+
+---
+
 *Last updated: 2026-11-08*
