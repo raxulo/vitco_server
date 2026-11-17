@@ -111,6 +111,14 @@ ADMIN_NAVIGATION: Final[tuple[MenuGroup, ...]] = (
                 SUPER_ADMIN_ONLY,
                 "/recycle-bin",
             ),
+            # Technical Support portal (Phase 25): Super Admin creates the support teams there
+            item(
+                "Technical Support",
+                "/support/teams",
+                "fa-solid fa-headset",
+                SUPER_ADMIN_ONLY,
+                "/support/teams",
+            ),
         ),
     ),
 

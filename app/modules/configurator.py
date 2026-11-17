@@ -84,6 +84,12 @@ from app.modules.marketplace.infrastructure.order_repository import OrderReposit
 from app.modules.marketplace.infrastructure.storefront_repository import StorefrontRepository
 from app.modules.marketplace.infrastructure.repository import MarketplaceRepository
 from app.modules.marketplace.infrastructure.seed import MarketplaceSeeder
+from app.modules.support.application.handler import (
+    SupportMemberHandler,
+    SupportRoleHandler,
+    SupportTeamHandler,
+)
+from app.modules.support.infrastructure.repository import SupportRepository
 from app.modules.recyclebin.application.handler import RecycleBinHandler
 from app.modules.recyclebin.infrastructure.repository import RecycleBinRepository
 from app.modules.dataexchange.infrastructure.ratechart_scope import RateChartScope
@@ -235,6 +241,9 @@ class ModuleConfigurator:
         repository = RecycleBinRepository(_database)
         container.register(RecycleBinRepository, repository)
 
+        repository = SupportRepository(_database)
+        container.register(SupportRepository, repository)
+
     @classmethod
     def _dataexchange_register(cls, container: ServiceContainer):
         """Excel import / export infrastructure, shared by the API and the exchange worker."""
@@ -275,6 +284,25 @@ class ModuleConfigurator:
         cls._dataexchange(container)
         cls._recycle_bin(container)
         cls._marketplace(container)
+        cls._support(container)
+
+    @classmethod
+    def _support(cls, container: ServiceContainer):
+        """Technical Support: teams, members and roles (Phase 25)."""
+        repository = container.resolve(SupportRepository)
+        users = container.resolve(UserHandler)
+        container.register(
+            SupportTeamHandler,
+            SupportTeamHandler(database=container.database, repository=repository, users=users),
+        )
+        container.register(
+            SupportMemberHandler,
+            SupportMemberHandler(database=container.database, repository=repository, users=users),
+        )
+        container.register(
+            SupportRoleHandler,
+            SupportRoleHandler(database=container.database, repository=repository),
+        )
 
     @classmethod
     def _marketplace(cls, container: ServiceContainer):

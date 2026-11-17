@@ -1,0 +1,35 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, field, alert %}
+
+{% block content %}
+<div class="sp-crumbs"><a href="/support/teams">Support teams</a>{% if team %} / <a href="/support/teams/{{ team.id }}">{{ team.name }}</a>{% endif %}</div>
+{% call page_header(sp.title, "The team code is short and unique, for example TECH-NORTH." if not team else "Rename the team or change its code.") %}{% endcall %}
+
+<form class="sp-card" method="post" action="{{ '/support/teams/' ~ team.id ~ '/edit' if team else '/support/teams/new' }}" novalidate>
+    <div class="sp-card-body sp-form">
+        {% if error %}{{ alert(error, 'danger') }}{% endif %}
+
+        <div class="sp-section-title">Team</div>
+        <div class="sp-form-grid">
+            {{ field('name', 'Team name', values.name, required=True, placeholder='Technical Support - North') }}
+            {{ field('code', 'Team code', values.code, required=True, placeholder='TECH-NORTH', help='Letters, digits, dash or underscore') }}
+        </div>
+
+        {% if not team %}
+        <hr class="sp-divider">
+        <div class="sp-section-title">Manager login</div>
+        <p class="sp-muted" style="margin-top:-12px">The manager owns the team: adds members, sets their roles and sees everything in the team.</p>
+        <div class="sp-form-grid">
+            {{ field('manager_name', 'Full name', values.manager_name, required=True, autocomplete='name') }}
+            {{ field('manager_mobile', 'Mobile', values.manager_mobile, type='tel', required=True, placeholder='10 digits', autocomplete='tel') }}
+            {{ field('manager_email', 'Email', values.manager_email, type='email', required=True, help='Used to sign in', autocomplete='email') }}
+            {{ field('manager_password', 'Password', '', type='password', required=True, help='At least 8 characters', autocomplete='new-password') }}
+        </div>
+        {% endif %}
+    </div>
+    <div class="sp-card-foot">
+        <a class="sp-btn" href="{{ '/support/teams/' ~ team.id if team else '/support/teams' }}">Cancel</a>
+        <button class="sp-btn is-primary" type="submit">{{ 'Save changes' if team else 'Create team' }}</button>
+    </div>
+</form>
+{% endblock %}

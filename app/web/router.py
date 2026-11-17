@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request
 from starlette.responses import Response, RedirectResponse
 from fastapi.responses import HTMLResponse
 
+from app.modules.administration.domain.enums import Role
 from app.web.auth.router import auth_router
 from app.web.dashboard.router import dashboard_router
 from app.web.mcc.router import mcc_router
@@ -33,14 +34,18 @@ from app.web.advanced_item.router import router as advance_item_router
 from app.web.marketplace_admin.router import router as marketplace_admin_router
 from app.web.storefront.router import router as storefront_router
 from app.web.storefront.seo_controller import router as store_seo_router
+from app.web.support.router import router as support_router
 
 root_router = APIRouter(tags=["Web Root"])
 
 @root_router.get("/", response_class=HTMLResponse)
 async def root_page(request: Request) -> Response:
-    """Home Page (/) Endpoint: logged-in users go to the Dashboard, visitors go to the store."""
+    """Home Page (/) Endpoint: logged-in users go to their home (support staff to the support portal), visitors go to the store."""
     user = getattr(request.state, "user", None)
-    return RedirectResponse(url="/dashboard" if user else "/marketplace", status_code=302)
+    if user is None:
+        return RedirectResponse(url="/marketplace", status_code=302)
+    home = "/support" if getattr(user, "role_type", None) == Role.SUPPORT else "/dashboard"
+    return RedirectResponse(url=home, status_code=302)
 
 
 class WebRouterRegistrar:
@@ -72,3 +77,4 @@ class WebRouterRegistrar:
         app.include_router(marketplace_admin_router)
         app.include_router(storefront_router)
         app.include_router(store_seo_router)
+        app.include_router(support_router)

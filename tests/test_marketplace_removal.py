@@ -52,11 +52,16 @@ def test_no_model_maps_a_legacy_table():
     assert legacy & set(Base.metadata.tables) == set()
 
 
-@pytest.mark.parametrize("role", list(Role))
+@pytest.mark.parametrize("role", [role for role in Role if role != Role.SUPPORT])
 def test_navigation_has_no_marketplace_link(role):
     urls = [menu.href for group in build_navigation(role.value) for menu in group.items]
-    assert urls  # every role still gets a menu
+    assert urls  # every dairy role still gets a menu
     assert [url for url in urls if url.startswith("/marketplace/")] == []  # old pages such as /marketplace/setup
+
+
+def test_support_staff_get_no_dairy_menu():
+    # Technical Support staff use their own portal and sidebar (REQ-58)
+    assert build_navigation(Role.SUPPORT.value) == ()
 
 
 def test_no_template_or_script_uses_the_old_cart_or_pages():

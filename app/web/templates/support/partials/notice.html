@@ -1,0 +1,13 @@
+{# Result of the previous action, from ?notice= (set: notice, subject) #}
+{% from "support/components/ui.html" import alert %}
+{% set texts = {
+    'created': (subject ~ ' created.', 'success'),
+    'updated': ('Changes saved.', 'success'),
+    'enabled': (subject ~ ' enabled.', 'success'),
+    'disabled': (subject ~ ' disabled. Their sign-in no longer works.', 'warning'),
+    'refused': ('The manager and your own account cannot be disabled here.', 'warning'),
+    'missing': (subject ~ ' was not found.', 'danger'),
+} %}
+{% if notice and notice in texts %}
+<div style="margin-bottom:16px">{{ alert(texts[notice][0], texts[notice][1]) }}</div>
+{% endif %}

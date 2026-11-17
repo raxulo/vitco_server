@@ -1,0 +1,75 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, stat_card, active_chip, avatar, chip, empty_state %}
+
+{% block content %}
+<div class="sp-crumbs"><a href="/support/teams">Support teams</a> / {{ team.name }}</div>
+{% call page_header(team.name, "Code " ~ team.code) %}
+    {{ active_chip(team.is_active) }}
+    <a class="sp-btn" href="/support/teams/{{ team.id }}/edit"><i class="fa-solid fa-pen"></i>Edit</a>
+    <form method="post" action="/support/teams/{{ team.id }}/status">
+        <input type="hidden" name="active" value="{{ '0' if team.is_active else '1' }}">
+        {% if team.is_active %}
+        <button class="sp-btn is-danger" type="submit" data-danger data-confirm-title="Disable {{ team.name }}?"
+                data-confirm="The manager and every member lose access to Technical Support until the team is enabled again."
+                data-confirm-ok="Disable team">Disable</button>
+        {% else %}
+        <button class="sp-btn is-primary" type="submit">Enable</button>
+        {% endif %}
+    </form>
+{% endcall %}
+{% set subject = 'Team' %}{% include "support/partials/notice.html" %}
+
+<div class="sp-grid cols-3">
+    {{ stat_card("Members", team.member_count, "Including the manager") }}
+    {{ stat_card("Roles", roles|length, "Permission sets of this team") }}
+    <div class="sp-card sp-stat">
+        <div class="sp-stat-label">Manager</div>
+        <div class="sp-cell" style="margin-top:8px">{{ avatar(team.manager_name, large=True) }}<div><strong>{{ team.manager_name }}</strong><small>{{ team.manager_mobile }} · {{ team.manager_email }}</small></div></div>
+    </div>
+</div>
+
+<div class="sp-grid cols-2" style="margin-top:16px">
+    <div class="sp-card">
+        <div class="sp-card-head">
+            <h3 class="sp-card-title">Members</h3>
+            <div class="sp-actions">
+                <a class="sp-btn is-sm" href="/support/members?team={{ team.id }}">View all</a>
+                <a class="sp-btn is-sm is-primary" href="/support/members/new?team={{ team.id }}"><i class="fa-solid fa-plus"></i>Add</a>
+            </div>
+        </div>
+        {% if members %}
+        <table class="sp-table">
+            <tbody>
+            {% for member in members %}
+            <tr>
+                <td><div class="sp-cell">{{ avatar(member.name) }}<div><strong>{{ member.name }}</strong><small>{{ member.mobile or member.email }}</small></div></div></td>
+                <td>{{ chip(member.role_name or '—', 'accent' if member.is_manager else '', plain=True) }}</td>
+                <td class="is-right">{{ active_chip(member.is_active) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            {% call empty_state("Only the manager so far", "Members added by the manager appear here.", "fa-user-group") %}{% endcall %}
+        {% endif %}
+    </div>
+
+    <div class="sp-card">
+        <div class="sp-card-head">
+            <h3 class="sp-card-title">Roles</h3>
+            <a class="sp-btn is-sm" href="/support/roles?team={{ team.id }}">Manage roles</a>
+        </div>
+        <table class="sp-table">
+            <tbody>
+            {% for role in roles %}
+            <tr>
+                <td><strong style="font-weight:500">{{ role.name }}</strong></td>
+                <td class="sp-muted">{{ role.permissions|length }} {{ 'permission' if role.permissions|length == 1 else 'permissions' }}</td>
+                <td class="is-right sp-muted">{{ role.member_count }} {{ 'member' if role.member_count == 1 else 'members' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

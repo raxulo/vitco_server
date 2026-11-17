@@ -6,13 +6,19 @@ updated: 2026-11-08T00:00:00+05:30
 
 ## Current Position
 
-**Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 24 - Collection Excel column order, deleted rows and new columns
-**Status:** ✅ Phase 24 committed by the user (946b061 on `feature/collection-export-column-order`)
-**Plan:** Quick task: sidebar section colours, waiting for the user's review and commit
-**Branch:** `feature/sidebar-group-colors`, from `feature/collection-export-column-order` (946b061)
+**Milestone:** v1.3.0 - Technical Support
+**Phase:** 25 - Support Foundation (role, teams, members, portal shell)
+**Status:** ✅ Phase 25 executed and verified; visual sign-off and commit await the user
+**Plan:** Next: Phase 26 (tickets core and mobile ticket API)
+**Branch:** `feature/support-foundation` (Phase 25), from `feature/technical-support` at 17b3cb6 ("plans")
 
 ## Last Action
+
+- 2026-11-18: **Phase 25 executed (uncommitted)** on `feature/technical-support` (branched from 8f542e5, not from
+  `develop`: develop is at b10c5b7 and lacks migrations 0001 to 0004). Support module, `Role.SUPPORT`, migration 0005,
+  portal shell + design system, teams / members / roles screens, isolation middleware. Support suites 60 passed on
+  SQLite, 64 on PostgreSQL (found and fixed a PostgreSQL-only migration bug). Waiting for the user's visual review
+  and commit approval. The plans were committed by the user as 17b3cb6 ("plans") on this branch.
 
 - 2026-11-18: **Technical Support planned (no code yet).** Design document `docs/TECHNICAL_SUPPORT_PLAN.md`
   (decisions D-1 to D-14), DECISION-031 to 033, REQ-58 to REQ-80, ROADMAP "Technical Support (v1.3.0)" with Phases

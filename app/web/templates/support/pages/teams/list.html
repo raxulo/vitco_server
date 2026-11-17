@@ -1,0 +1,45 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, active_chip, avatar, empty_state, pager %}
+
+{% block content %}
+{% call page_header("Support teams", "Each team has one manager who builds and runs the team.") %}
+    <a class="sp-btn is-primary" href="/support/teams/new"><i class="fa-solid fa-plus"></i>New team</a>
+{% endcall %}
+{% set subject = 'Team' %}{% include "support/partials/notice.html" %}
+
+<div class="sp-card">
+    <form class="sp-filters" method="get" action="/support/teams" role="search">
+        <div class="sp-search"><i class="fa-solid fa-magnifying-glass"></i>
+            <input class="sp-input" type="search" name="q" value="{{ q }}" placeholder="Search by team, code or manager" aria-label="Search teams">
+        </div>
+        <button class="sp-btn" type="submit">Search</button>
+        {% if q %}<a class="sp-btn is-ghost" href="/support/teams">Clear</a>{% endif %}
+    </form>
+
+    {% if teams %}
+    <div class="sp-table-wrap">
+        <table class="sp-table is-cards">
+            <thead><tr><th>Team</th><th>Manager</th><th class="is-right">Members</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for team in teams %}
+                <tr>
+                    <td data-label="Team"><div class="sp-cell"><div><strong><a href="/support/teams/{{ team.id }}">{{ team.name }}</a></strong><small>{{ team.code }}</small></div></div></td>
+                    <td data-label="Manager"><div class="sp-cell">{{ avatar(team.manager_name) }}<div><strong>{{ team.manager_name }}</strong><small>{{ team.manager_mobile or team.manager_email }}</small></div></div></td>
+                    <td class="is-right" data-label="Members">{{ team.member_count }}</td>
+                    <td data-label="Status">{{ active_chip(team.is_active) }}</td>
+                    <td class="is-right"><a class="sp-btn is-sm" href="/support/teams/{{ team.id }}">Open</a></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ pager(page) }}
+    {% elif q %}
+        {% call empty_state("No team matches “" ~ q ~ "”", "Try a different name, code or manager.", "fa-magnifying-glass") %}{% endcall %}
+    {% else %}
+        {% call empty_state("No support teams yet", "Create the first team and its manager. The manager then adds the team's members.", "fa-people-group") %}
+            <a class="sp-btn is-primary" href="/support/teams/new"><i class="fa-solid fa-plus"></i>New team</a>
+        {% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

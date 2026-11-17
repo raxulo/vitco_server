@@ -179,7 +179,51 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     },
                 )
 
+        # -----------------------------------------
+        # Technical Support isolation (REQ-58)
+        # Support staff only use the support portal and its API; nobody else opens /support
+        # (Super Admin manages the teams there). The handlers check again on the server.
+        # -----------------------------------------
+        isolated = self._support_isolation(request, path)
+        if isolated is not None:
+            return isolated
+
         return await call_next(request)
+
+    # Paths a signed-in support user may use (everything else belongs to the dairy panel / app API)
+    _SUPPORT_ALLOWED = ("/support", "/api/v1/support", "/ws/support", "/logout", "/login", "/auth/login")
+
+    @staticmethod
+    def _under(path: str, prefix: str) -> bool:
+        return path == prefix or path.startswith(prefix + "/")
+
+    def _support_isolation(self, request: Request, path: str):
+        role = request.state.user.role_type
+        if role == Role.SUPPORT:
+            if any(self._under(path, prefix) for prefix in self._SUPPORT_ALLOWED):
+                return None
+            if WebHelper.is_web(request):
+                return Renderer.redirect(url="/support")
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "success": False,
+                    "error": {"code": "SUPPORT_ACCESS_ONLY", "message": "Support accounts can only use Technical Support.", "details": {}},
+                },
+            )
+        if self._under(path, "/support") and role != Role.SUPER_ADMIN:
+            if WebHelper.is_web(request):
+                return Renderer.redirect(url="/")
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "success": False,
+                    "error": {"code": "SUPPORT_ACCESS_DENIED", "message": "You do not have access to Technical Support.", "details": {}},
+                },
+            )
+        return None
 
 
 

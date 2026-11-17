@@ -167,14 +167,14 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 
 | ID | Requirement | Source | Phase | Status |
 |----|-------------|--------|-------|--------|
-| REQ-58 | New `Role.SUPPORT` (8). Support users see only the separate `/support` portal (own layout and sidebar) and are redirected there after login; other roles cannot open it; the dairy sidebar never shows to support users (DECISION-031) | User 2026-11-18 | 25 | Pending |
-| REQ-59 | Only Super Admin creates Support Teams. Creating a team also creates its single Manager (the team's owner). One team has exactly one manager | User 2026-11-18 | 25 | Pending |
-| REQ-60 | The Manager creates, edits and disables the team's members; a member belongs to one team and has one support role | User 2026-11-18 | 25 | Pending |
-| REQ-61 | Support roles belong to a team and hold `support.*` permissions; five templates are seeded per team (Technical Support, Ticket Assigner, Chat Agent, Caller, Viewer); the Manager edits or adds roles | User 2026-11-18 | 25 | Pending |
+| REQ-58 | New `Role.SUPPORT` (8). Support users see only the separate `/support` portal (own layout and sidebar) and are redirected there after login; other roles cannot open it; the dairy sidebar never shows to support users (DECISION-031) | User 2026-11-18 | 25 | Complete |
+| REQ-59 | Only Super Admin creates Support Teams. Creating a team also creates its single Manager (the team's owner). One team has exactly one manager | User 2026-11-18 | 25 | Complete |
+| REQ-60 | The Manager creates, edits and disables the team's members; a member belongs to one team and has one support role | User 2026-11-18 | 25 | Complete |
+| REQ-61 | Support roles belong to a team and hold `support.*` permissions; five templates are seeded per team (Technical Support, Ticket Assigner, Chat Agent, Caller, Viewer); the Manager edits or adds roles | User 2026-11-18 | 25 | Complete |
 | REQ-62 | Every support member can see the requester's basic profile, MCC / VLCC info, phone number, device details and app version (no permission needed); nobody can see dairy data (collections, payments) | User 2026-11-18 | 26 | Pending |
-| REQ-63 | Every support endpoint checks permission and team scope on the server; the Manager is allowed everything in the team; Super Admin everything | User 2026-11-18 | 25–29 | Pending |
-| REQ-64 | An audit log records team / member / role changes, assignments, status changes, number views and calls (who, what, when) | User 2026-11-18 | 25, 29 | Pending |
-| REQ-65 | Portal UI is simple, clean and professional: one accent colour, 4/8 spacing, `support.css` (`sp-` prefix), loading / empty / error / success states, responsive, accessible (DECISION-031) | User 2026-11-18 | 25–29 | Pending |
+| REQ-63 | Every support endpoint checks permission and team scope on the server; the Manager is allowed everything in the team; Super Admin everything | User 2026-11-18 | 25–29 | In Progress (teams, members, roles done) |
+| REQ-64 | An audit log records team / member / role changes, assignments, status changes, number views and calls (who, what, when) | User 2026-11-18 | 25, 29 | In Progress (table + team / member / role rows) |
+| REQ-65 | Portal UI is simple, clean and professional: one accent colour, 4/8 spacing, `support.css` (`sp-` prefix), loading / empty / error / success states, responsive, accessible (DECISION-031) | User 2026-11-18 | 25–29 | In Progress (design system + Phase 25 screens) |
 | REQ-66 | Ticket categories, each with an optional default team, managed by Super Admin (and a Manager for its team's routing rules) | User 2026-11-18 | 26 | Pending |
 | REQ-67 | MCC, VLCC, Farmer and VLCC_FARMER logins create tickets through the mobile API with subject, description, category, attachments, device model, OS and app version; duplicates are rejected by `client_request_id`; ticket number `TS-YYYY-NNNNNN` | User 2026-11-18 | 26 | Pending |
 | REQ-68 | A new ticket goes to the category's default team; with no default team it waits in Super Admin's unassigned pool. Inside a team the Manager or a Ticket Assigner assigns or reassigns it manually | User 2026-11-18 | 26 | Pending |

@@ -11,6 +11,8 @@ class Role(IntEnum):
     VLCC = 5
     FARMER = 6
     VLCC_FARMER = 7
+    # Technical Support staff (Phase 25); fine-grained rights live in the support module
+    SUPPORT = 8
 
 
 class Permission(StrEnum):

@@ -1,0 +1,130 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, stat_card, chip, active_chip, priority, avatar, empty_state, skeleton_rows, alert, field, select_field %}
+
+{% block content %}
+{% call page_header("Design kit", "Every building block of the support portal. Visible to Super Admin only.") %}
+    <button class="sp-btn" onclick="SP.toast('Saved successfully', 'success')">Success toast</button>
+    <button class="sp-btn" onclick="SP.toast('Something failed', 'error')">Error toast</button>
+    <button class="sp-btn is-primary" data-confirm="This will disable the member and sign them out." data-confirm-title="Disable member?" data-confirm-ok="Disable" data-danger>Confirm dialog</button>
+{% endcall %}
+
+<div class="sp-stack">
+
+    <div class="sp-grid cols-4">
+        {{ stat_card("Open tickets", 24, "6 unassigned") }}
+        {{ stat_card("Resolved today", 11, "+3 vs yesterday") }}
+        {{ stat_card("Avg first reply", "8m", "Last 7 days") }}
+        {{ stat_card("Calls today", 5) }}
+    </div>
+
+    <div class="sp-card">
+        <div class="sp-card-head"><h3 class="sp-card-title">Buttons, chips and priorities</h3></div>
+        <div class="sp-card-body sp-stack">
+            <div class="sp-actions">
+                <button class="sp-btn is-primary">Primary</button>
+                <button class="sp-btn">Secondary</button>
+                <button class="sp-btn is-ghost">Ghost</button>
+                <button class="sp-btn is-danger">Danger</button>
+                <button class="sp-btn is-primary is-sm">Small</button>
+                <button class="sp-btn" disabled>Disabled</button>
+                <button class="sp-btn is-icon" aria-label="Call"><i class="fa-solid fa-phone"></i></button>
+            </div>
+            <div class="sp-actions">
+                {{ chip('New', 'info') }} {{ chip('Assigned', 'accent') }} {{ chip('In progress', 'warning') }}
+                {{ chip('Waiting on user') }} {{ chip('Resolved', 'success') }} {{ chip('Escalated', 'danger') }} {{ active_chip(true) }} {{ active_chip(false) }}
+            </div>
+            <div class="sp-actions">{{ priority('low') }} {{ priority('medium') }} {{ priority('high') }} {{ priority('urgent') }}</div>
+            <div class="sp-actions">{{ avatar('Asha', true) }} {{ avatar('Ravi', false) }} {{ avatar('Meera', large=True) }} <span class="sp-live is-live">Live</span> <span class="sp-live is-retry">Reconnecting</span> <span class="sp-live">Offline</span></div>
+        </div>
+    </div>
+
+    <div class="sp-card">
+        <div class="sp-card-head"><h3 class="sp-card-title">Form</h3></div>
+        <form class="sp-card-body sp-form" onsubmit="return false">
+            <div class="sp-form-grid">
+                {{ field('name', 'Full name', 'Asha Verma', required=True, help='As on the ID card') }}
+                {{ field('mobile', 'Mobile', '98765', required=True, error='Mobile number must be exactly 10 digits') }}
+                {{ select_field('role', 'Role', [('a', 'Technical Support'), ('b', 'Ticket Assigner')], 'a', required=True) }}
+                <div class="sp-field"><label class="sp-label" for="k-note">Note</label><textarea class="sp-textarea" id="k-note" placeholder="Write a note"></textarea></div>
+                <label class="sp-check is-wide"><input type="checkbox" checked><span><strong>Reply to requester</strong><small>Send a message the requester can read</small></span></label>
+            </div>
+        </form>
+        <div class="sp-card-foot"><button class="sp-btn">Cancel</button><button class="sp-btn is-primary">Save</button></div>
+    </div>
+
+    <div class="sp-card">
+        <div class="sp-filters">
+            <div class="sp-search"><i class="fa-solid fa-magnifying-glass"></i><input class="sp-input" placeholder="Search tickets" aria-label="Search"></div>
+            <select class="sp-select" aria-label="Status"><option>All statuses</option></select>
+            <select class="sp-select" aria-label="Priority"><option>Any priority</option></select>
+        </div>
+        <div class="sp-table-wrap">
+            <table class="sp-table is-cards">
+                <thead><tr><th>Ticket</th><th>Requester</th><th>Priority</th><th>Status</th><th class="is-right">Age</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td data-label="Ticket"><div class="sp-cell"><div><strong>TS-2026-000123</strong><small>Sync fails after update</small></div></div></td>
+                        <td data-label="Requester"><div class="sp-cell">{{ avatar('Kishan') }}<div><strong>Kishan Patel</strong><small>MCC</small></div></div></td>
+                        <td data-label="Priority">{{ priority('high') }}</td>
+                        <td data-label="Status">{{ chip('In progress', 'warning') }}</td>
+                        <td class="is-right" data-label="Age">12m</td>
+                    </tr>
+                    <tr>
+                        <td data-label="Ticket"><div class="sp-cell"><div><strong>TS-2026-000122</strong><small>Printer not detected</small></div></div></td>
+                        <td data-label="Requester"><div class="sp-cell">{{ avatar('Sunita') }}<div><strong>Sunita Devi</strong><small>VLCC</small></div></div></td>
+                        <td data-label="Priority">{{ priority('low') }}</td>
+                        <td data-label="Status">{{ chip('Resolved', 'success') }}</td>
+                        <td class="is-right" data-label="Age">2h</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="sp-pager"><span>1–2 of 48</span><div class="sp-pager-links"><button class="sp-btn is-sm" disabled>Previous</button><button class="sp-btn is-sm">Next</button></div></div>
+    </div>
+
+    <div class="sp-grid cols-2">
+        <div class="sp-card"><div class="sp-card-head"><h3 class="sp-card-title">Empty state</h3></div>
+            {% call empty_state("No tickets yet", "New tickets from the app appear here as soon as they are raised.", "fa-ticket") %}
+                <button class="sp-btn is-primary sp-btn is-sm">Refresh</button>
+            {% endcall %}
+        </div>
+        <div class="sp-card"><div class="sp-card-head"><h3 class="sp-card-title">Loading and alerts</h3></div>
+            {{ skeleton_rows(3) }}
+            <div class="sp-card-body sp-stack">
+                {{ alert('Your session ends in 5 minutes.', 'warning') }}
+                {{ alert('The call was logged.', 'success') }}
+                {{ alert('Could not load tickets. Try again.', 'danger') }}
+            </div>
+        </div>
+    </div>
+
+    <div class="sp-grid cols-2">
+        <div class="sp-card"><div class="sp-card-head"><h3 class="sp-card-title">Conversation</h3></div>
+            <div class="sp-card-body sp-chat">
+                <div class="sp-bubble">The app says sync failed.<div class="sp-bubble-meta">Kishan · 10:02</div></div>
+                <div class="sp-bubble is-staff">Please update to the latest version and try again.<div class="sp-bubble-meta">Asha · 10:04</div></div>
+                <div class="sp-bubble is-note">Internal: same issue as TS-2026-000118.<div class="sp-bubble-meta">Asha · 10:05</div></div>
+                <div class="sp-bubble is-system">Ticket assigned to Asha</div>
+            </div>
+        </div>
+        <div class="sp-card"><div class="sp-card-head"><h3 class="sp-card-title">Timeline and details</h3></div>
+            <div class="sp-card-body sp-stack">
+                <div class="sp-timeline">
+                    <div class="sp-timeline-item"><strong>Status changed to In progress</strong><br><small>Asha · 10:04</small></div>
+                    <div class="sp-timeline-item"><strong>Assigned to Asha</strong><br><small>Ravi · 10:03</small></div>
+                    <div class="sp-timeline-item"><strong>Ticket created</strong><br><small>Kishan · 10:02</small></div>
+                </div>
+                <dl class="sp-kv"><dt>Device</dt><dd>Samsung A14</dd><dt>App version</dt><dd>2.4.1</dd><dt>Phone</dt><dd>98765 43210 <button class="sp-btn is-sm is-ghost" data-copy="9876543210">Copy</button></dd></dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="sp-card">
+        <div class="sp-card-head"><h3 class="sp-card-title">Tabs</h3></div>
+        <div class="sp-card-body">
+            <div class="sp-tabs"><a class="sp-tab is-active" href="#">Overview</a><a class="sp-tab" href="#">Timeline</a><a class="sp-tab" href="#">Calls</a></div>
+            <p class="sp-muted">Tab content.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

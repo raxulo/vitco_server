@@ -1,0 +1,62 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, active_chip, avatar, chip, empty_state, pager %}
+
+{% block content %}
+{% if sp.ctx.is_super_admin %}<div class="sp-crumbs"><a href="/support/teams">Support teams</a> / <a href="/support/teams/{{ team.id }}">{{ team.name }}</a> / Members</div>{% endif %}
+{% call page_header("Members", team.name ~ " · " ~ team.member_count ~ " in the team") %}
+    <a class="sp-btn is-primary" href="/support/members/new{{ suffix }}"><i class="fa-solid fa-plus"></i>New member</a>
+{% endcall %}
+{% set subject = 'Member' %}{% include "support/partials/notice.html" %}
+
+<div class="sp-card">
+    <form class="sp-filters" method="get" action="/support/members" role="search">
+        {% if sp.ctx.is_super_admin %}<input type="hidden" name="team" value="{{ team.id }}">{% endif %}
+        <div class="sp-search"><i class="fa-solid fa-magnifying-glass"></i>
+            <input class="sp-input" type="search" name="q" value="{{ q }}" placeholder="Search by name, mobile or email" aria-label="Search members">
+        </div>
+        <button class="sp-btn" type="submit">Search</button>
+        {% if q %}<a class="sp-btn is-ghost" href="/support/members{{ suffix }}">Clear</a>{% endif %}
+    </form>
+
+    {% if members %}
+    <div class="sp-table-wrap">
+        <table class="sp-table is-cards">
+            <thead><tr><th>Member</th><th>Role</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for member in members %}
+            <tr>
+                <td data-label="Member"><div class="sp-cell">{{ avatar(member.name) }}<div><strong>{{ member.name }}{% if member.user_id == me %} <span class="sp-muted">(you)</span>{% endif %}</strong><small>{{ member.mobile }} · {{ member.email }}</small></div></div></td>
+                <td data-label="Role">{{ chip(member.role_name or '—', 'accent' if member.is_manager else '', plain=True) }}</td>
+                <td data-label="Status">{{ active_chip(member.is_active) }}</td>
+                <td class="is-right">
+                    <div class="sp-actions" style="justify-content:flex-end">
+                        <a class="sp-btn is-sm" href="/support/members/{{ member.id }}/edit{{ suffix }}">Edit</a>
+                        {% if not member.is_manager and member.user_id != me %}
+                        <form method="post" action="/support/members/{{ member.id }}/status{{ suffix }}">
+                            <input type="hidden" name="active" value="{{ '0' if member.is_active else '1' }}">
+                            {% if member.is_active %}
+                            <button class="sp-btn is-sm is-danger" type="submit" data-danger data-confirm-title="Disable {{ member.name }}?"
+                                    data-confirm="They are signed out of Technical Support and cannot sign in until enabled again."
+                                    data-confirm-ok="Disable">Disable</button>
+                            {% else %}
+                            <button class="sp-btn is-sm" type="submit">Enable</button>
+                            {% endif %}
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ pager(page) }}
+    {% elif q %}
+        {% call empty_state("No member matches “" ~ q ~ "”", "Try a different name, mobile or email.", "fa-magnifying-glass") %}{% endcall %}
+    {% else %}
+        {% call empty_state("No members yet", "Add technical members, ticket assigners or viewers and pick a role for each.", "fa-user-group") %}
+            <a class="sp-btn is-primary" href="/support/members/new{{ suffix }}"><i class="fa-solid fa-plus"></i>New member</a>
+        {% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

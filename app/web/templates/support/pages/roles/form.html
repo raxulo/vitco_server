@@ -1,0 +1,39 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, field, alert %}
+
+{% block content %}
+<div class="sp-crumbs">
+    {% if sp.ctx.is_super_admin %}<a href="/support/teams">Support teams</a> / <a href="/support/teams/{{ team.id }}">{{ team.name }}</a> / {% endif %}
+    <a href="/support/roles{{ suffix }}">Roles and permissions</a> / {{ role.name if role else 'New' }}
+</div>
+{% call page_header(sp.title, "Members with this role get exactly the permissions ticked below." ) %}{% endcall %}
+
+<form class="sp-card" method="post" action="{{ ('/support/roles/' ~ role.id ~ '/edit' if role else '/support/roles/new') ~ suffix }}" novalidate>
+    <div class="sp-card-body sp-form">
+        {% if error %}{{ alert(error, 'danger') }}{% endif %}
+        {% if role and role.member_count %}{{ alert('Changes apply at once to the ' ~ role.member_count ~ ' member(s) who have this role.', 'info') }}{% endif %}
+
+        <div class="sp-form-grid">
+            {{ field('name', 'Role name', name, required=True, placeholder='Senior Resolver') }}
+        </div>
+
+        {% for label, entries in groups %}
+        <fieldset class="sp-perm-group" style="border:0;padding:0;margin:0">
+            <legend class="sp-section-title" style="margin-bottom:8px">{{ label }}</legend>
+            <div class="sp-grid cols-2">
+                {% for value, text in entries %}
+                <label class="sp-check">
+                    <input type="checkbox" name="permissions" value="{{ value }}"{% if value in chosen %} checked{% endif %}>
+                    <span><strong>{{ text }}</strong><small>{{ value }}</small></span>
+                </label>
+                {% endfor %}
+            </div>
+        </fieldset>
+        {% endfor %}
+    </div>
+    <div class="sp-card-foot">
+        <a class="sp-btn" href="/support/roles{{ suffix }}">Cancel</a>
+        <button class="sp-btn is-primary" type="submit">{{ 'Save role' if role else 'Create role' }}</button>
+    </div>
+</form>
+{% endblock %}

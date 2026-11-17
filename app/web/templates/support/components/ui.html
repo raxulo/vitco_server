@@ -1,0 +1,96 @@
+{#
+  Technical Support UI macros (design standard: docs/TECHNICAL_SUPPORT_PLAN.md section 10A).
+  Usage: {% from "support/components/ui.html" import page_header, chip, empty_state %}
+#}
+
+{% macro page_header(title, subtitle=None) %}
+<div class="sp-page-head">
+    <div>
+        <h2 class="sp-page-title">{{ title }}</h2>
+        {% if subtitle %}<p class="sp-page-sub">{{ subtitle }}</p>{% endif %}
+    </div>
+    <div class="sp-actions">{{ caller() if caller else '' }}</div>
+</div>
+{% endmacro %}
+
+{% macro stat_card(label, value, note=None) %}
+<div class="sp-card sp-stat">
+    <div class="sp-stat-label">{{ label }}</div>
+    <div class="sp-stat-value">{{ value }}</div>
+    {% if note %}<div class="sp-stat-note">{{ note }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{# tone: success | warning | danger | info | accent | (empty = neutral) #}
+{% macro chip(text, tone='', plain=False) %}
+<span class="sp-chip{% if tone %} is-{{ tone }}{% endif %}{% if plain %} is-plain{% endif %}">{{ text }}</span>
+{% endmacro %}
+
+{% macro active_chip(is_active) %}
+{{ chip('Active', 'success') if is_active else chip('Disabled', '') }}
+{% endmacro %}
+
+{% macro priority(level) %}
+<span class="sp-prio is-{{ level|lower }}">{{ level|title }}</span>
+{% endmacro %}
+
+{% macro avatar(name, online=None, large=False) %}
+<span class="sp-avatar{% if large %} is-lg{% endif %}">{{ (name or '?')[:1]|upper }}{% if online is not none %}<span class="sp-presence{% if online %} is-online{% endif %}"></span>{% endif %}</span>
+{% endmacro %}
+
+{% macro empty_state(title, text, icon='fa-inbox') %}
+<div class="sp-empty">
+    <span class="sp-empty-icon"><i class="fa-solid {{ icon }}"></i></span>
+    <h3>{{ title }}</h3>
+    <p>{{ text }}</p>
+    {{ caller() if caller else '' }}
+</div>
+{% endmacro %}
+
+{% macro skeleton_rows(count=4) %}
+<div class="sp-card-body" aria-hidden="true">
+    {% for _ in range(count) %}<div class="sp-skel is-line"></div>{% endfor %}
+</div>
+{% endmacro %}
+
+{% macro alert(text, tone='') %}
+<div class="sp-alert{% if tone %} is-{{ tone }}{% endif %}" role="{{ 'alert' if tone == 'danger' else 'status' }}">
+    <i class="fa-solid {{ 'fa-circle-exclamation' if tone in ('danger', 'warning') else 'fa-circle-info' }}"></i>
+    <span>{{ text }}</span>
+</div>
+{% endmacro %}
+
+{% macro field(name, label, value='', type='text', required=False, help=None, error=None, placeholder='', wide=False, autocomplete='off') %}
+<div class="sp-field{% if wide %} is-wide{% endif %}">
+    <label class="sp-label" for="f-{{ name }}">{{ label }}{% if required %} <span class="sp-req">*</span>{% endif %}</label>
+    <input class="sp-input" id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value if value is not none else '' }}"
+           placeholder="{{ placeholder }}" autocomplete="{{ autocomplete }}"{% if required %} required{% endif %}
+           {% if error %}aria-invalid="true" aria-describedby="e-{{ name }}"{% endif %}>
+    {% if error %}<span class="sp-error" id="e-{{ name }}">{{ error }}</span>
+    {% elif help %}<span class="sp-help">{{ help }}</span>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro select_field(name, label, options, selected='', required=False, help=None, error=None, wide=False) %}
+<div class="sp-field{% if wide %} is-wide{% endif %}">
+    <label class="sp-label" for="f-{{ name }}">{{ label }}{% if required %} <span class="sp-req">*</span>{% endif %}</label>
+    <select class="sp-select" id="f-{{ name }}" name="{{ name }}"{% if required %} required{% endif %}
+            {% if error %}aria-invalid="true"{% endif %}>
+        {% for value, text in options %}
+        <option value="{{ value }}"{% if value|string == selected|string %} selected{% endif %}>{{ text }}</option>
+        {% endfor %}
+    </select>
+    {% if error %}<span class="sp-error">{{ error }}</span>{% elif help %}<span class="sp-help">{{ help }}</span>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro pager(page) %}
+{# page: object with total, offset, limit, prev_url, next_url #}
+<div class="sp-pager">
+    <span>{% if page.total %}{{ page.offset + 1 }}–{{ [page.offset + page.limit, page.total]|min }} of {{ page.total }}{% else %}No records{% endif %}</span>
+    <div class="sp-pager-links">
+        {% if page.prev_url %}<a class="sp-btn is-sm" href="{{ page.prev_url }}"><i class="fa-solid fa-chevron-left"></i>Previous</a>{% endif %}
+        {% if page.next_url %}<a class="sp-btn is-sm" href="{{ page.next_url }}">Next<i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+    </div>
+</div>
+{% endmacro %}

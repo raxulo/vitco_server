@@ -238,16 +238,18 @@ Mode and Measurement Mode columns (REQ-53 to REQ-57, DECISION-030). Requested by
 > **Branch:** `feature/technical-support` (from `develop`). One commit per phase after the user approves it.
 
 ### Phase 25: Support Foundation — role, teams, members, portal shell
-**Status:** ⬜ Not started
+**Status:** ✅ Complete (verified 2026-11-18, SQLite + PostgreSQL); visual sign-off and commit await the user
 **Objective:** `Role.SUPPORT`, support teams (Super Admin only, one manager each), members with team-owned support
 roles and `support.*` permissions, audit log table, and the separate professional portal shell (own layout, sidebar,
 design system) with login redirect and route isolation (REQ-58 to REQ-65).
 **Depends on:** Phase 24 (migration 0004)
 
 **Plans:**
-- [ ] Plan 25.1: Support domain, tables, permissions and team / member handlers — [1-PLAN.md](phases/25/1-PLAN.md)
-- [ ] Plan 25.2: Portal shell, design system, login redirect and route isolation — [2-PLAN.md](phases/25/2-PLAN.md)
-- [ ] Plan 25.3: Teams, members and roles screens — [3-PLAN.md](phases/25/3-PLAN.md)
+- [x] Plan 25.1: Support domain, tables, permissions and team / member handlers — [1-PLAN.md](phases/25/1-PLAN.md), [1-SUMMARY.md](phases/25/1-SUMMARY.md)
+- [x] Plan 25.2: Portal shell, design system, login redirect and route isolation — [2-PLAN.md](phases/25/2-PLAN.md), [2-SUMMARY.md](phases/25/2-SUMMARY.md)
+- [x] Plan 25.3: Teams, members and roles screens — [3-PLAN.md](phases/25/3-PLAN.md), [3-SUMMARY.md](phases/25/3-SUMMARY.md)
+
+**Verification:** [VERIFICATION.md](phases/25/VERIFICATION.md)
 
 ### Phase 26: Tickets Core and Mobile Ticket API
 **Status:** ⬜ Not started
@@ -321,7 +323,7 @@ end-to-end `/verify` on PostgreSQL with Redis, UI sign-off.
 | 22 | ✅ | 1/1 | 100% |
 | 23 | ✅ | 1/1 | 100% |
 | 24 | ✅ | 3/3 | 100% |
-| 25 | ⬜ | 0/3 | 0% |
+| 25 | ✅ | 3/3 | 100% |
 | 26 | ⬜ | 0/3 | 0% |
 | 27 | ⬜ | 0/2 | 0% |
 | 28 | ⬜ | 0/1 | 0% |

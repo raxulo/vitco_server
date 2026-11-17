@@ -1,0 +1,21 @@
+<header class="sp-topbar">
+    <button type="button" class="sp-btn is-ghost is-icon sp-menu-btn" data-sp-nav-toggle aria-label="Open menu">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+    <h1 class="sp-topbar-title">{{ sp.title }}</h1>
+    <div class="sp-topbar-spacer"></div>
+
+    <span class="sp-live" id="sp-live" title="Live updates arrive in a later phase" hidden>Offline</span>
+
+    <div class="sp-menu">
+        <button type="button" class="sp-menu-trigger" aria-haspopup="menu" aria-expanded="false">
+            <span class="sp-avatar">{{ sp.initials }}</span>
+            <span class="sp-menu-name">{{ sp.user_name }}<small>{{ sp.role_label }}</small></span>
+            <i class="fa-solid fa-chevron-down" style="font-size:10px;color:var(--sp-muted)"></i>
+        </button>
+        <div class="sp-menu-panel" role="menu">
+            {% if sp.back_to_dairy %}<a href="/dashboard" role="menuitem"><i class="fa-solid fa-arrow-left"></i>Dairy panel</a>{% endif %}
+            <a href="/logout" role="menuitem"><i class="fa-solid fa-arrow-right-from-bracket"></i>Sign out</a>
+        </div>
+    </div>
+</header>

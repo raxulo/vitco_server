@@ -1,0 +1,41 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, stat_card, chip, empty_state %}
+
+{% block content %}
+{% if is_super_admin %}
+    {% call page_header("Technical Support", "Teams that answer the queries of MCC, VLCC and farmer app users.") %}
+        <a class="sp-btn is-primary" href="/support/teams"><i class="fa-solid fa-people-group"></i>Manage teams</a>
+    {% endcall %}
+    <div class="sp-grid cols-3">
+        {{ stat_card("Support teams", team_total, "Created by Super Admin only") }}
+    </div>
+    <div class="sp-card" style="margin-top:16px">
+        {% call empty_state("Tickets arrive in the next phase", "Create a team and its manager here. Queues, tickets and chat appear once the ticket engine is added.", "fa-ticket") %}
+        {% endcall %}
+    </div>
+{% else %}
+    {% call page_header("Welcome, " ~ sp.user_name, team.name ~ " · " ~ sp.role_label) %}{% endcall %}
+    <div class="sp-grid cols-3">
+        {{ stat_card("Team", team.name, "Code " ~ team.code) }}
+        {{ stat_card("Team members", team.member_count, "Including the manager") }}
+        {{ stat_card("Your role", sp.role_label, "Set by your manager") }}
+    </div>
+
+    <div class="sp-card" style="margin-top:16px">
+        <div class="sp-card-head"><h3 class="sp-card-title">What you can do</h3></div>
+        <div class="sp-card-body sp-stack">
+            {% set shown = permission_groups | selectattr('1') | list %}
+            {% for label, entries in shown %}
+            <div class="sp-perm-group">
+                <div class="sp-section-title">{{ label }}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px">
+                    {% for permission, text in entries %}{{ chip(text, 'accent', plain=True) }}{% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <p class="sp-muted">You have view-only access. Your manager can change this.</p>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

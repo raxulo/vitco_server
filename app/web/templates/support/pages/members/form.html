@@ -1,0 +1,50 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, field, select_field, alert, chip %}
+
+{% block content %}
+<div class="sp-crumbs">
+    {% if sp.ctx.is_super_admin %}<a href="/support/teams">Support teams</a> / <a href="/support/teams/{{ team.id }}">{{ team.name }}</a> / {% endif %}
+    <a href="/support/members{{ suffix }}">Members</a> / {{ 'Edit' if member else 'New' }}
+</div>
+{% call page_header(sp.title, "Member of " ~ team.name) %}{% endcall %}
+
+<form class="sp-card" method="post" action="{{ ('/support/members/' ~ member.id ~ '/edit' if member else '/support/members/new') ~ suffix }}" novalidate>
+    <div class="sp-card-body sp-form">
+        {% if error %}{{ alert(error, 'danger') }}{% endif %}
+
+        <div class="sp-section-title">Details</div>
+        <div class="sp-form-grid">
+            {{ field('name', 'Full name', values.name, required=True, autocomplete='name') }}
+            {{ field('mobile', 'Mobile', values.mobile, type='tel', required=True, placeholder='10 digits', autocomplete='tel') }}
+            {% if member %}
+            <div class="sp-field"><span class="sp-label">Email</span><span>{{ member.email }}</span><span class="sp-help">Used to sign in; cannot be changed here.</span></div>
+            {% else %}
+            {{ field('email', 'Email', values.email, type='email', required=True, help='Used to sign in', autocomplete='email') }}
+            {{ field('password', 'Password', '', type='password', required=True, help='At least 8 characters', autocomplete='new-password') }}
+            {% endif %}
+        </div>
+
+        <hr class="sp-divider">
+        <div class="sp-section-title">Role</div>
+        {% if member and member.is_manager %}
+            <p>{{ chip('Manager', 'accent', plain=True) }} <span class="sp-muted">The manager holds every permission of the team.</span></p>
+        {% else %}
+        <div class="sp-form-grid">
+            {{ select_field('role_id', 'Support role', [('', 'Choose a role')] + role_options, values.role_id, required=True,
+                            help='What the member may do. Edit roles under Roles and permissions.') }}
+        </div>
+        <div class="sp-grid cols-2">
+            {% for role in roles %}
+            <div class="sp-check" style="cursor:default">
+                <span><strong>{{ role.name }}</strong><small>{{ role.permissions|length }} {{ 'permission' if role.permissions|length == 1 else 'permissions' }}{% if role.is_system %} · template{% endif %}</small></span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    <div class="sp-card-foot">
+        <a class="sp-btn" href="/support/members{{ suffix }}">Cancel</a>
+        <button class="sp-btn is-primary" type="submit">{{ 'Save changes' if member else 'Create member' }}</button>
+    </div>
+</form>
+{% endblock %}

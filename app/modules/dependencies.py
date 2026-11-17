@@ -20,6 +20,11 @@ from app.modules.dataexchange.application.prodata_exchange import ProdataExchang
 from app.modules.dataexchange.application.formula_exchange import FormulaExchangeHandler
 from app.modules.dataexchange.application.collection_exchange import CollectionExchangeHandler
 from app.modules.dataexchange.application.column_layout_handler import ColumnLayoutHandler
+from app.modules.support.application.handler import (
+    SupportMemberHandler,
+    SupportRoleHandler,
+    SupportTeamHandler,
+)
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -116,6 +121,18 @@ class GetHandler:
     @staticmethod
     def column_layout_handler(request: Request) -> ColumnLayoutHandler:
         return request.app.state.application.container.resolve(ColumnLayoutHandler)
+
+    @staticmethod
+    def support_team_handler(request: Request) -> SupportTeamHandler:
+        return request.app.state.application.container.resolve(SupportTeamHandler)
+
+    @staticmethod
+    def support_member_handler(request: Request) -> SupportMemberHandler:
+        return request.app.state.application.container.resolve(SupportMemberHandler)
+
+    @staticmethod
+    def support_role_handler(request: Request) -> SupportRoleHandler:
+        return request.app.state.application.container.resolve(SupportRoleHandler)
 
 
     @staticmethod

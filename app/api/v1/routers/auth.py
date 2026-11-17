@@ -19,7 +19,7 @@ router = APIRouter(
 )
 
 # Management accounts use the web panel only; the API (devices / mobile app) is for MCC, VLCC and farmers
-API_BLOCKED_ROLES = frozenset({Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN})
+API_BLOCKED_ROLES = frozenset({Role.SUPER_ADMIN, Role.ADMIN, Role.SUB_ADMIN, Role.SUPPORT})
 
 
 @router.post("/login", response_model=LoginResponse)
