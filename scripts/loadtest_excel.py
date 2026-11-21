@@ -117,7 +117,7 @@ async def run_benchmark(rows_count: int, concurrent_clients: int):
     database = DatabaseFactory(database_config).create()
     await database.startup()
 
-    tmp_dir = Path("./scratch/benchmark").resolve()
+    tmp_dir = Path("./storage/temp/benchmark").resolve()
     tmp_dir.mkdir(parents=True, exist_ok=True)
     bench_file = tmp_dir / f"bench_{rows_count}.xlsx"
     generate_benchmark_file(bench_file, rows_count)

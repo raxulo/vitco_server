@@ -27,7 +27,16 @@ exchange_data/
 *.db-wal
 *.db-shm
 
+# Runtime scratch space (load-test output, temp files)
+storage/temp/
+storage/exports/
+storage/backups/
+
+# Tool caches
+.pytest_cache/
+
 # Editor / OS
+.vscode/
 .DS_Store
 Thumbs.db
 
