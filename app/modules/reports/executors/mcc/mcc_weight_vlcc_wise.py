@@ -73,6 +73,7 @@ class MccWeightVlccWiseExecutor(ReportExecutor):
                 vlcc_code_int.label("vlcc_code_int"),
                 func.coalesce(func.sum(m.quantity), 0).label("quantity"),
                 func.coalesce(func.sum(m.can_count), 0).label("can"),
+                func.count(m.id).label("total_samples"),
             )
             .select_from(m)
             .join(v, v.id == m.vlcc_id)
@@ -129,8 +130,9 @@ class MccWeightVlccWiseExecutor(ReportExecutor):
                 },
                 rows=grouped[code_val],
                 footer={
-                    "total_quantity": totals[code_val]["quantity"],
+                    "total_samples": totals[code_val]["total_samples"],
                     "total_cans": totals[code_val]["can"],
+                    "total_quantity": totals[code_val]["quantity"],
                 },
             )
             # One ledger per VLCC, ascending by numeric VLCC code
