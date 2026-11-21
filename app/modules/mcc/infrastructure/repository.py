@@ -111,6 +111,8 @@ class MccRepository(IMccRepository):
 
         model.address_id = entity.address_id
         model.bank_account_id = entity.bank_account_id
+        # Without this a settings row created on update is never linked to the MCC
+        model.settings_id = entity.settings_id
         model.milk_quality_config_id = entity.milk_quality_config_id
         model.fixed_rate_config_id = entity.fixed_rate_config_id
 

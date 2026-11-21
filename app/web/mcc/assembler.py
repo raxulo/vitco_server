@@ -32,6 +32,13 @@ from app.modules.common.bank.application.command import BankAccountData
 from app.modules.common.settings.application.dto import SettingsData
 from app.modules.administration.domain.enums import Role
 
+
+def _or_default(value, default):
+    """`default` only when the field is missing: `value or default` would also
+    replace a 0 choice (Liter, Cow & Buffalo, Printer None) with the default."""
+    return default if value is None else value
+
+
 class MccAssembler:
 
     __slots__ = ()
@@ -167,19 +174,19 @@ class MccAssembler:
             ) if form.has_bank_details else None,
 
             setting=SettingsData(
-                analyzer_type=form.analyzer_type or AnalyzerType.TYPE_A,
-                analyzer_collection_mode=form.analyzer_collection_mode or CollectionMode.MANUAL,
-                weight_unit=form.weight_unit or WeightUnit.KILOGRAM,
-                weight_collection_mode=form.weight_collection_mode or CollectionMode.MANUAL,
+                analyzer_type=_or_default(form.analyzer_type, AnalyzerType.TYPE_A),
+                analyzer_collection_mode=_or_default(form.analyzer_collection_mode, CollectionMode.MANUAL),
+                weight_unit=_or_default(form.weight_unit, WeightUnit.KILOGRAM),
+                weight_collection_mode=_or_default(form.weight_collection_mode, CollectionMode.MANUAL),
                 auto_tare_enabled=form.auto_tare_enabled or False,
                 morning_collection_start=form.morning_collection_start or "06:00",
                 morning_collection_end=form.morning_collection_end or "13:00",
                 evening_collection_start=form.evening_collection_start or "16:00",
                 evening_collection_end=form.evening_collection_end or "21:00",
-                receipt_size=form.receipt_size or ReceiptSize.SMALL,
-                printer_type=form.printer_type or PrinterType.LASER,
+                receipt_size=_or_default(form.receipt_size, ReceiptSize.SMALL),
+                printer_type=_or_default(form.printer_type, PrinterType.LASER),
                 printer_enabled=form.printer_enabled or False,
-                cattle_type=form.cattle_type or CattleType.COW_ONLY,
+                cattle_type=_or_default(form.cattle_type, CattleType.COW_ONLY),
                 max_rate_chart_count=form.max_rate_chart_count or 5,
                 settings_edit_enabled=form.settings_edit_enabled or False,
                 rate_chart_edit_enabled=form.rate_chart_edit_enabled or False,
