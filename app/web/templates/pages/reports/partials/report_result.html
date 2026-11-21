@@ -144,18 +144,18 @@
     {% if result.ledger %}
         {% for block in result.ledger %}
             <div style="margin-bottom: 32px;">
-                <!-- Subtitle for ledger section -->
+                <!-- Subtitle for ledger section (none for an untitled ledger, e.g. MCC Shift Summary's active rows) -->
+                {% if block and block.head %}
                 <h4 style="font-size: 14px; font-weight: 700; color: #1e293b; margin: 24px 0 12px 0; border-bottom: 2px solid #2563eb; padding-bottom: 6px; width: fit-content; display: flex; align-items: center; gap: 8px;">
-                    <i class="fa-solid fa-route" style="color: #2563eb;"></i> 
-                    {% if block and block.head %}
+                    <i class="fa-solid fa-route" style="color: #2563eb;"></i>
                         {% for k, v in block.head.items() %}
                             <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 5px;">
                                 <div>{{ v }}</div>,
                             </div>
                         {% endfor %}
-                    {% endif%}
                 </h4>
-                
+                {% endif%}
+
                 <div class="table-responsive" style="overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: white; margin-bottom: 12px;">
                     <table class="mcc-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                         <thead>
@@ -239,8 +239,9 @@
                 </tbody>
             </table>
         </div>
+    {% endif %}
 
-        <!-- Grand Totals Footer -->
+        <!-- Grand Totals Footer (also for ledger reports, as the printable preview shows it) -->
         {% if result.footer %}
         <div style="margin-top: 28px; padding: 20px 24px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); box-sizing: border-box; width: 100%;">
             <h4 style="margin: 0 0 16px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #475569; letter-spacing: 1px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; display: flex; align-items: center; gap: 6px;">
@@ -268,7 +269,6 @@
             </div>
         </div>
         {% endif %}
-    {% endif %}
 
-    
+
 </div>

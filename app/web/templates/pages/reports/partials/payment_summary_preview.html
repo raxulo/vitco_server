@@ -82,7 +82,7 @@
             <thead>
                 <tr style="font-weight: bold;">
                     {% for h in header %}
-                    <th style="padding: 6px 8px; white-space: nowrap; text-align: {{ 'left' if loop.index <= text_cols|length else 'right' }};">{{ h }}</th>
+                    <th style="padding: 6px 8px; white-space: nowrap; text-align: {{ 'right' if loop.last else 'left' }};">{{ h }}</th>
                     {% endfor %}
                 </tr>
             </thead>
@@ -94,7 +94,7 @@
                 {% for row in rows %}
                 <tr>
                     {% for key, val in row.items() %}
-                    <td style="padding: 6px 8px; white-space: nowrap; text-align: {{ 'left' if key in text_cols else 'right' }};">
+                    <td style="padding: 6px 8px; white-space: nowrap; text-align: {{ 'right' if loop.last else 'left' }};">
                         {% if val is none %}
                             —
                         {% elif key in text_cols or val is string %}

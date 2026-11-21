@@ -2,6 +2,8 @@
 {% set footer = result.footer %}
 {% set metadata = result.metadata %}
 {% set ledger_data = result.ledger if result.ledger else [result] %}
+{# Fixed column widths (%) keep every table of the report - e.g. the DELETED group - aligned under one header #}
+{% set col_widths = result.column_widths or [] %}
 
 <div class="thermal-receipt" style="font-family: 'Courier New', Courier, monospace; color: #000; background: #fff; padding: 24px; max-width: 100%; box-sizing: border-box; margin: 0 auto;">
     
@@ -104,7 +106,12 @@
         {% endif %}
 
             <!-- Table content -->
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; font-family: 'Courier New', Courier, monospace;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; font-family: 'Courier New', Courier, monospace;{{ ' table-layout: fixed;' if col_widths }}">
+                {% if col_widths %}
+                <colgroup>
+                    {% for w in col_widths %}<col style="width: {{ w }}%;">{% endfor %}
+                </colgroup>
+                {% endif %}
                 
                 {% if data.head and ("Animal Type" in data.head) %}
 
@@ -112,7 +119,7 @@
                     <thead>
                         <tr style="font-weight: bold;">
                             {% for h in header %}
-                            <th style="padding: 6px 16px; text-align: {{ 'right' if not loop.first else 'left' }};">{{ h }}</th>
+                            <th style="padding: 6px 16px; text-align: {{ 'right' if loop.last else 'left' }};">{{ h }}</th>
                             {% endfor %}
                         </tr>
                     </thead>
@@ -121,7 +128,7 @@
                     <thead>
                         <tr style="font-weight: bold;">
                             {% for h in header %}
-                            <th style="padding: 6px 16px; text-align: {{ 'right' if not loop.first else 'left' }};">{{ h }}</th>
+                            <th style="padding: 6px 16px; text-align: {{ 'right' if loop.last else 'left' }};">{{ h }}</th>
                             {% endfor %}
                         </tr>
                     </thead>
@@ -136,7 +143,7 @@
                     {% if data.head and ("Animal Type" in data.head) %}
 
                     <tr>
-                        <td>
+                        <td colspan="{{ header|length }}">
                             {% for k, v in data.head.items() %}
                             <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 5px;">
                                 <div>{{ v }}</div>
@@ -149,7 +156,7 @@
                         {% for row in data.rows %}
                         <tr>
                             {% for val in row.values() %}
-                            <td style="padding: 6px 10px; text-align: {{ 'right' if not loop.first else 'left' }};">
+                            <td style="padding: 6px 10px; text-align: {{ 'right' if loop.last else 'left' }};">
                                 {% if val is not none %}
                                     {% if val is float %}
                                         {{ val|fixed }}
@@ -204,7 +211,8 @@
             {% endif %}
 
             <!-- Asterisk separator between ledgers -->
-            {% if not loop.last and "Animal Type" not in data.head %}
+            {# No "****" before an Animal Type / DELETED group: it continues the same table #}
+            {% if not loop.last and "Animal Type" not in data.head and "Animal Type" not in (loop.nextitem.head or {}) %}
             <div class="rp-separator" style="margin: 16px 0 24px 0; font-weight: bold; white-space: nowrap; overflow: hidden; letter-spacing: 2px;">{{ '*' * 200 }}</div>
             {% endif %}
     {% endfor %}

@@ -111,6 +111,7 @@ class MccWeightShiftSummaryExecutor(ReportExecutor):
             date=True,
             shift=True,
             mcc_id=True,
+            is_deleted=True,
         )
 
     def build_metadata(self, query: ReportQuery, mcc):

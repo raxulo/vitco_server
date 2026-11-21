@@ -18,7 +18,9 @@
     <style>
         .bcp-scroll { width: 100%; overflow-x: auto; }
         .bcp table { width: 100%; min-width: 1180px; border-collapse: collapse; font-size: 13px; font-family: 'Courier New', Courier, monospace; }
-        .bcp th, .bcp td { padding: 6px 6px; text-align: right; white-space: nowrap; }
+        /* Every column left-aligned except the last one */
+        .bcp th, .bcp td { padding: 6px 6px; text-align: left; white-space: nowrap; }
+        .bcp tr > *:last-child { text-align: right; }
         .bcp th.left, .bcp td.left { text-align: left; }
         .bcp thead tr.groups th { text-align: center; font-weight: bold; padding-bottom: 2px; }
         .bcp thead tr.groups th.meta { text-align: left; }

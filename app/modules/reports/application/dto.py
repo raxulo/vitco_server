@@ -58,5 +58,7 @@ class ReportResult:
 
     rows: list[dict[str, Any]] | None = None
     ledger: list[dict[str, Any]] | None = None
+    # Column widths in percent; when set, every table of the report shares them
+    column_widths: list[int] | None = None
     
 

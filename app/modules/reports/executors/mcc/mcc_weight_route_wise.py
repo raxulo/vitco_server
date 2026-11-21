@@ -152,6 +152,7 @@ class MccWeightRouteWiseExecutor(ReportExecutor):
             date_range=True,
             shift_range=True,
             mcc_id=True,
+            is_deleted=True,
         )
 
     @staticmethod

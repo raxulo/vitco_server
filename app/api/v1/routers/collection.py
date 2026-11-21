@@ -722,7 +722,7 @@ async def delete_collections(
         vlcc_deleted = await vlcc_handler.delete_bulk(uuids, user_state)
         deleted_uuids.extend(vlcc_deleted)
 
-    remaining_uuids = [u for u in uuids if u not in vlcc_deleted]
+    remaining_uuids = [u for u in uuids if u not in deleted_uuids]
 
     deleted_str_ids = [str(uid) for uid in deleted_uuids]
     failed_str_ids = [str(uid) for uid in remaining_uuids]
