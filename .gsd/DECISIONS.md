@@ -612,4 +612,24 @@ Writing the event inside the ticket transaction and sending afterwards means a p
 
 ---
 
+## [DECISION-034] Push notifications are a shared module, not part of Technical Support
+
+**Date**: 2026-11-22
+**Status**: Accepted (user decision, Phase 28; refines DECISION-033)
+
+### Decision
+`app/modules/notification/` owns device tokens, the outbox, the FCM sender and the push worker, and knows no
+feature. Any module queues a push with `NotificationService.notify(user_id, source, type, title, body,
+reference_id, data, skip_if_online)` inside its own transaction. Tables are `notification_device_tokens` and
+`notification_outbox` (no foreign key to feature tables); the app registers devices at `/api/v1/notifications/devices`
+and routes a tapped push by `source`, `type` and `reference_id`. Skipping users who are online is per notification
+(`skip_if_online`), checked against presence functions that modules register with the worker; support registers
+its sockets. Technical Support keeps only its message texts (`support/application/push_messages.py`).
+
+### Why
+The user will send pushes from other modules later (payments, collections and others). One outbox, one sender and
+one device list mean each new module only writes its texts, and the app has one registration call.
+
+---
+
 *Last updated: 2026-11-08*

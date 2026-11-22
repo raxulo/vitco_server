@@ -252,45 +252,53 @@ design system) with login redirect and route isolation (REQ-58 to REQ-65).
 **Verification:** [VERIFICATION.md](phases/25/VERIFICATION.md)
 
 ### Phase 26: Tickets Core and Mobile Ticket API
-**Status:** ⬜ Not started
+**Status:** ✅ Complete (verified 2026-11-22, SQLite + PostgreSQL); visual sign-off and commit await the user
 **Objective:** Categories (with default team), tickets with messages, internal notes, attachments, events; routing by
 category plus manual assign; mobile REST API for MCC / VLCC / Farmer / VLCC_FARMER; portal queues and ticket detail
 (REQ-66 to REQ-72).
-**Depends on:** Phase 25 (migration 0005)
+**Depends on:** Phase 25 (migration 0006)
 
 **Plans:**
-- [ ] Plan 26.1: Ticket domain, tables and handlers — [1-PLAN.md](phases/26/1-PLAN.md)
-- [ ] Plan 26.2: Mobile REST API (tickets, messages, attachments) — [2-PLAN.md](phases/26/2-PLAN.md)
-- [ ] Plan 26.3: Portal queues, ticket detail and categories — [3-PLAN.md](phases/26/3-PLAN.md)
+- [x] Plan 26.1: Ticket domain, tables and handlers — [1-PLAN.md](phases/26/1-PLAN.md), [1-SUMMARY.md](phases/26/1-SUMMARY.md)
+- [x] Plan 26.2: Mobile REST API (tickets, messages, attachments) — [2-PLAN.md](phases/26/2-PLAN.md), [2-SUMMARY.md](phases/26/2-SUMMARY.md)
+- [x] Plan 26.3: Portal queues, ticket detail and categories — [3-PLAN.md](phases/26/3-PLAN.md), [3-SUMMARY.md](phases/26/3-SUMMARY.md)
+
+**Verification:** [VERIFICATION.md](phases/26/VERIFICATION.md)
 
 ### Phase 27: Realtime and Live Chat
-**Status:** ⬜ Not started
+**Status:** ✅ Complete (verified 2026-11-22, SQLite + PostgreSQL + real browser); visual sign-off and commit await the user
 **Objective:** Redis, WebSocket for staff and mobile, permission-filtered live events, no-refresh portal, live
 chat, unread counts, reconnect catch-up (REQ-73 to REQ-75, DECISION-032).
 **Depends on:** Phase 26
 
 **Plans:**
-- [ ] Plan 27.1: Redis, event bus, presence and WebSocket endpoints — [1-PLAN.md](phases/27/1-PLAN.md)
-- [ ] Plan 27.2: Live portal and live chat UI — [2-PLAN.md](phases/27/2-PLAN.md)
+- [x] Plan 27.1: Redis, event bus, presence and WebSocket endpoints — [1-PLAN.md](phases/27/1-PLAN.md), [1-SUMMARY.md](phases/27/1-SUMMARY.md)
+- [x] Plan 27.2: Live portal and live chat UI — [2-PLAN.md](phases/27/2-PLAN.md), [2-SUMMARY.md](phases/27/2-SUMMARY.md)
+
+**Verification:** [VERIFICATION.md](phases/27/VERIFICATION.md)
 
 ### Phase 28: Push Notification Backend
-**Status:** ⬜ Not started
+**Status:** ✅ Complete (verified 2026-11-22, SQLite + PostgreSQL, fake FCM); commit awaits the user
 **Objective:** Device tokens API, notification outbox, FCM sender with presence skip and a disabled mode without
-credentials; mobile side is later (REQ-76, REQ-77, DECISION-033).
+credentials, as a shared `notification` module for every feature; mobile side is later (REQ-76, REQ-77, DECISION-033, 034).
 **Depends on:** Phase 27 (presence)
 
 **Plans:**
-- [ ] Plan 28.1: Device tokens, outbox and FCM sender — [1-PLAN.md](phases/28/1-PLAN.md)
+- [x] Plan 28.1: Device tokens, outbox and FCM sender — [1-PLAN.md](phases/28/1-PLAN.md), [1-SUMMARY.md](phases/28/1-SUMMARY.md)
+
+**Verification:** [VERIFICATION.md](phases/28/VERIFICATION.md)
 
 ### Phase 29: Calls, Audit Views and My Activity
-**Status:** ⬜ Not started
+**Status:** ✅ Complete (verified 2026-11-22, SQLite + PostgreSQL); visual sign-off and commit await the user
 **Objective:** Click-to-call (`tel:`) with call log and outcome, audit log screens, member "My Activity" dashboard and
 the manager's team view (REQ-78 to REQ-80).
-**Depends on:** Phase 26
+**Depends on:** Phase 26 (migration 0008)
 
 **Plans:**
-- [ ] Plan 29.1: Call log and call UI — [1-PLAN.md](phases/29/1-PLAN.md)
-- [ ] Plan 29.2: My Activity dashboard, manager team view and audit screen — [2-PLAN.md](phases/29/2-PLAN.md)
+- [x] Plan 29.1: Call log and call UI — [1-PLAN.md](phases/29/1-PLAN.md), [1-SUMMARY.md](phases/29/1-SUMMARY.md)
+- [x] Plan 29.2: My Activity dashboard, manager team view and audit screen — [2-PLAN.md](phases/29/2-PLAN.md), [2-SUMMARY.md](phases/29/2-SUMMARY.md)
+
+**Verification:** [VERIFICATION.md](phases/29/VERIFICATION.md)
 
 ### Phase 30: Hardening, API Document and Verification
 **Status:** ⬜ Not started
@@ -324,10 +332,10 @@ end-to-end `/verify` on PostgreSQL with Redis, UI sign-off.
 | 23 | ✅ | 1/1 | 100% |
 | 24 | ✅ | 3/3 | 100% |
 | 25 | ✅ | 3/3 | 100% |
-| 26 | ⬜ | 0/3 | 0% |
-| 27 | ⬜ | 0/2 | 0% |
-| 28 | ⬜ | 0/1 | 0% |
-| 29 | ⬜ | 0/2 | 0% |
+| 26 | ✅ | 3/3 | 100% |
+| 27 | ✅ | 2/2 | 100% |
+| 28 | ✅ | 1/1 | 100% |
+| 29 | ✅ | 2/2 | 100% |
 | 30 | ⬜ | 0/1 | 0% |
 
 ---

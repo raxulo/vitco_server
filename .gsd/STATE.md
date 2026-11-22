@@ -7,12 +7,37 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.3.0 - Technical Support
-**Phase:** 25 - Support Foundation (role, teams, members, portal shell)
-**Status:** ✅ Phase 25 executed and verified; visual sign-off and commit await the user
-**Plan:** Next: Phase 26 (tickets core and mobile ticket API)
-**Branch:** `feature/support-foundation` (Phase 25), from `feature/technical-support` at 17b3cb6 ("plans")
+**Phase:** 29 - Calls, Audit Views and My Activity
+**Status:** ✅ Phases 26 to 29 executed and verified (uncommitted); visual sign-off and commits await the user
+**Plan:** Next: Phase 30 (hardening, `docs/SUPPORT_API.md`, end-to-end verification)
+**Branch:** `feature/support-foundation` (Phase 25 committed as 058cf5a; Phases 26 to 29 uncommitted on top of it)
 
 ## Last Action
+
+- 2026-11-22: **Phase 29 executed (uncommitted).** Migration 0008 (`support_call_logs`), click-to-call with outcome,
+  phone-number views audited once a day, My Activity / Team activity / Audit log screens from aggregate queries,
+  new support home. Related suites: SQLite 286 + 2 skipped, PostgreSQL 287 + 1 skipped.
+- 2026-11-22: The app sends its FCM token with `POST /api/v1/auth/login` (optional `fcm_token`, `platform`,
+  `app_version`; never fails the login).
+
+- 2026-11-22: **Phase 28 reshaped at the user's request:** push notifications are now the shared module
+  `app/modules/notification/` (DECISION-034) for every feature; support only keeps its texts. Tables
+  `notification_device_tokens` / `notification_outbox`, API `/api/v1/notifications/devices`. Also fixed: Recycle Bin
+  purge of users who raised tickets. SQLite 237 + 2 skipped, PostgreSQL 259 + 1 skipped on the related suites.
+
+- 2026-11-22: **Phase 28 executed (uncommitted).** Migration 0007, device-token API, push outbox written with the
+  ticket change, FCM HTTP v1 sender (no SDK), in-process push worker; disabled (nothing written, no worker) without
+  a Firebase credential. Support suites 227 passed + 1 skipped on SQLite, 228 on PostgreSQL. Found a pre-existing
+  SQLite savepoint problem (see Concerns). Open item: Firebase service-account JSON from the user.
+
+- 2026-11-22: **Phase 27 executed (uncommitted).** Redis wrapper (optional), commit-safe event bus with replay,
+  permission-based audience, `/ws/support` and `/ws/support/app`, live portal client. Support suites 200 passed on
+  SQLite, 202 on PostgreSQL; real uvicorn + headless Chrome run 13/13. Not checked against a real Redis server.
+
+- 2026-11-22: **Phase 26 executed (uncommitted).** Ticket engine (migration 0006, rules, handlers, routing), mobile
+  API `/api/v1/support` (tickets, messages, private attachments), portal queues, ticket detail with HTMX composer,
+  categories. Support suites 167 passed on SQLite, 171 (with the migration test) on PostgreSQL. Screens reviewed in
+  headless Chrome at 1440 and 390 px. Waiting for the user's visual review and commit approval.
 
 - 2026-11-18: **Phase 25 executed (uncommitted)** on `feature/technical-support` (branched from 8f542e5, not from
   `develop`: develop is at b10c5b7 and lacks migrations 0001 to 0004). Support module, `Role.SUPPORT`, migration 0005,
@@ -109,6 +134,12 @@ updated: 2026-11-08T00:00:00+05:30
 - None. (Plan 20.3 ran on a portable PostgreSQL 16 from `pip install pgserver` in a Python 3.12 scratch venv, with `tzdata`'s zoneinfo copied to its `share/postgresql/timezone`.)
 
 ## Concerns
+
+- **SQLite savepoints (pre-existing, found in Phase 28):** nested `database.transaction()` uses `begin_nested()`, but
+  the SQLite engine has no pysqlite BEGIN / isolation_level recipe, so releasing a savepoint commits and an outer
+  rollback cannot undo it. A handler that wrote inside a nested transaction and the request then failing keeps
+  those rows on SQLite (PostgreSQL is correct). Fix = the SQLAlchemy "serializable isolation / savepoints" recipe
+  for pysqlite/aiosqlite on the engine; not done because it changes transaction behaviour app-wide.
 
 - MCC and VLCC collection edit (`/mcc-collections/edit/{id}`, `/vlcc-collections/edit/{id}`) fail: the controllers read `collection_number`, which the DTOs and models no longer have. No page links to them. Found in Phase 22, not fixed.
 
