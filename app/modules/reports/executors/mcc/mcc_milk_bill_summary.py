@@ -43,7 +43,9 @@ class MccMilkBillSummaryExecutor(ReportExecutor):
             .join(v, v.id == m.vlcc_id)
             .where(*filters)
             .group_by(v.id, v.vlcc_code, v.name)
-            .order_by(m.collected_at, cast(v.vlcc_code, Integer).asc())
+            # One row per VLCC: sort by VLCC code only. Ordering by an ungrouped
+            # column (collected_at) is rejected by PostgreSQL (GroupingError).
+            .order_by(cast(v.vlcc_code, Integer).asc())
             .offset(query.offset)
             .limit(query.size)
         )
