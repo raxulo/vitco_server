@@ -60,5 +60,7 @@ class ReportResult:
     ledger: list[dict[str, Any]] | None = None
     # Column widths in percent; when set, every table of the report shares them
     column_widths: list[int] | None = None
+    # Columns shown on the web only, left out of the API response: {row key: header label}
+    web_only_columns: dict[str, str] | None = None
     
 

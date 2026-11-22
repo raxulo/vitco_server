@@ -33,18 +33,41 @@ router = APIRouter(
 
 
 def _serialize_report_result(result: ReportResult) -> dict[str, Any]:
-    """Serialize ReportResult dataclass to standardized API response format."""
+    """Serialize ReportResult dataclass to standardized API response format.
+
+    Web-only columns (`ReportResult.web_only_columns`) are left out of the
+    header, rows and ledger rows; the web templates still show them.
+    """
     metadata_dict = asdict(result.metadata) if result.metadata else {}
+    header = result.header or []
+    rows = result.rows or []
+    ledger: list[Any] = result.ledger or []
+
+    web_only = result.web_only_columns or {}
+    if web_only:
+        hidden_keys, hidden_labels = set(web_only), set(web_only.values())
+
+        def visible(row: dict[str, Any]) -> dict[str, Any]:
+            # New dicts: the result's rows are shared with the web templates
+            return {k: v for k, v in row.items() if k not in hidden_keys}
+
+        header = [h for h in header if h not in hidden_labels]
+        rows = [visible(r) for r in rows]
+        ledger = [
+            {"head": block.head, "rows": [visible(r) for r in block.rows or []], "footer": block.footer}
+            for block in ledger
+        ]
+
     return {
         "metadata": metadata_dict,
         "report_type": result.report_type,
-        "header": result.header or [],
+        "header": header,
         "footer": result.footer or {},
         "total": result.total,
         "page": result.page,
         "size": result.size,
-        "rows": result.rows or [],
-        "ledger": result.ledger or [],
+        "rows": rows,
+        "ledger": ledger,
     }
 
 

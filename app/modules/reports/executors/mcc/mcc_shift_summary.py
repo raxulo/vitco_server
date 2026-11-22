@@ -106,6 +106,8 @@ class MccShiftSummaryExecutor(ReportExecutor):
             ledger=ledgers,
             # Sample, V.C., Name, FAT, SNF, Qty, Rate, Amount
             column_widths=[8, 8, 30, 8, 8, 12, 11, 15],
+            # VLCC name is for the web report only; the API (mobile app) leaves it out
+            web_only_columns={"vlcc_name": "Name"},
             total=len(rows),
             page=query.page,
             size=query.size,
