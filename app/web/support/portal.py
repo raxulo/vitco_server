@@ -34,6 +34,7 @@ class PortalPage:
     initials: str
     role_label: str
     team_name: str | None
+    user_id: str
     back_to_dairy: bool
     ctx: SupportContext = field(repr=False)
 
@@ -73,14 +74,16 @@ class SupportPortal:
         user = request.state.user
         name = (user.name or "").strip() or "Support"
         member = ctx.member
+        counts = await GetHandler.ticket_handler(request).queue_counts(ctx)
         page = PortalPage(
             title=title,
             active=active,
-            nav=build_navigation(ctx),
+            nav=build_navigation(ctx, counts),
             user_name=name,
             initials=name[:1].upper(),
             role_label="Super Admin" if ctx.is_super_admin else (member.role_name or "Member" if member else "Member"),
             team_name=member.team_name if member else None,
+            user_id=str(ctx.user_id),
             back_to_dairy=ctx.is_super_admin,
             ctx=ctx,
         )

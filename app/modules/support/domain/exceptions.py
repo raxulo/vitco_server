@@ -70,3 +70,66 @@ class SupportValidationException(ApplicationException):
     code = "SUPPORT_VALIDATION_ERROR"
     message = "Invalid support data."
     status_code = 422
+
+
+class CategoryNotFoundException(ApplicationException):
+
+    code = "SUPPORT_CATEGORY_NOT_FOUND"
+    message = "Support category not found."
+    status_code = 404
+
+
+class CategoryNameAlreadyExistsException(ApplicationException):
+
+    code = "SUPPORT_CATEGORY_NAME_EXISTS"
+    message = "A category with this name already exists."
+    status_code = 409
+
+
+class TicketNotFoundException(ApplicationException):
+
+    code = "SUPPORT_TICKET_NOT_FOUND"
+    message = "Ticket not found."
+    status_code = 404
+
+
+class InvalidTicketTransitionException(ApplicationException):
+
+    code = "SUPPORT_INVALID_TRANSITION"
+    message = "This ticket cannot be moved to that status."
+    status_code = 409
+
+
+class TicketClosedException(ApplicationException):
+
+    code = "SUPPORT_TICKET_CLOSED"
+    message = "This ticket is closed. Reopen it to continue."
+    status_code = 409
+
+
+class InvalidAssigneeException(ApplicationException):
+
+    code = "SUPPORT_INVALID_ASSIGNEE"
+    message = "The ticket can only be assigned to an active member of its team."
+    status_code = 422
+
+
+class TicketNotRoutedException(ApplicationException):
+
+    code = "SUPPORT_TICKET_NOT_ROUTED"
+    message = "Send the ticket to a team first."
+    status_code = 409
+
+
+class CallNotFoundException(ApplicationException):
+
+    code = "SUPPORT_CALL_NOT_FOUND"
+    message = "Call not found."
+    status_code = 404
+
+
+class CallAlreadyOpenException(ApplicationException):
+
+    code = "SUPPORT_CALL_OPEN"
+    message = "Record the outcome of your last call first."
+    status_code = 409

@@ -18,6 +18,8 @@ from app.api.v1.routers.marketplace import router as marketplace_router
 from app.api.v1.routers.reports import router as reports_router
 from app.api.v1.routers.dispatch import router as dispatch_router
 from app.api.v1.routers.excel import router as excel_router
+from app.api.v1.routers.support import router as support_router
+from app.api.v1.routers.notifications import router as notifications_router
 
 api_v1_router = APIRouter()
 
@@ -41,6 +43,8 @@ api_v1_router.include_router(reports_router)
 api_v1_router.include_router(dispatch_router)
 api_v1_router.include_router(dispatch_router, prefix="/vlcc")
 api_v1_router.include_router(excel_router)
+api_v1_router.include_router(support_router)
+api_v1_router.include_router(notifications_router)
 
 
 

@@ -7,19 +7,30 @@
         <a class="sp-btn is-primary" href="/support/teams"><i class="fa-solid fa-people-group"></i>Manage teams</a>
     {% endcall %}
     <div class="sp-grid cols-3">
+        {{ stat_card("Open tickets", counts.all, "In every team and the pool") }}
+        {{ stat_card("Waiting for a team", counts.unassigned, "Category without a default team") }}
         {{ stat_card("Support teams", team_total, "Created by Super Admin only") }}
     </div>
-    <div class="sp-card" style="margin-top:16px">
-        {% call empty_state("Tickets arrive in the next phase", "Create a team and its manager here. Queues, tickets and chat appear once the ticket engine is added.", "fa-ticket") %}
-        {% endcall %}
+    <div class="sp-actions" style="margin-top:16px">
+        <a class="sp-btn" href="/support/tickets?scope=all">All tickets</a>
+        <a class="sp-btn" href="/support/tickets?scope=unassigned">Unassigned queue</a>
+        <a class="sp-btn" href="/support/activity/team">Team activity</a>
+        <a class="sp-btn" href="/support/audit">Audit log</a>
     </div>
 {% else %}
     {% call page_header("Welcome, " ~ sp.user_name, team.name ~ " · " ~ sp.role_label) %}{% endcall %}
     <div class="sp-grid cols-3">
-        {{ stat_card("Team", team.name, "Code " ~ team.code) }}
-        {{ stat_card("Team members", team.member_count, "Including the manager") }}
-        {{ stat_card("Your role", sp.role_label, "Set by your manager") }}
+        {{ stat_card("My open tickets", counts.mine, "Assigned to you") }}
+        {% if sp.ctx.has('support.ticket.view_all') %}{{ stat_card("Team open tickets", counts.all, team.name) }}{% endif %}
+        {% if counts.unassigned or sp.ctx.has('support.ticket.assign') %}{{ stat_card("Waiting for someone", counts.unassigned, "Unassigned in the team") }}{% endif %}
     </div>
+
+    {% if today %}
+    <div class="sp-card-head" style="padding:16px 0 8px;border:0"><h3 class="sp-card-title">Today</h3><a href="/support/activity">My activity</a></div>
+    <div class="sp-grid cols-4">
+        {% for card in today %}{{ stat_card(card.label, card.value, card.note) }}{% endfor %}
+    </div>
+    {% endif %}
 
     <div class="sp-card" style="margin-top:16px">
         <div class="sp-card-head"><h3 class="sp-card-title">What you can do</h3></div>

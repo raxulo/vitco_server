@@ -228,6 +228,22 @@ class Settings(BaseSettings):
     # Excel Data Exchange (import / export jobs)
     # ==========================================================
 
+    # ==========================================================
+    # Technical Support realtime (DECISION-032)
+    # ==========================================================
+
+    # Empty = no Redis: support events are delivered inside this process only
+    REDIS_URL: str = ""
+
+    # Events kept in memory so a reconnecting client can catch up on what it missed
+    SUPPORT_EVENT_BUFFER: int = 2000
+
+    # Push notifications (DECISION-033): the Firebase service-account JSON, as a file path or the JSON
+    # itself. Neither set = push disabled (outbox rows are marked skipped and it is logged).
+    FIREBASE_CREDENTIALS_FILE: str = ""
+    FIREBASE_CREDENTIALS_JSON: str = ""
+    PUSH_POLL_SECONDS: float = 3.0
+
     EXCHANGE_PATH: Path = BASE_DIR / "storage" / "exchange"
 
     EXCHANGE_WORKER_ENABLED: bool = True

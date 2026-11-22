@@ -120,6 +120,60 @@
         if (app) { app.classList.remove('is-nav-open'); }
     });
 
+    /* ------------------------------------------------------------ tickets */
+
+    // A select marked data-autosubmit saves its form when changed
+    document.addEventListener('change', function (event) {
+        var select = event.target.closest('[data-autosubmit]');
+        if (select && select.form) { select.form.submit(); }
+        var file = event.target.closest('[data-file-input]');
+        if (file) {
+            var label = file.closest('.sp-composer').querySelector('[data-file-label]');
+            if (label) { label.textContent = file.files.length ? file.files[0].name : ''; }
+        }
+    });
+
+    function scrollThread() {
+        var thread = document.querySelector('#sp-thread .sp-thread');
+        if (thread) { thread.scrollTop = thread.scrollHeight; }
+    }
+    document.addEventListener('DOMContentLoaded', scrollThread);
+    document.body.addEventListener('htmx:afterSwap', function (event) {
+        if (event.target && event.target.id === 'sp-thread') {
+            scrollThread();
+            var body = document.getElementById('sp-body');
+            if (body && !event.target.querySelector('.sp-alert')) { body.focus(); }
+        }
+    });
+
+    /* ------------------------------------------------------------ calls (Phase 29) */
+
+    // Call: record the intent on the server first, then dial. Back on the page, show the outcome form.
+    var callPending = false;
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest('[data-sp-call]');
+        if (!link) { return; }
+        event.preventDefault();
+        fetch(link.getAttribute('data-sp-call'), { method: 'POST', credentials: 'same-origin' }).then(function (response) {
+            return response.json().then(function (body) { return { ok: response.ok, body: body }; });
+        }).then(function (result) {
+            if (!result.ok) {
+                SP.toast((result.body.error && result.body.error.message) || 'The call could not be started.', 'error');
+                return;
+            }
+            callPending = true;
+            window.location.href = result.body.data.tel;
+            // On a computer without a phone app nothing leaves the page: show the form after a moment
+            window.setTimeout(function () { if (!document.hidden && callPending) { callPending = false; window.location.reload(); } }, 4000);
+        }).catch(function () { SP.toast('You appear to be offline.', 'error'); });
+    });
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && callPending) {
+            callPending = false;
+            window.location.reload();
+        }
+    });
+
     /* ------------------------------------------------------------ htmx feedback */
 
     document.body.addEventListener('htmx:responseError', function (event) {

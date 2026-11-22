@@ -477,3 +477,57 @@ async def test_deleter_whose_account_is_gone_is_labelled(database, super_admin, 
 async def _farmer_ids(database, vlcc_id: UUID) -> list[UUID]:
     async with database.transaction() as session:
         return list((await session.scalars(select(FarmerModel.id).where(FarmerModel.vlcc_id == vlcc_id))).all())
+
+
+# =========================================================
+# TECHNICAL SUPPORT AND NOTIFICATIONS (Phases 26 and 28)
+# =========================================================
+
+
+async def test_purge_removes_support_tickets_devices_and_notifications_of_the_tree(database, super_admin, bin_handler):
+    from uuid import uuid4
+
+    from app.modules.notification.infrastructure.models import NotificationDeviceTokenModel, NotificationOutboxModel
+    from app.modules.support.domain.enums import EventType, TicketPriority, TicketStatus
+    from app.modules.support.infrastructure.models import (
+        SupportCategoryModel,
+        SupportTicketEventModel,
+        SupportTicketMessageModel,
+        SupportTicketModel,
+    )
+
+    admin_id = await create_user(database, role=Role.ADMIN, created_by=super_admin.id)
+    _mcc_id, mcc_user = await _create_mcc(database, created_by=admin_id)
+    outsider = await create_user(database, role=Role.FARMER, created_by=super_admin.id)
+    category_id = uuid4()
+    tickets = {mcc_user: uuid4(), outsider: uuid4()}
+    async with database.transaction() as session:
+        session.add(SupportCategoryModel(id=category_id, name=f"Purge {category_id.hex[:6]}", default_priority=TicketPriority.MEDIUM, is_active=True))
+        await session.flush()
+        for user_id, ticket_id in tickets.items():
+            session.add(SupportTicketModel(
+                id=ticket_id, ticket_no=f"TS-PURGE-{ticket_id.hex[:8]}", requester_user_id=user_id, category_id=category_id,
+                priority=TicketPriority.MEDIUM, status=TicketStatus.NEW, subject="Help", description="Please help",
+                requester_unread=0, staff_unread=0,
+            ))
+        await session.flush()
+        for user_id, ticket_id in tickets.items():
+            session.add(SupportTicketMessageModel(ticket_id=ticket_id, sender_user_id=user_id, sender_is_staff=False, body="Hi", is_internal=False))
+            session.add(SupportTicketEventModel(ticket_id=ticket_id, actor_user_id=user_id, event_type=EventType.CREATED, meta={}, is_public=True))
+        # The purged user also wrote on the outsider's ticket (e.g. a shared phone); that link is cleared, not deleted
+        session.add(SupportTicketMessageModel(ticket_id=tickets[outsider], sender_user_id=mcc_user, sender_is_staff=False, body="Me too", is_internal=False))
+        session.add(NotificationDeviceTokenModel(user_id=mcc_user, fcm_token=f"tok-{uuid4().hex}", platform="android"))
+        session.add(NotificationOutboxModel(user_id=mcc_user, source="support", type="TICKET_REPLY", title="t", body="b", data={}))
+    await _soft_delete_user(database, admin_id)
+
+    await bin_handler.purge(PurgeRecordCommand(entity_type=DeletedEntityType.ADMIN, record_id=admin_id, owner=super_admin))
+
+    assert await _count(database, UserModel, UserModel.id == mcc_user) == 0
+    assert await _count(database, SupportTicketModel, SupportTicketModel.id == tickets[mcc_user]) == 0
+    assert await _count(database, SupportTicketMessageModel, SupportTicketMessageModel.ticket_id == tickets[mcc_user]) == 0
+    assert await _count(database, NotificationDeviceTokenModel, NotificationDeviceTokenModel.user_id == mcc_user) == 0
+    assert await _count(database, NotificationOutboxModel, NotificationOutboxModel.user_id == mcc_user) == 0
+    # The outsider keeps the ticket and both messages; the purged writer is no longer linked
+    assert await _count(database, SupportTicketModel, SupportTicketModel.id == tickets[outsider]) == 1
+    assert await _count(database, SupportTicketMessageModel, SupportTicketMessageModel.ticket_id == tickets[outsider]) == 2
+    assert await _count(database, SupportTicketMessageModel, SupportTicketMessageModel.sender_user_id == mcc_user) == 0

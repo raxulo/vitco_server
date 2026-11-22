@@ -89,7 +89,25 @@ from app.modules.support.application.handler import (
     SupportRoleHandler,
     SupportTeamHandler,
 )
+from app.config.settings import settings as _app_settings
+from app.config.websocket import connection_config
+from app.infrastructure.redis_client import RedisClient
+from app.modules.support.application.attachment_service import AttachmentService
+from app.modules.support.application.event_bus import EventBus
+from app.modules.support.application.hub import SocketHub
+from app.modules.notification.application.handler import DeviceHandler
+from app.modules.notification.application.sender import build_sender
+from app.modules.notification.application.service import NotificationService
+from app.modules.notification.application.worker import PushWorker
+from app.modules.notification.infrastructure.repository import NotificationRepository
+from app.modules.support.application.push_messages import SupportPush
+from app.modules.support.application.call_handler import CallHandler
+from app.modules.support.application.activity_query import ActivityQuery
+from app.modules.support.infrastructure.activity_repository import ActivityRepository
+from app.modules.support.infrastructure.call_repository import CallRepository
+from app.modules.support.application.ticket_handler import TicketHandler
 from app.modules.support.infrastructure.repository import SupportRepository
+from app.modules.support.infrastructure.ticket_repository import TicketRepository
 from app.modules.recyclebin.application.handler import RecycleBinHandler
 from app.modules.recyclebin.infrastructure.repository import RecycleBinRepository
 from app.modules.dataexchange.infrastructure.ratechart_scope import RateChartScope
@@ -244,6 +262,18 @@ class ModuleConfigurator:
         repository = SupportRepository(_database)
         container.register(SupportRepository, repository)
 
+        repository = TicketRepository(_database)
+        container.register(TicketRepository, repository)
+
+        repository = NotificationRepository(_database)
+        container.register(NotificationRepository, repository)
+
+        repository = CallRepository(_database)
+        container.register(CallRepository, repository)
+
+        repository = ActivityRepository(_database)
+        container.register(ActivityRepository, repository)
+
     @classmethod
     def _dataexchange_register(cls, container: ServiceContainer):
         """Excel import / export infrastructure, shared by the API and the exchange worker."""
@@ -284,7 +314,23 @@ class ModuleConfigurator:
         cls._dataexchange(container)
         cls._recycle_bin(container)
         cls._marketplace(container)
+        cls._notifications(container)
         cls._support(container)
+
+    @classmethod
+    def _notifications(cls, container: ServiceContainer):
+        """Push notifications for every module (DECISION-033): device tokens, outbox, FCM worker."""
+        repository = container.resolve(NotificationRepository)
+        sender = build_sender(_app_settings.FIREBASE_CREDENTIALS_FILE, _app_settings.FIREBASE_CREDENTIALS_JSON)
+        container.register(NotificationService, NotificationService(repository, enabled=sender.enabled))
+        container.register(DeviceHandler, DeviceHandler(database=container.database, repository=repository))
+        container.register(
+            PushWorker,
+            PushWorker(
+                database=container.database, repository=repository, sender=sender,
+                interval=_app_settings.PUSH_POLL_SECONDS,
+            ),
+        )
 
     @classmethod
     def _support(cls, container: ServiceContainer):
@@ -302,6 +348,45 @@ class ModuleConfigurator:
         container.register(
             SupportRoleHandler,
             SupportRoleHandler(database=container.database, repository=repository),
+        )
+        # Realtime (Phase 27): Redis is optional, the bus works without it
+        redis = RedisClient(_app_settings.REDIS_URL)
+        bus = EventBus(redis, buffer=_app_settings.SUPPORT_EVENT_BUFFER)
+        hub = SocketHub(max_connections=connection_config.max_connections, redis=redis)
+        bus.subscribe(hub.on_event)
+        container.register(RedisClient, redis)
+        container.register(EventBus, bus)
+        container.register(SocketHub, hub)
+        # Support pushes go through the shared notification module; its sockets tell the worker who is online
+        container.resolve(PushWorker).add_presence(hub.is_online_anywhere)
+        outbox = SupportPush(container.resolve(NotificationService))
+        # Tickets (Phase 26)
+        container.register(
+            TicketHandler,
+            TicketHandler(
+                database=container.database,
+                repository=container.resolve(TicketRepository),
+                support=repository,
+                attachments=AttachmentService(container.storage),
+                events=bus,
+                outbox=outbox,
+            ),
+        )
+        # Calls (Phase 29)
+        container.register(
+            CallHandler,
+            CallHandler(
+                database=container.database,
+                calls=container.resolve(CallRepository),
+                tickets=container.resolve(TicketRepository),
+                support=repository,
+                events=bus,
+            ),
+        )
+        # Activity dashboards and the audit screen (Phase 29)
+        container.register(
+            ActivityQuery,
+            ActivityQuery(database=container.database, activity=container.resolve(ActivityRepository), support=repository),
         )
 
     @classmethod

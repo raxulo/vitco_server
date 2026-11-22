@@ -1,0 +1,67 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, empty_state, alert, avatar, chip %}
+
+{% macro sort_link(key, label) %}
+<a class="sp-sort{% if sort == key %} is-active{% endif %}" href="{{ sort_urls[key] }}"
+   {% if sort == key %}aria-sort="{{ 'ascending' if key == 'name' else 'descending' }}"{% endif %}>{{ label }}</a>
+{% endmacro %}
+
+{% block content %}
+{% call page_header("Team activity", (view.team.name ~ ' · ' ~ view.period.label) if view else 'No team yet') %}
+    {% if teams %}
+    <form method="get" action="/support/activity/team" class="sp-inline">
+        <label class="sp-sr" for="sp-team">Team</label>
+        <select class="sp-select" id="sp-team" name="team" data-autosubmit>
+            {% for value, label in teams %}<option value="{{ value }}"{% if value == team_id %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </form>
+    {% endif %}
+{% endcall %}
+
+{% if not view %}
+<div class="sp-card">{% call empty_state("No support team yet", "Create a team to see its activity here.", "fa-people-group") %}{% endcall %}</div>
+{% else %}
+{% if error %}<div style="margin-bottom:16px">{{ alert(error, 'warning') }}</div>{% endif %}
+<div class="sp-card">
+    {% set action = '/support/activity/team' %}{% set extra = {'team': team_id if teams else '', 'sort': sort} %}
+    {% include "support/pages/activity/_period.html" %}
+    <div class="sp-table-wrap">
+        <table class="sp-table is-cards">
+            <thead><tr>
+                <th>{{ sort_link('name', 'Member') }}</th>
+                <th class="is-right">{{ sort_link('assigned_to_me', 'Assigned') }}</th>
+                <th class="is-right">{{ sort_link('replies', 'Replies') }}</th>
+                <th class="is-right">{{ sort_link('resolved', 'Resolved') }}</th>
+                <th class="is-right">{{ sort_link('closed', 'Closed') }}</th>
+                <th class="is-right">{{ sort_link('notes', 'Notes') }}</th>
+                <th class="is-right">{{ sort_link('assignments_made', 'Assignments') }}</th>
+                <th class="is-right">{{ sort_link('calls', 'Calls') }}</th>
+                <th class="is-right">First reply</th>
+            </tr></thead>
+            <tbody>
+            {% for row in view.rows %}{% set member = row.member %}
+            <tr>
+                <td data-label="Member"><a class="sp-cell" href="/support/activity?member={{ member.id }}&period={{ view.period.key }}{% if view.period.key == 'custom' %}&from={{ query.from }}&to={{ query.to }}{% endif %}">{{ avatar(member.name) }}<div><strong>{{ member.name }}</strong><small>{{ 'Manager' if member.is_manager else (member.role_name or '—') }}{% if not member.is_active %} · disabled{% endif %}</small></div></a></td>
+                <td class="is-right sp-num" data-label="Assigned">{{ row.assigned_to_me or 0 }}</td>
+                <td class="is-right sp-num" data-label="Replies">{{ row.replies or 0 }}</td>
+                <td class="is-right sp-num" data-label="Resolved">{{ row.resolved or 0 }}</td>
+                <td class="is-right sp-num" data-label="Closed">{{ row.closed or 0 }}</td>
+                <td class="is-right sp-num" data-label="Notes">{{ row.notes or 0 }}</td>
+                <td class="is-right sp-num" data-label="Assignments">{{ row.assignments_made or 0 }}</td>
+                <td class="is-right sp-num" data-label="Calls">{{ row.calls or 0 }}</td>
+                <td class="is-right sp-num" data-label="First reply">{{ first_reply[member.user_id|string] }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot><tr>
+                <th>Team total</th>
+                <th class="is-right sp-num">{{ view.totals.assigned_to_me }}</th><th class="is-right sp-num">{{ view.totals.replies }}</th>
+                <th class="is-right sp-num">{{ view.totals.resolved }}</th><th class="is-right sp-num">{{ view.totals.closed }}</th>
+                <th class="is-right sp-num">{{ view.totals.notes }}</th><th class="is-right sp-num">{{ view.totals.assignments_made }}</th>
+                <th class="is-right sp-num">{{ view.totals.calls }}</th><th></th>
+            </tr></tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

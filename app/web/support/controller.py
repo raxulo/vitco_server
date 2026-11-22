@@ -26,7 +26,11 @@ class SupportHomeController:
             return SupportPortal.denied()
 
         user = request.state.user
-        model: dict = {"is_super_admin": ctx.is_super_admin}
+        model: dict = {
+            "is_super_admin": ctx.is_super_admin,
+            "counts": await GetHandler.ticket_handler(request).queue_counts(ctx),
+            "today": await GetHandler.activity_query(request).today_cards(ctx),
+        }
         if ctx.is_super_admin:
             _, total = await GetHandler.support_team_handler(request).list_teams(ListTeamsQuery(limit=1), user)
             model["team_total"] = total

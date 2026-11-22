@@ -25,6 +25,13 @@ from app.modules.support.application.handler import (
     SupportRoleHandler,
     SupportTeamHandler,
 )
+from app.modules.support.application.event_bus import EventBus
+from app.modules.support.application.hub import SocketHub
+from app.modules.notification.application.handler import DeviceHandler
+from app.modules.notification.application.service import NotificationService
+from app.modules.support.application.ticket_handler import TicketHandler
+from app.modules.support.application.call_handler import CallHandler
+from app.modules.support.application.activity_query import ActivityQuery
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -133,6 +140,34 @@ class GetHandler:
     @staticmethod
     def support_role_handler(request: Request) -> SupportRoleHandler:
         return request.app.state.application.container.resolve(SupportRoleHandler)
+
+    @staticmethod
+    def ticket_handler(request: Request) -> TicketHandler:
+        return request.app.state.application.container.resolve(TicketHandler)
+
+    @staticmethod
+    def activity_query(request: Request) -> ActivityQuery:
+        return request.app.state.application.container.resolve(ActivityQuery)
+
+    @staticmethod
+    def call_handler(request: Request) -> CallHandler:
+        return request.app.state.application.container.resolve(CallHandler)
+
+    @staticmethod
+    def event_bus(request: Request) -> EventBus:
+        return request.app.state.application.container.resolve(EventBus)
+
+    @staticmethod
+    def device_handler(request: Request) -> DeviceHandler:
+        return request.app.state.application.container.resolve(DeviceHandler)
+
+    @staticmethod
+    def notification_service(request: Request) -> NotificationService:
+        return request.app.state.application.container.resolve(NotificationService)
+
+    @staticmethod
+    def socket_hub(request: Request) -> SocketHub:
+        return request.app.state.application.container.resolve(SocketHub)
 
 
     @staticmethod

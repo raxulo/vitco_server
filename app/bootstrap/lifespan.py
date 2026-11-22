@@ -77,6 +77,8 @@ from app.modules.admin.application.handler import AdminHandler
 from app.core.logging.logger import logger_manager
 from app.modules.marketplace.infrastructure.seed import MarketplaceSeeder
 from app.worker.supervisor import WorkerSupervisor
+from app.modules.support.application.event_bus import EventBus
+from app.modules.notification.application.worker import PushWorker
 
 from contextlib import asynccontextmanager
 
@@ -131,6 +133,16 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.exception("Excel exchange worker could not be started; the API keeps running.")
 
+        # Support realtime: with no REDIS_URL, or when Redis is down, events stay inside this process
+        try:
+            await state.container.resolve(EventBus).start()
+        except Exception:
+            logger.exception("Support event bus could not be started; the API keeps running.")
+        try:
+            await state.container.resolve(PushWorker).start()
+        except Exception:
+            logger.exception("Push worker could not be started; the API keeps running.")
+
         logger.info("Application started.")
 
         yield
@@ -140,6 +152,14 @@ async def lifespan(app: FastAPI):
         logger.info("Stopping application...")
 
         state.set_status(ApplicationStatus.STOPPING)
+        try:
+            await state.container.resolve(PushWorker).stop()
+        except Exception:
+            logger.exception("Push worker did not stop cleanly.")
+        try:
+            await state.container.resolve(EventBus).stop()
+        except Exception:
+            logger.exception("Support event bus did not stop cleanly.")
         try:
             await state.container.resolve(WorkerSupervisor).stop()
         except Exception:

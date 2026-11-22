@@ -1,0 +1,63 @@
+{#
+  The conversation and its composer. The detail page includes it, and "send" (HTMX) swaps it alone,
+  so a reply never reloads the page. Needs: ticket, thread, can_compose, can_reply, can_note,
+  default_mode, closed, error, last_message_id.
+#}
+{% from "support/components/ui.html" import alert %}
+<section class="sp-card sp-conversation" id="sp-thread" data-ticket-id="{{ ticket.id }}" data-last-id="{{ last_message_id }}">
+    <div class="sp-card-head"><h3 class="sp-card-title">Conversation</h3>{% set count = thread|rejectattr('kind', 'equalto', 'system')|list|length %}<span class="sp-muted">{{ count }} {{ 'message' if count == 1 else 'messages' }}</span></div>
+
+    <div class="sp-card-body sp-chat sp-thread" role="log" aria-live="polite" aria-label="Conversation">
+        {% for item in thread %}
+            {% if item.kind == 'system' %}
+            <div class="sp-bubble is-system">{{ item.body }} · {{ item.when }}</div>
+            {% else %}
+            <div class="sp-bubble{% if item.kind == 'staff' %} is-staff{% elif item.kind == 'note' %} is-note{% endif %}">
+                {% if item.kind == 'note' %}<strong class="sp-note-tag"><i class="fa-solid fa-lock"></i> Internal note · not shown to the requester</strong><br>{% endif %}
+                {% if item.body and not (item.attachments and item.body == item.attachments[0].file_name) %}<span class="sp-pre">{{ item.body }}</span>{% endif %}
+                {% for file in item.attachments or [] %}
+                    {% if file.mime_type.startswith('image/') %}
+                    <a class="sp-file-thumb" href="/support/attachments/{{ file.id }}" target="_blank" rel="noopener"><img src="/support/attachments/{{ file.id }}" alt="{{ file.file_name }}" loading="lazy"></a>
+                    {% endif %}
+                    <a class="sp-file" href="/support/attachments/{{ file.id }}" target="_blank" rel="noopener"><i class="fa-solid {{ 'fa-file-pdf' if file.mime_type == 'application/pdf' else 'fa-image' }}"></i>{{ file.file_name }} <small>{{ [(file.size_bytes / 1024)|round|int, 1]|max }} KB</small></a>
+                {% endfor %}
+                <div class="sp-bubble-meta">{{ item.sender }} · {{ item.when }}</div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="sp-typing" data-typing hidden aria-live="polite"></div>
+    <button type="button" class="sp-pill" data-new-messages hidden><i class="fa-solid fa-arrow-down"></i>New messages</button>
+    {% if error and not can_compose %}<div class="sp-card-body">{{ alert(error, 'danger') }}</div>{% endif %}
+    {% if can_compose %}
+    <form class="sp-composer" method="post" action="/support/tickets/{{ ticket.id }}/messages" enctype="multipart/form-data"
+          hx-post="/support/tickets/{{ ticket.id }}/messages" hx-target="#sp-thread" hx-swap="outerHTML" hx-encoding="multipart/form-data">
+        {% if error %}{{ alert(error, 'danger') }}{% endif %}
+        {% if closed %}<p class="sp-muted">This ticket is closed. Reopen it to reply; internal notes can still be added.</p>{% endif %}
+        {% if can_reply and can_note %}
+        <div class="sp-seg" role="radiogroup" aria-label="Message type">
+            <label><input type="radio" name="mode" value="reply"{% if default_mode == 'reply' %} checked{% endif %}><span>Reply to requester</span></label>
+            <label><input type="radio" name="mode" value="note"{% if default_mode == 'note' %} checked{% endif %}><span><i class="fa-solid fa-lock"></i> Internal note</span></label>
+        </div>
+        {% else %}
+        <input type="hidden" name="mode" value="{{ 'reply' if can_reply else 'note' }}">
+        {% endif %}
+        <label class="sp-sr" for="sp-body">Message</label>
+        <textarea class="sp-textarea" id="sp-body" name="body" rows="3" maxlength="4000"
+                  placeholder="Write a reply or a note"></textarea>
+        <div class="sp-composer-foot">
+            <label class="sp-btn is-sm sp-attach"><i class="fa-solid fa-paperclip"></i>Attach
+                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" data-file-input>
+            </label>
+            <span class="sp-muted sp-file-chosen" data-file-label></span>
+            <span class="sp-spacer"></span>
+            <button class="sp-btn is-primary" type="submit"><i class="fa-solid fa-paper-plane"></i>Send</button>
+        </div>
+    </form>
+    {% elif closed %}
+    <div class="sp-card-foot"><span class="sp-muted">This ticket is closed. Reopen it to continue the conversation.</span></div>
+    {% else %}
+    <div class="sp-card-foot"><span class="sp-muted">You can read this conversation but not reply to it.</span></div>
+    {% endif %}
+</section>

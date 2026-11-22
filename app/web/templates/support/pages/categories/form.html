@@ -1,0 +1,23 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, field, select_field, alert %}
+
+{% block content %}
+<div class="sp-crumbs"><a href="/support/categories">Categories</a> / {{ 'Edit' if category else 'New' }}</div>
+{% call page_header(sp.title, "Where tickets of this category go first.") %}{% endcall %}
+
+<form class="sp-card" method="post" action="{{ '/support/categories/' ~ category.id ~ '/edit' if category else '/support/categories/new' }}" novalidate>
+    <div class="sp-card-body sp-form">
+        {% if error %}{{ alert(error, 'danger') }}{% endif %}
+        <div class="sp-form-grid">
+            {{ field('name', 'Category name', values.name, required=True, placeholder='For example: Sync problems') }}
+            {{ select_field('priority', 'Default priority', priority_options, values.priority, required=True) }}
+            {{ select_field('team', 'Default team', team_options, values.team, wide=True,
+                            help='New tickets of this category go to this team. With none, they wait in the unassigned pool for you.') }}
+        </div>
+    </div>
+    <div class="sp-card-foot">
+        <a class="sp-btn" href="/support/categories">Cancel</a>
+        <button class="sp-btn is-primary" type="submit">{{ 'Save changes' if category else 'Create category' }}</button>
+    </div>
+</form>
+{% endblock %}

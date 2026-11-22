@@ -9,6 +9,7 @@ Python 3.13+
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, or_, select, update
@@ -352,6 +353,15 @@ class SupportRepository(ISupportRepository):
     # =========================================================
     # AUDIT
     # =========================================================
+
+    async def audit_exists_since(self, *, actor_id: UUID, action: str, entity_id: str, since: datetime) -> bool:
+        stmt = select(SupportAuditLogModel.id).where(
+            SupportAuditLogModel.actor_id == actor_id,
+            SupportAuditLogModel.action == action,
+            SupportAuditLogModel.entity_id == entity_id,
+            SupportAuditLogModel.created_at >= since,
+        )
+        return (await self._session.scalar(stmt.limit(1))) is not None
 
     async def add_audit(self, entry: AuditEntry) -> None:
         self._session.add(

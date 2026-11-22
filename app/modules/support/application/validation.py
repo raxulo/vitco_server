@@ -56,3 +56,19 @@ def clean_permissions(values: list[str] | None) -> list[str]:
             raise SupportValidationException(f"Permission {value} cannot be given to a team role.")
         chosen.add(permission)
     return sorted(str(permission) for permission in chosen)
+
+
+def clean_text(value: str | None, *, label: str, minimum: int = 1, maximum: int = 4000) -> str:
+    """Free text typed by a person: trimmed, with a length range."""
+    text = (value or "").strip()
+    if len(text) < minimum:
+        raise SupportValidationException(f"{label} must be at least {minimum} characters.")
+    if len(text) > maximum:
+        raise SupportValidationException(f"{label} must be at most {maximum} characters.")
+    return text
+
+
+def clip(value: str | None, maximum: int) -> str | None:
+    """Device details come from the app; keep them to the column size instead of failing the ticket."""
+    text = (value or "").strip()
+    return text[:maximum] or None
