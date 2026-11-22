@@ -5,7 +5,7 @@ One row per VLCC that supplied the MCC within the date / shift range:
 total quantity, average rate and total amount, plus a signature column.
 """
 
-from sqlalchemy import Integer, cast, func, select
+from sqlalchemy import func, select
 
 from app.core.numeric import truncate_float
 from app.modules.administration.domain.enums import Role
@@ -43,9 +43,10 @@ class MccMilkBillSummaryExecutor(ReportExecutor):
             .join(v, v.id == m.vlcc_id)
             .where(*filters)
             .group_by(v.id, v.vlcc_code, v.name)
-            # One row per VLCC: sort by VLCC code only. Ordering by an ungrouped
-            # column (collected_at) is rejected by PostgreSQL (GroupingError).
-            .order_by(cast(v.vlcc_code, Integer).asc())
+            # One row per VLCC, in order of its first collection in the period.
+            # A bare collected_at is not grouped, which PostgreSQL rejects
+            # (GroupingError), so sort by its MIN per VLCC.
+            .order_by(func.min(m.collected_at).asc())
             .offset(query.offset)
             .limit(query.size)
         )
