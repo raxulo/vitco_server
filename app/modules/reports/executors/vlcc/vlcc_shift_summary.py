@@ -303,7 +303,7 @@ class VlccShiftSummaryExecutor(ReportExecutor):
         )
 
     def build_metadata(self, query: ReportQuery, vlcc):
-        address = (vlcc.get("city") if vlcc else None) or "—"
+        address = (vlcc.get("city") if vlcc else None) or None
         return ReportMetadata(
             time=query.formatted_time,
             date=query.formatted_start_date,

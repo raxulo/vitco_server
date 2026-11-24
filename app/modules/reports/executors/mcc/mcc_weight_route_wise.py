@@ -160,7 +160,7 @@ class MccWeightRouteWiseExecutor(ReportExecutor):
         query: ReportQuery,
         mcc: dict | None,
     ) -> ReportMetadata:
-        address = (mcc.get("city") if mcc else None) or "—"
+        address = (mcc.get("city") if mcc else None) or None
 
         return ReportMetadata(
             time=query.formatted_time,

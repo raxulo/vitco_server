@@ -121,7 +121,7 @@ class DispatchSummaryExecutor(ReportExecutor):
         )
 
     def build_metadata(self, query: ReportQuery, vlcc):
-        address = (vlcc.get("city") if vlcc else None) or "—"
+        address = (vlcc.get("city") if vlcc else None) or None
         return ReportMetadata(
             start_date=query.formatted_start_date,
             end_date=query.formatted_end_date,

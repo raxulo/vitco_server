@@ -180,5 +180,5 @@ class MccPaymentSummaryExecutor(ReportExecutor):
             report_name="MCC Payment Summary",
             name=mcc.get("name", "—") if mcc else "—",
             code=mcc.get("code", "—") if mcc else "—",
-            address=(mcc.get("city") if mcc else None) or "—",
+            address=(mcc.get("city") if mcc else None) or None,
         )

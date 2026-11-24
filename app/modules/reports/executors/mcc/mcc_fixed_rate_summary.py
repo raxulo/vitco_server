@@ -155,7 +155,7 @@ class MccFixedRateSummaryExecutor(ReportExecutor):
             report_name=self.report_name,
             name=mcc.get("name", "—") if mcc else "—",
             code=mcc.get("code", "—") if mcc else "—",
-            address=(mcc.get("city") if mcc else None) or "—",
+            address=(mcc.get("city") if mcc else None) or None,
         )
 
 
@@ -208,5 +208,5 @@ class MccFixedRatePaymentSummaryExecutor(MccFixedRateSummaryExecutor):
             report_name=self.report_name,
             name=mcc.get("name", "—") if mcc else "—",
             code=mcc.get("code", "—") if mcc else "—",
-            address=(mcc.get("city") if mcc else None) or "—",
+            address=(mcc.get("city") if mcc else None) or None,
         )

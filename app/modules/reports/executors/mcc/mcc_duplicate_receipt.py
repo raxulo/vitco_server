@@ -146,5 +146,5 @@ class MccDuplicateReceiptExecutor(ReportExecutor):
             report_name="Duplicate Receipt",
             name=mcc.get("name", "—") if mcc else "—",
             code=mcc.get("code", "—") if mcc else "—",
-            address=(mcc.get("city") if mcc else None) or "—",
+            address=(mcc.get("city") if mcc else None) or None,
         )

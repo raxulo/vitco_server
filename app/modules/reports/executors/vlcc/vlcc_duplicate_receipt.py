@@ -128,7 +128,7 @@ class VlccDuplicateReceiptExecutor(ReportExecutor):
         query: ReportQuery,
         vlcc: dict | None,
     ) -> ReportMetadata:
-        address = (vlcc.get("city") if vlcc else None) or "—"
+        address = (vlcc.get("city") if vlcc else None) or None
 
         return ReportMetadata(
             time=query.formatted_time,

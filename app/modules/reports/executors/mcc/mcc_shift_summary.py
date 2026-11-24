@@ -157,7 +157,7 @@ class MccShiftSummaryExecutor(ReportExecutor):
         )
 
     def build_metadata(self, query: ReportQuery, mcc):
-        address = (mcc.get("city") or mcc["city"] if mcc else None) or "—"
+        address = (mcc.get("city") if mcc else None) or None
         return ReportMetadata(
             time=query.formatted_time,
             date=query.formatted_start_date,
