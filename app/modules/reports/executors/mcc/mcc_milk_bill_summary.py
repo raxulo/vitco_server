@@ -72,7 +72,7 @@ class MccMilkBillSummaryExecutor(ReportExecutor):
                 "total_quantity": truncate_float(qty, 2),
                 "average_rate": self.avg_rate(amount, qty),
                 "total_amount": truncate_float(amount, 2),
-                "sign": "─────",
+                "sign": "_____",
             })
 
         totals = (await session.execute(totals_stmt)).mappings().one()
