@@ -84,6 +84,9 @@ async def test_one_row_per_vlcc_with_days_and_sums(database):
     assert rows[1]["can"] == 2
     assert float(rows[1]["quantity"]) == 60.00
 
-    assert result.footer["total_vlcc"] == 2
-    assert result.footer["total_cans"] == 10
-    assert float(result.footer["total_quantity"]) == 330.75
+    # Totals live in the ledger footer (#38); the report-level footer is empty
+    footer = result.ledger[0].footer
+    assert footer["total_vlcc"] == 2
+    assert footer["total_cans"] == 10
+    assert float(footer["total_quantity"]) == 330.75
+    assert result.footer == {}

@@ -88,21 +88,24 @@ class MccWeightDateWiseExecutor(ReportExecutor):
             metadata=self.build_metadata(query, mcc),
             report_type=query.report_type.value,
             header=self.headers,
-            footer={
-                "total_vlcc": totals["total_vlcc"],
-                "total_cans": totals["can"],
-                "total_quantity": quantity,
-            },
-            ledger=[LedgerResult(
-                rows=rows,
-                head={
-                    "Code: " : f"{query.code_from or 0} to {query.code_to or 0}",
-                }
-            )],
+            # Totals sit under the ledger table, so the report-level footer stays empty
+            ledger=[
+                LedgerResult(
+                    rows=rows,
+                    head={
+                        "Code: ": f"{query.code_from or 0} to {query.code_to or 0}",
+                    },
+                    footer={
+                        "total_vlcc": totals["total_vlcc"],
+                        "total_cans": totals["can"],
+                        "total_quantity": quantity,
+                    },
+                ),
+            ],
+            footer={},
             total=1,
             page=query.page,
             size=query.size,
-            
         )
 
     @property
