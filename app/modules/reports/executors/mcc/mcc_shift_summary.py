@@ -47,9 +47,9 @@ class MccShiftSummaryExecutor(ReportExecutor):
                     m.sample_number.label("sample_number"),
                     v.vlcc_code.label("vlcc_code"),
                     v.name.label("vlcc_name"),
+                    m.quantity,
                     m.fat_percent.label("fat"),
                     m.snf_percent.label("snf"),
-                    m.quantity,
                     m.rate_per_unit.label("rate"),
                     m.total_amount.label("amount"),
                     m.measurement_mode.label("measurement_mode"),
@@ -104,8 +104,8 @@ class MccShiftSummaryExecutor(ReportExecutor):
             footer=self._footer(totals),
             rows=rows,
             ledger=ledgers,
-            # Sample, V.C., Name, FAT, SNF, Qty, Rate, Amount
-            column_widths=[8, 8, 30, 8, 8, 12, 11, 15],
+            # Sample, V.C., Name, Qty, FAT, SNF, Rate, Amount
+            column_widths=[8, 8, 30, 12, 8, 8, 11, 15],
             # VLCC name is for the web report only; the API (mobile app) leaves it out
             web_only_columns={"vlcc_name": "Name"},
             total=len(rows),
@@ -141,9 +141,9 @@ class MccShiftSummaryExecutor(ReportExecutor):
             "S.No",
             "V.C.",
             "Name",
+            "Qty",
             "FAT",
             "SNF",
-            "Qty",
             "Rate",
             "Amount",
         ]
