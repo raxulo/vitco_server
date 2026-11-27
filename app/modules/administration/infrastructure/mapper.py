@@ -34,6 +34,8 @@ class UserMapper:
             created_by=model.created_by,
             profile_image=model.profile_url,
             own_id=getattr(model, "own_id", None),
+            self_brand=bool(model.self_brand),
+            brand_logo=model.brand_logo_url,
         )
 
     @staticmethod
@@ -55,6 +57,8 @@ class UserMapper:
             updated_at=entity.updated_at,
             created_by=entity.created_by,
             profile_url=entity.profile_image,
+            self_brand=entity.self_brand,
+            brand_logo_url=entity.brand_logo,
         )
 
     @staticmethod

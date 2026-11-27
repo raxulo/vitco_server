@@ -28,6 +28,9 @@ ALLOWED_IMAGE_TYPES = {
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
 LISTING_IMAGE_MAX_BYTES = 300 * 1024
 LISTING_IMAGE_MAX_SIDE = 1600
+BRAND_LOGO_MAX_UPLOAD = 2 * 1024 * 1024
+BRAND_LOGO_MAX_BYTES = 150 * 1024
+BRAND_LOGO_MAX_SIDE = 512
 
 class MediaUrlService:
 
@@ -269,3 +272,66 @@ class MediaService:
             delete_after_commit(self.repository._session, self.storage, media.storage_key)
             deleted += 1
         return deleted
+
+    # =========================================================
+    # Self Brand logos: one per Admin, kept in brand/<admin_id>/
+    # =========================================================
+
+    async def upload_brand_logo(
+        self,
+        file: UploadFile,
+        admin_id: UUID,
+        uploaded_by: UUID | None,
+    ) -> MediaModel:
+        """
+        Store an Admin's Self Brand logo; raises ValueError with a message for the user.
+
+        Re-encoded like every upload (WebP, transparency kept, longest side <= 512 px)
+        so the browser never receives the bytes exactly as sent.
+        """
+        if (file.content_type or "").lower() not in ALLOWED_IMAGE_TYPES:
+            raise ValueError("Logo must be a PNG, JPG or WebP image")
+
+        data = await file.read()
+        if not data:
+            raise ValueError("The logo file is empty")
+        if len(data) > BRAND_LOGO_MAX_UPLOAD:
+            raise ValueError("Logo is too large (maximum 2 MB)")
+
+        processor = ImageProcessor(max_bytes=BRAND_LOGO_MAX_BYTES, max_side=BRAND_LOGO_MAX_SIDE)
+        image = await asyncio.to_thread(processor.process, data)
+
+        media_id = uuid4()
+        storage_key = f"{MediaCategory.BRAND.value}/{admin_id.hex}/{media_id.hex}{image.extension}"
+
+        # If the surrounding transaction rolls back, the new file goes with it
+        delete_on_rollback(self.repository._session, self.storage, storage_key)
+        await self.storage.save(BytesIO(image.data), storage_key)
+        return await self.repository.create(
+            MediaModel(
+                id=media_id,
+                name=(file.filename or media_id.hex),
+                media_type=MediaType.IMAGE,
+                category=MediaCategory.BRAND,
+                storage_key=storage_key,
+                mime_type=image.mime_type,
+                extension=image.extension,
+                file_size=len(image.data),
+                uploaded_by=uploaded_by,
+                is_active=True,
+                entity_id=admin_id,
+            )
+        )
+
+    async def delete_brand_logos(
+        self,
+        admin_id: UUID,
+        keep_media_id: UUID | None = None,
+    ) -> None:
+        """Remove an Admin's logo rows now (except `keep_media_id`) and the files after commit."""
+        for media in await self.repository.list_brand_logos_by_admin_id(admin_id):
+            if media.id == keep_media_id:
+                continue
+            await self.repository.delete(media.id)
+            delete_after_commit(self.repository._session, self.storage, media.storage_key)
+

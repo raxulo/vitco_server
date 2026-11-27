@@ -18,6 +18,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.request_id import RequestIdMiddleware
+from app.middleware.brand import BrandMiddleware
 
 # Requests that stream large bodies must not hold a pooled DB connection while bytes
 # are on the wire (Excel uploads, DECISION-009); their handlers never touch the DB.
@@ -55,6 +56,8 @@ class MiddlewareRegistrar:
         cls,
         app: FastAPI,
     ) -> None:
+        # Innermost: needs the signed-in user (auth) and the DB session around it
+        cls._brand(app)
         # Register Database Session context first
         cls._database_session(app)
         cls._trusted_hosts(app)
@@ -63,6 +66,14 @@ class MiddlewareRegistrar:
         cls._gzip(app)
         cls._request_id(app)
         cls._logging(app)
+
+    # ---------------------------------------------------------
+
+    @staticmethod
+    def _brand(
+        app: FastAPI,
+    ) -> None:
+        app.add_middleware(BrandMiddleware)
 
     # ---------------------------------------------------------
 

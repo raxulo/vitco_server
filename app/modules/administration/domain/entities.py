@@ -26,6 +26,8 @@ class User:
     owner_id: UUID | None = None
     profile_image: str | None = None
     own_id: UUID | None = None
+    self_brand: bool = False
+    brand_logo: str | None = None
 
 
 
@@ -41,3 +43,26 @@ class UserDto:
     is_locked: bool = False
     created_at: datetime | None = None
     profile_image: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class Brand:
+    """
+    The Self Brand a user works under: its own when it is an Admin, otherwise
+    the Admin above it in the ownership hierarchy.
+
+    `logo_url` is None when Self Brand is off or no logo was uploaded; the web
+    then shows the Vitco logo and name. `name` is the Admin's name, shown next
+    to its logo in the sidebar.
+    """
+    enabled: bool = False
+    logo_url: str | None = None
+    name: str | None = None
+
+    @property
+    def logo(self) -> str | None:
+        return self.logo_url if self.enabled else None
+
+
+NO_BRAND = Brand()
+

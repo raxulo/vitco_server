@@ -18,4 +18,6 @@ class MediaCategory(StrEnum):
     ATTACHMENT = "attachment"
     BANNER = "banner"
     CATEGORY = "category"
+    # An Admin's Self Brand logo, kept in brand/<admin_id>/
+    BRAND = "brand"
         

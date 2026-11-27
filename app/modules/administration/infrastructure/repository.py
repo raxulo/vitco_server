@@ -13,13 +13,14 @@ from uuid import UUID
 from operator import or_
 from app.modules.administration.application.command import ListUsersQuery
 from app.core.database.manager import DatabaseManager
-from app.modules.administration.domain.entities import User
+from app.modules.administration.domain.entities import NO_BRAND, Brand, User
 from sqlalchemy import select
 
 from app.modules.administration.domain.repository import IUserRepository
 from app.modules.administration.infrastructure.models import UserModel
 from app.modules.administration.infrastructure.mapper import UserMapper
 from app.core.clock import now_naive_ist
+from app.middleware.authentication import CurrentUser
 
 
 class UserRepository(IUserRepository):
@@ -283,6 +284,46 @@ class UserRepository(IUserRepository):
         return model
 
 
+    async def set_brand(self, user_id: UUID, *, enabled: bool, logo_url: str | None) -> None:
+        """Write an Admin's Self Brand switch and logo URL (None removes the logo)."""
+        await self._session.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(self_brand=enabled, brand_logo_url=logo_url, updated_at=now_naive_ist())
+        )
+
+    async def brand_of(self, owner: CurrentUser) -> Brand:
+        """
+        The Self Brand `owner` works under: its own row for an Admin, otherwise the
+        Admin found above it (Sub Admin -> Admin, MCC / VLCC -> creator chain).
+        Super Admin and users with no Admin above them get no brand.
+        """
+        role = owner.role_type
+        if role == Role.SUPER_ADMIN:
+            return NO_BRAND
+        if role == Role.ADMIN:
+            condition = UserModel.id == owner.id
+        else:
+            # Imported here: the hierarchy module imports this package's models
+            from app.modules.administration.infrastructure.hierarchy import Hierarchy
+
+            condition = UserModel.id.in_(Hierarchy.ancestor_users(owner))
+
+        row = (
+            await self._session.execute(
+                select(UserModel.self_brand, UserModel.brand_logo_url, UserModel.name)
+                .where(
+                    condition,
+                    UserModel.role == Role.ADMIN,
+                    UserModel.is_deleted.is_(False),
+                )
+                .limit(1)
+            )
+        ).first()
+        if row is None:
+            return NO_BRAND
+        return Brand(enabled=bool(row.self_brand), logo_url=row.brand_logo_url, name=row.name)
+
     async def user_update(self, entity: UpdateUserCommand) -> bool:
         data = entity.model_dump()
         data.pop("id")
@@ -462,5 +503,7 @@ class UserRepository(IUserRepository):
             owner_name=owner_name,
             owner_id=owner_id,
             profile_image=model.profile_url,
+            self_brand=bool(model.self_brand),
+            brand_logo=model.brand_logo_url,
         )
         

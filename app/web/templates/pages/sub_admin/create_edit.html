@@ -110,6 +110,36 @@
                         </button>
                     </div>
                 </div>
+
+                {# Self Brand: a Super Admin setting on Admin accounts. Everyone under the Admin
+                   sees this logo in the web sidebar / tab icon instead of the Vitco logo. #}
+                {% if request.state.user.role_type == 1 %}
+                {% set brand_on = user and user.self_brand %}
+                <div id="self-brand-section" class="self-brand-card">
+                    <div class="self-brand-head">
+                        <div>
+                            <div class="self-brand-title"><i class="fa-solid fa-palette"></i> Self Brand</div>
+                            <div class="self-brand-help">Show this Admin's own logo on the web to the Admin, its Sub Admins, MCCs and VLCCs. Without a logo the Vitco logo is shown.</div>
+                        </div>
+                        <label class="brand-switch" title="Enable Self Brand">
+                            <input id="self-brand-toggle" name="self_brand" type="checkbox" value="1" {% if brand_on %}checked{% endif %}>
+                            <span class="brand-switch-track"><span class="brand-switch-thumb"></span></span>
+                        </label>
+                    </div>
+
+                    <div id="brand-logo-field" class="self-brand-body" {% if not brand_on %}hidden{% endif %}>
+                        <div class="brand-logo-preview">
+                            <img id="brand-logo-preview" src="{{ user.brand_logo if user and user.brand_logo else url_for('static', path='images/logo.png') }}" alt="Brand logo preview">
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:220px;">
+                            <label class="form-label" for="brand-logo-input" style="font-size: 13px; font-weight: 700; color: #475569;">Brand Logo</label>
+                            <input id="brand-logo-input" name="brand_logo" type="file" accept="image/png,image/jpeg,image/webp" class="form-control" style="padding-top: 8px; width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; height: 42px; font-size: 14px; background: white;">
+                            <span class="self-brand-help">PNG, JPG or WebP, up to 2 MB. A square or wide logo with a transparent background looks best.{% if user and user.brand_logo %} Leave empty to keep the current logo.{% endif %}</span>
+                            <span class="self-brand-help" style="color:#b45309;">Turning Self Brand off deletes the uploaded logo.</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- 2. ADDRESS DETAILS PANEL -->
@@ -190,6 +220,22 @@
 </div>
 
 <style>
+    .self-brand-card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; background: #f8fafc; display: flex; flex-direction: column; gap: 14px; }
+    .self-brand-card[hidden], .self-brand-body[hidden] { display: none !important; }
+    .self-brand-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .self-brand-title { font-size: 14px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+    .self-brand-title i { color: #2563eb; }
+    .self-brand-help { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .self-brand-body { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .brand-logo-preview { width: 120px; height: 64px; border: 1px dashed #cbd5e1; border-radius: 8px; background: white; display: flex; align-items: center; justify-content: center; padding: 6px; }
+    .brand-logo-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .brand-switch { position: relative; flex-shrink: 0; cursor: pointer; }
+    .brand-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .brand-switch-track { display: block; width: 44px; height: 24px; border-radius: 999px; background: #cbd5e1; transition: background .2s; position: relative; }
+    .brand-switch-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+    .brand-switch input:checked + .brand-switch-track { background: #2563eb; }
+    .brand-switch input:checked + .brand-switch-track .brand-switch-thumb { transform: translateX(20px); }
+    .brand-switch input:focus-visible + .brand-switch-track { outline: 2px solid #93c5fd; outline-offset: 2px; }
     .form-grid-3 {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -287,6 +333,27 @@
 
         // Initialize state
         validatePersonalDetails();
+
+        // Self Brand (Super Admin only): shown for the Admin role, logo picker while the switch is on
+        const brandSection = document.getElementById('self-brand-section');
+        if (brandSection) {
+            const roleSelect = document.querySelector('select[name="role"]');
+            const brandToggle = document.getElementById('self-brand-toggle');
+            const logoField = document.getElementById('brand-logo-field');
+            const logoInput = document.getElementById('brand-logo-input');
+            const logoPreview = document.getElementById('brand-logo-preview');
+            const syncBrand = () => {
+                brandSection.hidden = !roleSelect || roleSelect.value !== '2';
+                logoField.hidden = !brandToggle.checked;
+            };
+            roleSelect && roleSelect.addEventListener('change', syncBrand);
+            brandToggle.addEventListener('change', syncBrand);
+            logoInput.addEventListener('change', () => {
+                const file = logoInput.files && logoInput.files[0];
+                if (file) logoPreview.src = URL.createObjectURL(file);
+            });
+            syncBrand();
+        }
     });
 
     window.togglePasswordVisibility = function (fieldId, button) {

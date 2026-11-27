@@ -14,11 +14,14 @@
     <div class="sidebar-header">
         {# Logo / brand opens the dashboard #}
         <a href="/dashboard" class="sidebar-brand" title="Go to Dashboard">
+            {# Self Brand (BrandMiddleware): the viewer's Admin logo and name, otherwise Vitco #}
+            {% set brand_logo = brand.logo if brand is defined and brand else none %}
+            {% set brand_name = (brand.name if brand_logo and brand.name else 'VITCO') %}
             <span class="sidebar-brand-mark">
-                <img src="{{ url_for('static', path='images/logo.png')}}" alt="VITCO" height="26" loading="eager">
+                <img src="{{ brand_logo or url_for('static', path='images/logo.png') }}" alt="{{ brand_name }}" height="26" loading="eager">
             </span>
             <span class="sidebar-label sidebar-brand-text">
-                <span class="sidebar-brand-name">VITCO</span>
+                <span class="sidebar-brand-name" title="{{ brand_name }}">{{ brand_name }}</span>
                 <span class="sidebar-brand-sub">Dairy Management</span>
             </span>
         </a>
@@ -164,6 +167,10 @@
     .sidebar-brand-mark img { height: 24px; max-width: 30px; width: auto; object-fit: contain; }
     .sidebar-brand-text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
     .sidebar-brand-name {
+        /* A long Admin name (Self Brand) ends with "…" instead of pushing the toggle out */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         font-size: 16px;
         font-weight: 800;
         letter-spacing: .02em;

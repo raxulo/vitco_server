@@ -18,7 +18,8 @@ from app.modules.common.address.application.command import UpdateAddressCommand
 from app.modules.administration.application.command import UpdateUserCommand
 from app.modules.common.bank.domain.entities import BankAccount
 from app.modules.common.address.domain.entities import Address
-from app.modules.administration.domain.entities import User
+from app.modules.administration.domain.entities import Brand, User
+from app.core.exceptions.base import ValidateError
 from datetime import UTC
 from datetime import datetime
 from uuid import uuid4
@@ -242,6 +243,43 @@ class ProfileService:
 
         if bank_data and bank_data.id:
                 await self.bank_update(bank_data)
+
+    async def save_brand(
+        self,
+        *,
+        admin_id: UUID,
+        enabled: bool,
+        logo=None,
+        uploaded_by: UUID | None = None,
+    ) -> None:
+        """
+        Apply an Admin's Self Brand switch; call inside the caller's transaction.
+
+        Off: the stored logo is deleted. On with a new file: the new logo replaces the
+        old one. On without a file: the current logo (if any) stays.
+        """
+        if not enabled:
+            await self._media_service.delete_brand_logos(admin_id)
+            await self._user_repository.set_brand(admin_id, enabled=False, logo_url=None)
+            return
+
+        current = await self._user_repository.get_by_id(admin_id)
+        logo_url = current.brand_logo if current else None
+        if self._has_upload(logo):
+            try:
+                media = await self._media_service.upload_brand_logo(
+                    file=logo, admin_id=admin_id, uploaded_by=uploaded_by
+                )
+            except ValueError as exc:
+                raise ValidateError(str(exc)) from exc
+            await self._media_service.delete_brand_logos(admin_id, keep_media_id=media.id)
+            logo_url = MediaUrlService().build(storage_key=media.storage_key)
+
+        await self._user_repository.set_brand(admin_id, enabled=True, logo_url=logo_url)
+
+    async def brand_of(self, owner) -> Brand:
+        """The Self Brand `owner` works under (see UserRepository.brand_of)."""
+        return await self._user_repository.brand_of(owner)
 
     async def delete_profile_image(self, user_id: UUID) -> None:
         """Remove a user's profile image files and rows (used when the user is deleted)."""
