@@ -111,6 +111,8 @@ class VlccSyncDto:
     vlcc_info: VlccExtraInfoSyncDto
     settings: VlccSettingSyncDto
     rate_charts: list[Any]
+    # The owning Admin has Self Brand on (issue #41); False when there is no Admin above
+    self_brand: bool = False
 
 @dataclass(slots=True, kw_only=True)
 class MccSyncDto:
@@ -121,6 +123,8 @@ class MccSyncDto:
     settings: MccSettingSyncDto
     rate_charts: list[Any]
     sub_users: list[SubUserProfileSyncDto]
+    # The owning Admin has Self Brand on (issue #41); False when there is no Admin above
+    self_brand: bool = False
 
 @dataclass(slots=True, kw_only=True)
 class FarmerSyncDto:

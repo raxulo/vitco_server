@@ -151,6 +151,14 @@ class SubAdminController:
                 bank_data=bank_command,
                 role=Role(role_val),
             )
+            # Self Brand: only Super Admin sets it, and only on an Admin
+            if result and result.user and SubAdminController._sets_brand(user, role_val):
+                await profile_service.save_brand(
+                    admin_id=result.user.id,
+                    enabled=SubAdminController._brand_enabled(form_data),
+                    logo=form_data.get("brand_logo"),
+                    uploaded_by=user.id,
+                )
 
         if result and result.user:
             return SubAdminController._done(request, "/sub-admins")
@@ -319,6 +327,18 @@ class SubAdminController:
                 bank_data=bank_command,
             )
 
+            # Self Brand: Super Admin sets it on an Admin; a user that is no longer
+            # an Admin loses it (and its logo). An Admin editing never touches it.
+            if SubAdminController._sets_brand(user, role_val):
+                await profile_service.save_brand(
+                    admin_id=user_id,
+                    enabled=SubAdminController._brand_enabled(form_data),
+                    logo=form_data.get("brand_logo"),
+                    uploaded_by=user.id,
+                )
+            elif existing.user.self_brand or existing.user.brand_logo:
+                await profile_service.save_brand(admin_id=user_id, enabled=False)
+
             # First time this user gets an address / bank account: create instead of update
             if has_address and not existing.address:
                 await profile_service.create_address(
@@ -345,6 +365,15 @@ class SubAdminController:
             and int(target.role) == Role.SUB_ADMIN.value
             and str(target.created_by) == str(user.id)
         )
+
+    @staticmethod
+    def _sets_brand(user, role_val: int) -> bool:
+        """Self Brand is a Super Admin setting on Admin accounts only."""
+        return user.role_type == Role.SUPER_ADMIN and role_val == Role.ADMIN.value
+
+    @staticmethod
+    def _brand_enabled(form_data) -> bool:
+        return str(form_data.get("self_brand") or "").lower() in {"1", "on", "true", "yes"}
 
     @staticmethod
     def _done(request: Request, url: str) -> Response:

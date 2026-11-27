@@ -10,7 +10,8 @@ from sqlalchemy import (
     String,
     Boolean,
     DateTime,
-    ForeignKey, Enum
+    ForeignKey, Enum,
+    false,
 )
 
 from sqlalchemy.orm import (
@@ -73,6 +74,20 @@ class UserModel(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     is_locked: Mapped[bool] = mapped_column(
         Boolean,
         default=False,
+    )
+
+    # Self Brand (Admins only, set by Super Admin): everyone under the Admin sees
+    # `brand_logo_url` on the web instead of the Vitco logo (migration 0005)
+    self_brand: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=false(),
+        nullable=False,
+    )
+
+    brand_logo_url: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
     )
 
     last_login: Mapped[datetime | None]

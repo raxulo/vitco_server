@@ -17,6 +17,8 @@ class ContextBuilder:
 
         context = {
             "request": request,
+            # Self Brand of the signed-in user (BrandMiddleware); None shows the Vitco logo
+            "brand": getattr(request.state, "brand", None),
         }
         
         user = getattr(request.state, "user", None)

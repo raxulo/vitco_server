@@ -115,6 +115,12 @@ async def fetch_all_ratecharts(user_id: UUID, request: Request):
         rate_charts.append(chart_configs)
     return rate_charts
 
+async def _self_brand(request: Request, current_user: CurrentUser) -> bool:
+    """Whether the Admin above this MCC / VLCC has Self Brand on (issue #41)."""
+    brand = await GetHandler.profile_service(request).brand_of(current_user)
+    return brand.enabled
+
+
 async def mcc_data(request: Request, current_user:CurrentUser):
     handler = GetHandler.mcc_handler(request)
     mcc_full_detail: MccDetailDto = await handler.get_full_detail(
@@ -166,7 +172,8 @@ async def mcc_data(request: Request, current_user:CurrentUser):
             fixed_rate_config=fixed_rate_config,
         ),
         rate_charts=ratecharts_list,
-        sub_users=vlcc_dtos
+        sub_users=vlcc_dtos,
+        self_brand=await _self_brand(request, current_user),
     )
 
 async def vlcc_data(request: Request, current_user:CurrentUser):
@@ -220,7 +227,8 @@ async def vlcc_data(request: Request, current_user:CurrentUser):
             milk_quality_config=milk_quality_config,
         ),
         rate_charts=ratecharts_list,
-        sub_users=farmer_dtos
+        sub_users=farmer_dtos,
+        self_brand=await _self_brand(request, current_user),
     )
 
 async def farmer_data(request: Request, current_user:CurrentUser):

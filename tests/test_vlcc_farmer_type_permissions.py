@@ -295,13 +295,14 @@ async def test_sync_api_for_farmer_vlcc():
     mock_vlcc_handler.get_full_detail = AsyncMock(return_value=mock_detail)
     
     with patch("app.api.v1.routers.sync.GetHandler.vlcc_handler", return_value=mock_vlcc_handler), \
-         patch("app.api.v1.routers.sync.fetch_all_ratecharts", AsyncMock(return_value=[])):
+         patch("app.api.v1.routers.sync.fetch_all_ratecharts", AsyncMock(return_value=[])),          patch("app.api.v1.routers.sync._self_brand", AsyncMock(return_value=True)):
         sync_dto = await vlcc_data(req, farmer_vlcc)
         
         assert sync_dto.role == Role.VLCC_FARMER
         assert sync_dto.profile.role == Role.VLCC_FARMER
         assert sync_dto.sub_users == []
         assert sync_dto.vlcc_info.farmer_enabled is False
+        assert sync_dto.self_brand is True
 
 
 def test_vlcc_type_int_enum_definition():

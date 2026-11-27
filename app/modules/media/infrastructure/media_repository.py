@@ -100,6 +100,16 @@ class MediaRepository:
         )
         return list(result.scalars().all())
 
+    async def list_brand_logos_by_admin_id(self, admin_id: UUID) -> list[MediaModel]:
+        """Every Self Brand logo row of an Admin (old uploads included)."""
+        result = await self._session.execute(
+            select(MediaModel).where(
+                MediaModel.entity_id == admin_id,
+                MediaModel.category == MediaCategory.BRAND,
+            )
+        )
+        return list(result.scalars().all())
+
     async def get_user_profile_url(self, user_id: UUID) -> str | None:
         """Current profile image URL of a (not deleted) user."""
         result = await self._session.execute(

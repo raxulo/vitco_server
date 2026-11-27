@@ -18,9 +18,15 @@
     http-equiv="X-UA-Compatible"
     content="IE=edge">
 
-<!-- Site icon (built from images/logo.png); /favicon.ico serves the same file for browsers that ask the root -->
+{# Site icon: the viewer's Self Brand logo (BrandMiddleware), otherwise the Vitco icon
+   built from images/logo.png; /favicon.ico serves the Vitco icon for browsers that ask the root #}
+{% set brand_logo = brand.logo if brand is defined and brand else none %}
+{% if brand_logo %}
+<link rel="icon" href="{{ brand_logo }}">
+{% else %}
 <link rel="icon" href="{{ url_for('static', path='images/favicon.ico') }}" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='images/favicon-32x32.png') }}">
+{% endif %}
 <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', path='images/apple-touch-icon.png') }}">
 <link rel="manifest" href="{{ url_for('static', path='site.webmanifest') }}">
 
