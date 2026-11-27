@@ -1,9 +1,11 @@
-import asyncio
+from collections import defaultdict
+
 from app.core.numeric import fixed
 from app.modules.reports.executors.base import ReportExecutor
 from app.modules.vlcc.infrastructure.models import VlccModel
 from app.modules.collections.mcc_collection.domain.enums import (
     MeasurementMode,
+    MilkType,
     QuantityCollectionMode,
 )
 from app.modules.collections.mcc_collection.infrastructure.models import MccCollectionModel
@@ -36,8 +38,8 @@ class MccShiftSummaryExecutor(ReportExecutor):
 
         filters = self.filters(m, query)
 
-        # Active rows feed the main table and its totals; deleted rows are
-        # shown only in their own "DELETED" table and never added to the totals.
+        # Active rows feed the milk-type ledgers and the grand totals; deleted
+        # rows are shown only in their own "DELETED" ledger.
         active_filters = [*filters, m.is_deleted.is_(False)]
         deleted_filters = [*filters, m.is_deleted.is_(True)]
 
@@ -52,6 +54,7 @@ class MccShiftSummaryExecutor(ReportExecutor):
                     m.snf_percent.label("snf"),
                     m.rate_per_unit.label("rate"),
                     m.total_amount.label("amount"),
+                    m.milk_type.label("milk_type"),
                     m.measurement_mode.label("measurement_mode"),
                     m.quantity_collection_mode.label("quantity_collection_mode"),
                 )
@@ -63,31 +66,52 @@ class MccShiftSummaryExecutor(ReportExecutor):
                 .limit(query.size)
             )
 
-        def totals_stmt(conditions: list):
+        def totals_columns():
             return (
-                select(
-                    func.coalesce(func.sum(m.quantity), 0).label("quantity"),
-                    func.coalesce(func.sum(m.total_amount), 0).label("amount"),
-                    func.coalesce(func.sum(m.quantity * m.fat_percent), 0).label("fat"),
-                    func.coalesce(func.sum(m.quantity * m.snf_percent), 0).label("snf"),
-                    func.count(m.id).label("samples"),
-                )
-                .select_from(m)
-                .where(*conditions)
+                func.coalesce(func.sum(m.quantity), 0).label("quantity"),
+                func.coalesce(func.sum(m.total_amount), 0).label("amount"),
+                func.coalesce(func.sum(m.quantity * m.fat_percent), 0).label("fat"),
+                func.coalesce(func.sum(m.quantity * m.snf_percent), 0).label("snf"),
+                func.count(m.id).label("samples"),
             )
 
-        rows_result = await session.execute(rows_stmt(active_filters))
-        totals = (await session.execute(totals_stmt(active_filters))).mappings().one()
-        deleted_rows_result = await session.execute(rows_stmt(deleted_filters))
-        deleted_totals = (await session.execute(totals_stmt(deleted_filters))).mappings().one()
+        totals_stmt = (
+            select(m.milk_type.label("milk_type"), *totals_columns())
+            .select_from(m)
+            .where(*active_filters)
+            .group_by(m.milk_type)
+        )
+        deleted_totals_stmt = (
+            select(*totals_columns())
+            .select_from(m)
+            .where(*deleted_filters)
+        )
 
-        rows = [self._report_row(row) for row in rows_result.mappings()]
+        rows_result = await session.execute(rows_stmt(active_filters))
+        totals_result = await session.execute(totals_stmt)
+        deleted_rows_result = await session.execute(rows_stmt(deleted_filters))
+        deleted_totals = (await session.execute(deleted_totals_stmt)).mappings().one()
+
+        # Group active rows by milk type
+        grouped: dict[int, list[dict]] = defaultdict(list)
+        for row in rows_result.mappings():
+            grouped[row["milk_type"]].append(self._report_row(row))
+
         deleted_rows = [self._report_row(row) for row in deleted_rows_result.mappings()]
 
-        # Like VLCC Shift Summary: the active rows are one ledger (totals are the
-        # report footer); deleted rows get their own ledger with their own totals,
-        # never added to the footer above.
-        ledgers = [LedgerResult(head={}, rows=rows)]
+        totals = {row["milk_type"]: row for row in totals_result.mappings()}
+
+        # One ledger per milk type, in enum order (COW, BUFFALO, MIXED)
+        ledgers = [
+            LedgerResult(
+                head={"Animal Type": MilkType(milk_type).name},
+                rows=grouped[milk_type],
+                footer=self._footer(totals[milk_type]),
+            )
+            for milk_type in sorted(grouped)
+        ]
+
+        # Deleted rows: own totals, never added to the grand totals.
         if deleted_rows:
             ledgers.append(
                 LedgerResult(
@@ -101,14 +125,13 @@ class MccShiftSummaryExecutor(ReportExecutor):
             metadata=self.build_metadata(query, mcc),
             report_type=query.report_type.value,
             header=self.headers,
-            footer=self._footer(totals),
-            rows=rows,
+            footer=self._grand_footer(totals.values()),
             ledger=ledgers,
             # Sample, V.C., Name, Qty, FAT, SNF, Rate, Amount
             column_widths=[8, 8, 30, 12, 8, 8, 11, 15],
             # VLCC name is for the web report only; the API (mobile app) leaves it out
             web_only_columns={"vlcc_name": "Name"},
-            total=len(rows),
+            total=len(ledgers),
             page=query.page,
             size=query.size,
         )
@@ -125,10 +148,28 @@ class MccShiftSummaryExecutor(ReportExecutor):
             "total_samples": totals["samples"],
         }
 
+    def _grand_footer(self, milk_type_totals) -> dict:
+        quantity = amount = fat = snf = samples = 0
+        for t in milk_type_totals:
+            quantity += t["quantity"]
+            amount += t["amount"]
+            fat += t["fat"]
+            snf += t["snf"]
+            samples += t["samples"]
+        return {
+            "grand_fat": self.avg_fat(fat, quantity),
+            "grand_snf": self.avg_snf(snf, quantity),
+            "grand_rate": self.avg_rate(amount, quantity),
+            "grand_quantity": quantity,
+            "grand_amount": amount,
+            "grand_samples": samples,
+        }
+
     @staticmethod
     def _report_row(row) -> dict:
         r = dict(row)
-        # '*' marks manual entries; mode fields are not display columns
+        # '*' marks manual entries; mode and milk-type fields are not display columns
+        r.pop("milk_type")
         qty_manual = "*" if r.pop("quantity_collection_mode") == QuantityCollectionMode.MANUAL else ""
         fat_manual = "*" if r.pop("measurement_mode") == MeasurementMode.MANUAL else ""
         r["quantity"] = f"{fixed(r['quantity'])}{qty_manual}"
