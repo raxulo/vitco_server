@@ -139,6 +139,16 @@ class CreateRateChartAssignmentCommand:
     created_by: UUID | None = None
 
 
+@dataclass(slots=True, kw_only=True)
+class AssignChartToOwnersCommand:
+    """Append one rate chart to every owner (no replace); owners that already have it are skipped."""
+
+    owner_type: Role
+    owner_ids: list[UUID]
+    rate_chart_id: UUID
+    created_by: UUID | None = None
+
+
 @dataclass(slots=True)
 class UpdateRateChartAssignmentCommand:
 

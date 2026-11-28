@@ -455,6 +455,19 @@ class VlccRepository(IVlccRepository):
         )
         return await self._session.scalar(stmt) or 0
 
+    async def list_user_ids_by_route(
+        self,
+        route_code: int,
+        owner: CurrentUser,
+    ) -> list[UUID]:
+        stmt = select(VlccModel.user_id).where(
+            VlccModel.is_deleted.is_(False),
+            VlccModel.route_code == route_code,
+            VlccAccessScope.condition(owner),
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
     @staticmethod
     def _manager_conditions(manager: CurrentUser | None) -> list:
         """Filter to one Admin / Sub Admin's line of VLCCs (the `Hierarchy` rules)."""

@@ -16,6 +16,7 @@ from app.modules.ratechart.application.command import (
     DeleteRateChartCommand,
     GetAssignmentsByOwnerQuery,
     CreateRateChartAssignmentCommand,
+    AssignChartToOwnersCommand,
     UpdateRateChartCommand,
 )
 from app.core.exceptions.base import ForbiddenException
@@ -430,6 +431,7 @@ class RateChartController:
         charts = await rate_handler.list(ListRateChartsQuery(size=500, owner=request.state.user))
 
         master_charts = [{"id": str(c.id), "chart_name": c.chart_name} for c in charts]
+        routes = await GetHandler.route_master_handler(request).selectable(request.state.user)
 
         return Renderer.page(
             request=request,
@@ -437,6 +439,7 @@ class RateChartController:
             model={
                 "shops": vlccs,
                 "master_charts": master_charts,
+                "routes": routes,
                 "groups": [],
             },
         )
@@ -451,7 +454,7 @@ class RateChartController:
         charts = await rate_handler.list(ListRateChartsQuery(size=500, owner=request.state.user))
 
         master_charts = [{"id": str(c.id), "chart_name": c.chart_name} for c in charts]
-
+        routes = await GetHandler.route_master_handler(request).selectable(request.state.user)
 
         return Renderer.page(
             request=request,
@@ -459,6 +462,7 @@ class RateChartController:
             model={
                 "mccs": mccs,
                 "master_charts": master_charts,
+                "routes": routes,
                 "groups": [],
             },
         )
@@ -581,6 +585,49 @@ class RateChartController:
             await handler.create_assignment(cmd)
 
         return JSONResponse({"status": "success"})
+
+    @staticmethod
+    async def post_assign_by_route_api(request: Request):
+        """Append one rate chart to every MCC / VLCC on a route (within the caller's visibility)."""
+        WebHelper.deny_farmer_vlcc(request)
+        user: CurrentUser = request.state.user
+        body = await request.json()
+
+        target = str(body.get("target", "both")).lower()
+        if target not in ("both", "mcc", "vlcc"):
+            return JSONResponse({"detail": "Invalid target"}, status_code=400)
+        try:
+            route_id = UUID(body.get("route_id"))
+            chart_id = UUID(body.get("chart_id"))
+        except (TypeError, ValueError):
+            return JSONResponse({"detail": "Route and rate chart are required"}, status_code=400)
+
+        # Route must be one the caller can access in Route Master
+        routes = await GetHandler.route_master_handler(request).selectable(user)
+        route = next((r for r in routes if r.id == route_id), None)
+        if route is None:
+            return JSONResponse({"detail": "You do not have access to this route"}, status_code=403)
+
+        # Chart must be one the caller can see (same scope as the rate chart page)
+        handler = GetHandler.ratechart_handler(request)
+        if not await RateChartController._charts_visible(handler, [str(chart_id)], user):
+            return JSONResponse({"detail": "You can only map rate charts you have access to"}, status_code=403)
+
+        result: dict[str, dict[str, int]] = {}
+        if target in ("both", "mcc"):
+            owner_ids = await GetHandler.mcc_handler(request).user_ids_by_route(route.route_code, user)
+            outcome = await handler.assign_chart_to_owners(AssignChartToOwnersCommand(
+                owner_type=Role.MCC, owner_ids=owner_ids, rate_chart_id=chart_id, created_by=user.id,
+            ))
+            result["mcc"] = {"found": len(owner_ids), "assigned": outcome.assigned, "skipped": outcome.skipped}
+        if target in ("both", "vlcc"):
+            owner_ids = await GetHandler.vlcc_handler(request).user_ids_by_route(route.route_code, user)
+            outcome = await handler.assign_chart_to_owners(AssignChartToOwnersCommand(
+                owner_type=Role.VLCC, owner_ids=owner_ids, rate_chart_id=chart_id, created_by=user.id,
+            ))
+            result["vlcc"] = {"found": len(owner_ids), "assigned": outcome.assigned, "skipped": outcome.skipped}
+
+        return JSONResponse({"status": "success", "route": route.route_name, "result": result})
 
     @staticmethod
     async def load_mcc_boxes(request: Request, mcc_id: UUID | None = None):

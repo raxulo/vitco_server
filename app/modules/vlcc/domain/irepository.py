@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from app.modules.vlcc.domain.entities import Vlcc
+from app.middleware.authentication import CurrentUser
 
 
 class IVlccRepository(ABC):
@@ -81,4 +82,13 @@ class IVlccRepository(ABC):
         self,
         keyword: str,
     ) -> int:
+        ...
+
+    @abstractmethod
+    async def list_user_ids_by_route(
+        self,
+        route_code: int,
+        owner: CurrentUser,
+    ) -> list[UUID]:
+        """User ids of the VLCCs on a route that the owner can see."""
         ...

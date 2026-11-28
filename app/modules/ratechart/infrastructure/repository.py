@@ -572,6 +572,19 @@ class RateChartRepository(IRateChartRepository):
         result = await self._session.scalars(stmt)
         return [RateChartMapper.to_assignment_entity(model) for model in result]
 
+    async def get_assignments_by_owners(
+        self,
+        owner_ids: list[UUID],
+    ) -> list[RateChartAssignment]:
+        if not owner_ids:
+            return []
+        stmt = select(RateChartAssignmentModel).where(
+            RateChartAssignmentModel.owner_id.in_(owner_ids),
+            RateChartAssignmentModel.is_active.is_(True),
+        )
+        result = await self._session.scalars(stmt)
+        return [RateChartMapper.to_assignment_entity(model) for model in result]
+
     async def get_charts_by_owner_id(self, owner_id: UUID) -> list[RateChartListDto]:
         stmt = (
             select(

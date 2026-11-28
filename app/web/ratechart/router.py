@@ -90,6 +90,12 @@ router.add_api_route(
 )
 
 router.add_api_route(
+    "/api/assign-by-route",
+    RateChartController.post_assign_by_route_api,
+    methods=["POST"],
+)
+
+router.add_api_route(
     "/api/assign-mcc-bulk",
     RateChartController.post_assign_mcc_bulk_api,
     methods=["POST"],

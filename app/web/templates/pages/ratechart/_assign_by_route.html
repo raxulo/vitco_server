@@ -1,0 +1,107 @@
+{# Assign by Route: map one rate chart to every MCC / VLCC on a route (append, no replace). #}
+<div class="info-card" id="abr-card" style="margin-bottom:24px; padding:20px 24px; background:white; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-size:14px; font-weight:800; color:#1e293b; display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <i class="fa-solid fa-route" style="color:#2563eb;"></i> Assign by Route
+    </div>
+    <p style="color:#64748b; font-size:13px; margin:0 0 16px 0;">Pick a route and a rate chart to add it to every MCC / VLCC on that route. Existing assignments are kept.</p>
+
+    <div class="abr-grid">
+        <div>
+            <label for="abr-route" class="abr-label">Route <span style="color:#ef4444;">*</span></label>
+            <select id="abr-route" class="form-control abr-select">
+                <option value="">— Select a Route —</option>
+                {% for r in routes %}
+                <option value="{{ r.id }}">{{ r.route_name }} ({{ r.route_code }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="abr-chart" class="abr-label">Rate Chart <span style="color:#ef4444;">*</span></label>
+            <select id="abr-chart" class="form-control abr-select">
+                <option value="">— Select a Rate Chart —</option>
+                {% for c in master_charts %}
+                <option value="{{ c.id }}">{{ c.chart_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="abr-target" class="abr-label">Apply To</label>
+            <select id="abr-target" class="form-control abr-select">
+                <option value="both">Both (MCC &amp; VLCC)</option>
+                <option value="mcc">MCC only</option>
+                <option value="vlcc">VLCC only</option>
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button type="button" id="abr-apply" class="abr-btn" disabled onclick="applyByRoute()">
+                <i class="fa-solid fa-diagram-project"></i> Apply to Map
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .abr-grid { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:16px; }
+    .abr-label { font-size:12px; font-weight:700; color:#475569; text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:8px; }
+    .abr-select { padding:10px 14px; border:1px solid #cbd5e1; border-radius:8px; width:100%; background:white; font-size:14px; color:#1e293b; font-weight:600; outline:none; height:44px; }
+    .abr-btn { width:100%; height:44px; border:none; border-radius:8px; background:#2563eb; color:white; font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; transition:0.2s; }
+    .abr-btn:disabled { background:#cbd5e1; cursor:not-allowed; }
+    @media (max-width: 1024px) { .abr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 600px) { .abr-grid { grid-template-columns: 1fr; } }
+</style>
+
+<script>
+    (function () {
+        const route = document.getElementById('abr-route');
+        const chart = document.getElementById('abr-chart');
+        const btn = document.getElementById('abr-apply');
+        const sync = () => { btn.disabled = !(route.value && chart.value); };
+        route.addEventListener('change', sync);
+        chart.addEventListener('change', sync);
+        sync();
+    })();
+
+    async function applyByRoute() {
+        const route = document.getElementById('abr-route');
+        const chart = document.getElementById('abr-chart');
+        const target = document.getElementById('abr-target').value;
+        const btn = document.getElementById('abr-apply');
+        if (!route.value || !chart.value) return;
+
+        const routeName = route.options[route.selectedIndex].text;
+        const chartName = chart.options[chart.selectedIndex].text;
+        const targetText = { both: 'all MCCs and VLCCs', mcc: 'all MCCs', vlcc: 'all VLCCs' }[target];
+
+        const confirm = await Swal.fire({
+            icon: 'question',
+            title: 'Apply to Map?',
+            html: `Add <b>${chartName}</b> to ${targetText} on route <b>${routeName}</b>?`,
+            showCancelButton: true,
+            confirmButtonText: 'Apply',
+            confirmButtonColor: '#2563eb',
+            customClass: { popup: 'glass-card' }
+        });
+        if (!confirm.isConfirmed) return;
+
+        btn.disabled = true;
+        try {
+            const res = await fetch('/ratecharts/api/assign-by-route', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ route_id: route.value, chart_id: chart.value, target })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                Swal.fire({ icon: 'error', title: 'Could not apply', text: data.detail || 'Please try again.', confirmButtonColor: '#ef4444', customClass: { popup: 'glass-card' } });
+                return;
+            }
+            const lines = Object.entries(data.result).map(([k, v]) =>
+                `<b>${k.toUpperCase()}</b>: ${v.assigned} assigned, ${v.skipped} already had it (${v.found} on route)`);
+            Swal.fire({ icon: 'success', title: 'Done', html: lines.join('<br>') || 'Nothing to apply.', confirmButtonColor: '#2563eb', customClass: { popup: 'glass-card' } });
+        } catch (err) {
+            Swal.fire({ icon: 'error', title: 'Network Error', text: 'Connection failed. Please check your network connection.', confirmButtonColor: '#ef4444', customClass: { popup: 'glass-card' } });
+        } finally {
+            btn.disabled = !(route.value && chart.value);
+        }
+    }
+</script>

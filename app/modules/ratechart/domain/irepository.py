@@ -102,3 +102,8 @@ class IRateChartRepository(ABC):
     @abstractmethod
     async def delete_assignments_by_owner(self, owner_id: UUID) -> None:
         ...
+
+    @abstractmethod
+    async def get_assignments_by_owners(self, owner_ids: list[UUID]) -> list[RateChartAssignment]:
+        """Active assignments of many owners in a single query."""
+        ...
