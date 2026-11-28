@@ -37,7 +37,9 @@ class AuthController:
         try:
             result = await GetHandler.login_handler(request).login(command=command)
             if result:
-                res = Renderer.htmx_redirect(url="/dashboard")
+                # Technical Support staff have their own portal and never see the dairy panel
+                home = "/support" if Role(int(result.role)) == Role.SUPPORT else "/dashboard"
+                res = Renderer.htmx_redirect(url=home)
                 res.set_cookie(
                     key="access_token",
                     value="Bearer " + result.access_token,

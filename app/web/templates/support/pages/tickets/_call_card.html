@@ -1,0 +1,52 @@
+{#
+  Calls on this ticket (Plan 29.1): the outcome form of the member's open call, a reminder when their open
+  call is on another ticket, and the call history. Needs: ticket, call_here, call_elsewhere, calls, call_outcomes.
+#}
+{% from "support/components/ui.html" import alert, chip %}
+{% if call_here %}
+<section class="sp-card sp-call-prompt" id="sp-call-prompt" aria-labelledby="sp-call-title">
+    <div class="sp-card-head"><h3 class="sp-card-title" id="sp-call-title"><i class="fa-solid fa-phone"></i> How did the call go?</h3></div>
+    <form class="sp-card-body sp-stack" method="post" action="/support/calls/{{ call_here.id }}/finish">
+        <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
+        <p class="sp-muted">Started {{ call_here.started_at.strftime('%d %b, %H:%M') }}. Record what happened; you can also do it later from here.</p>
+        <fieldset class="sp-outcomes">
+            <legend class="sp-label">Outcome</legend>
+            {% for value, label in call_outcomes %}
+            <label class="sp-outcome"><input type="radio" name="outcome" value="{{ value }}" required><span>{{ label }}</span></label>
+            {% endfor %}
+        </fieldset>
+        <div class="sp-field">
+            <label class="sp-label" for="sp-call-minutes">Length in minutes <span class="sp-muted">(optional)</span></label>
+            <input class="sp-input" id="sp-call-minutes" name="minutes" type="number" min="0" max="360" step="0.5" inputmode="decimal">
+        </div>
+        <div class="sp-field">
+            <label class="sp-label" for="sp-call-note">Note <span class="sp-muted">(optional)</span></label>
+            <textarea class="sp-textarea" id="sp-call-note" name="note" rows="2" maxlength="1000" placeholder="What was agreed"></textarea>
+        </div>
+        <button class="sp-btn" type="submit"><i class="fa-solid fa-check"></i>Save outcome</button>
+    </form>
+</section>
+{% elif call_elsewhere %}
+<div>{{ alert("Your call on " ~ call_elsewhere.ticket_no ~ " has no outcome yet.", "warning") }}
+    <a class="sp-btn is-sm" href="/support/tickets/{{ call_elsewhere.ticket_id }}" style="margin-top:8px">Record it</a></div>
+{% endif %}
+
+{% if calls %}
+<section class="sp-card">
+    <div class="sp-card-head"><h3 class="sp-card-title">Calls</h3><span class="sp-muted">{{ calls|length }}</span></div>
+    <div class="sp-card-body">
+        <ul class="sp-calls">
+            {% for call in calls %}
+            <li>
+                <div class="sp-cell"><i class="fa-solid fa-phone sp-muted"></i>
+                    <div><strong>{{ call.member_name }}</strong>
+                        <small>{{ call.started_at.strftime('%d %b, %H:%M') }}{% if call.duration_s %} · {{ (call.duration_s / 60)|round(1) }} min{% endif %}</small></div>
+                </div>
+                <div>{% if call.outcome %}{{ chip(outcome_labels[call.outcome], 'success' if call.outcome == 'CONNECTED' else 'warning', plain=True) }}{% else %}{{ chip('No outcome yet', '', plain=True) }}{% endif %}</div>
+                {% if call.note %}<p class="sp-pre sp-call-note">{{ call.note }}</p>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</section>
+{% endif %}

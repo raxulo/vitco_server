@@ -1,0 +1,125 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, chip, priority, avatar, alert %}
+
+{% block content %}
+<div class="sp-crumbs"><a href="{{ back_url }}">Tickets</a> / {{ ticket.ticket_no }}</div>
+{% call page_header(ticket.subject, ticket.ticket_no ~ ' · raised ' ~ created ~ ' · ' ~ age ~ ' ago') %}
+    {{ chip(ticket.status.label, tone) }}
+{% endcall %}
+
+{% if notice and notice in notices %}<div style="margin-bottom:16px">{{ alert(notices[notice][0], notices[notice][1]) }}</div>{% endif %}
+
+<div class="sp-ticket-layout">
+    <div class="sp-ticket-main">
+        <section class="sp-card">
+            <div class="sp-card-head"><h3 class="sp-card-title">Problem described</h3></div>
+            <div class="sp-card-body"><p class="sp-pre">{{ ticket.description }}</p></div>
+        </section>
+        {% include "support/partials/ticket_thread.html" %}
+    </div>
+
+    <aside class="sp-ticket-side" id="sp-side" aria-label="Ticket details">
+        <section class="sp-card">
+            <div class="sp-card-head"><h3 class="sp-card-title">Requester</h3></div>
+            <div class="sp-card-body sp-stack">
+                <div class="sp-cell">{{ avatar(ticket.requester_name, large=True) }}<div><strong>{{ ticket.requester_name }}</strong><small>{{ role }}{% if ticket.requester_parent %} · under {{ ticket.requester_parent }}{% endif %}</small></div></div>
+                <dl class="sp-kv">
+                    <dt>Phone</dt><dd>{{ ticket.requester_mobile or '—' }}{% if ticket.requester_mobile %} <button class="sp-btn is-sm is-ghost" type="button" data-copy="{{ ticket.requester_mobile }}" aria-label="Copy phone number"><i class="fa-regular fa-copy"></i></button>{% endif %}
+                        {% if can_call %}<a class="sp-btn is-sm" href="tel:{{ ticket.requester_mobile }}" data-sp-call="/support/tickets/{{ ticket.id }}/calls"><i class="fa-solid fa-phone"></i>Call</a>{% endif %}</dd>
+                    <dt>Email</dt><dd class="sp-break">{{ ticket.requester_email or '—' }}</dd>
+                    <dt>Device</dt><dd>{{ ticket.device_model or '—' }}</dd>
+                    <dt>OS</dt><dd>{{ ticket.os_version or '—' }}</dd>
+                    <dt>App version</dt><dd>{{ ticket.app_version or '—' }}</dd>
+                </dl>
+            </div>
+        </section>
+
+        {% include "support/pages/tickets/_call_card.html" %}
+
+        <section class="sp-card">
+            <div class="sp-card-head"><h3 class="sp-card-title">Ticket</h3></div>
+            <div class="sp-card-body sp-stack">
+                <dl class="sp-kv">
+                    <dt>Status</dt><dd>{{ chip(ticket.status.label, tone) }}</dd>
+                    <dt>Priority</dt><dd>{{ priority(ticket.priority.value) }}</dd>
+                    <dt>Category</dt><dd>{{ ticket.category_name }}</dd>
+                    <dt>Team</dt><dd>{{ ticket.team_name or 'Unassigned pool' }}</dd>
+                    <dt>Assigned to</dt><dd>{{ ticket.assignee_name or 'Nobody yet' }}</dd>
+                </dl>
+
+                {% if can_assign %}
+                <form class="sp-inline-form" method="post" action="/support/tickets/{{ ticket.id }}/assign">
+                    <label class="sp-label" for="sp-assignee">{{ 'Reassign to' if ticket.assigned_to else 'Assign to' }}</label>
+                    <div class="sp-inline">
+                        <select class="sp-select" id="sp-assignee" name="assignee" required>
+                            <option value="">Choose a member</option>
+                            {% for value, label in assignees %}<option value="{{ value }}"{% if value == ticket.assigned_to|string %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                        <button class="sp-btn" type="submit">Assign</button>
+                    </div>
+                </form>
+                {% endif %}
+
+                {% if can_route %}
+                <form class="sp-inline-form" method="post" action="/support/tickets/{{ ticket.id }}/route">
+                    <label class="sp-label" for="sp-team">{{ 'Send to another team' if ticket.team_id else 'Send to a team' }}</label>
+                    <div class="sp-inline">
+                        <select class="sp-select" id="sp-team" name="team" required>
+                            <option value="">Choose a team</option>
+                            {% for value, label in teams %}<option value="{{ value }}"{% if value == ticket.team_id|string %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                        <button class="sp-btn" type="submit">Send</button>
+                    </div>
+                </form>
+                {% endif %}
+
+                {% if can_priority %}
+                <form class="sp-inline-form" method="post" action="/support/tickets/{{ ticket.id }}/priority">
+                    <label class="sp-label" for="sp-priority">Priority</label>
+                    <select class="sp-select" id="sp-priority" name="priority" data-autosubmit>
+                        {% for value, label in priorities %}<option value="{{ value }}"{% if value == ticket.priority.value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </form>
+                <form class="sp-inline-form" method="post" action="/support/tickets/{{ ticket.id }}/category">
+                    <label class="sp-label" for="sp-category">Category</label>
+                    <select class="sp-select" id="sp-category" name="category" data-autosubmit>
+                        {% for value, label in categories %}<option value="{{ value }}"{% if value == ticket.category_id|string %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                </form>
+                {% endif %}
+
+                {% if status_actions %}
+                <div class="sp-inline-form">
+                    <span class="sp-label">Move to</span>
+                    <div class="sp-inline is-wrap">
+                        {% for value, label in status_actions %}
+                        <form method="post" action="/support/tickets/{{ ticket.id }}/status">
+                            <input type="hidden" name="status" value="{{ value }}">
+                            {% if value in ('RESOLVED', 'CLOSED', 'REOPENED') %}
+                            <button class="sp-btn is-sm" type="submit" data-confirm-title="{{ label }} this ticket?"
+                                    data-confirm="{{ {'RESOLVED': 'The requester is told it is resolved and can reopen it.', 'CLOSED': 'A closed ticket takes no more replies until it is reopened.', 'REOPENED': 'The ticket goes back into the queue.'}[value] }}"
+                                    data-confirm-ok="{{ label }}">{{ label }}</button>
+                            {% else %}
+                            <button class="sp-btn is-sm" type="submit">{{ label }}</button>
+                            {% endif %}
+                        </form>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="sp-card">
+            <div class="sp-card-head"><h3 class="sp-card-title">Timeline</h3></div>
+            <div class="sp-card-body">
+                <div class="sp-timeline">
+                    {% for entry in timeline %}
+                    <div class="sp-timeline-item"><strong>{{ entry.text }}</strong><br><small>{{ entry.actor }} · {{ entry.when }}</small></div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    </aside>
+</div>
+{% endblock %}

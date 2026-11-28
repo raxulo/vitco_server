@@ -163,6 +163,34 @@ Decisions behind them: [DECISIONS.md](DECISIONS.md).
 | REQ-56 | A collection export uses the layout of: the user itself for Super Admin / Admin / Sub Admin; the MCC's creator for an MCC login; the VLCC's creator for a VLCC login, or that MCC's creator when the VLCC was created by an MCC user (DECISION-030) | User 2026-11-15 | 24 | Complete |
 | REQ-57 | A layout can be changed by its user, by Super Admin (any Admin / Sub Admin) and by an Admin (its own Sub Admins), on the website and through `/api/v1/excel/column-layouts/collections` (DECISION-030) | User 2026-11-15 | 24 | Complete |
 
+**Technical Support (v1.3.0, design: `docs/TECHNICAL_SUPPORT_PLAN.md`)**
+
+| ID | Requirement | Source | Phase | Status |
+|----|-------------|--------|-------|--------|
+| REQ-58 | New `Role.SUPPORT` (8). Support users see only the separate `/support` portal (own layout and sidebar) and are redirected there after login; other roles cannot open it; the dairy sidebar never shows to support users (DECISION-031) | User 2026-11-18 | 25 | Complete |
+| REQ-59 | Only Super Admin creates Support Teams. Creating a team also creates its single Manager (the team's owner). One team has exactly one manager | User 2026-11-18 | 25 | Complete |
+| REQ-60 | The Manager creates, edits and disables the team's members; a member belongs to one team and has one support role | User 2026-11-18 | 25 | Complete |
+| REQ-61 | Support roles belong to a team and hold `support.*` permissions; five templates are seeded per team (Technical Support, Ticket Assigner, Chat Agent, Caller, Viewer); the Manager edits or adds roles | User 2026-11-18 | 25 | Complete |
+| REQ-62 | Every support member can see the requester's basic profile, MCC / VLCC info, phone number, device details and app version (no permission needed); nobody can see dairy data (collections, payments) | User 2026-11-18 | 26 | Complete |
+| REQ-63 | Every support endpoint checks permission and team scope on the server; the Manager is allowed everything in the team; Super Admin everything | User 2026-11-18 | 25–29 | In Progress (teams, members, roles, ticket scope done) |
+| REQ-64 | An audit log records team / member / role changes, assignments, status changes, number views and calls (who, what, when) | User 2026-11-18 | 25, 29 | Complete |
+| REQ-65 | Portal UI is simple, clean and professional: one accent colour, 4/8 spacing, `support.css` (`sp-` prefix), loading / empty / error / success states, responsive, accessible (DECISION-031) | User 2026-11-18 | 25–29 | In Progress (design system + Phase 25 and 26 screens) |
+| REQ-66 | Ticket categories, each with an optional default team, managed by Super Admin (and a Manager for its team's routing rules) | User 2026-11-18 | 26 | Complete (Super Admin manages; Manager routing rules not built) |
+| REQ-67 | MCC, VLCC, Farmer and VLCC_FARMER logins create tickets through the mobile API with subject, description, category, attachments, device model, OS and app version; duplicates are rejected by `client_request_id`; ticket number `TS-YYYY-NNNNNN` | User 2026-11-18 | 26 | Complete |
+| REQ-68 | A new ticket goes to the category's default team; with no default team it waits in Super Admin's unassigned pool. Inside a team the Manager or a Ticket Assigner assigns or reassigns it manually | User 2026-11-18 | 26 | Complete |
+| REQ-69 | Ticket status flow NEW → ASSIGNED → IN_PROGRESS → WAITING_ON_USER → RESOLVED → CLOSED (+ REOPENED, ESCALATED); every change is a timeline event | User 2026-11-18 | 26 | Complete |
+| REQ-70 | Each ticket is a message thread between requester and staff; internal notes are never sent to the requester; attachments are images or PDF up to 10 MB | User 2026-11-18 | 26 | Complete |
+| REQ-71 | A requester sees only their own tickets and their public messages | User 2026-11-18 | 26 | Complete |
+| REQ-72 | Portal screens: Unassigned queue, All tickets, My tickets, ticket detail (conversation, requester card, meta, timeline), categories | User 2026-11-18 | 26 | Complete |
+| REQ-73 | New tickets and every update reach the right support members instantly without refreshing (WebSocket, Redis pub/sub, filtered by permission and team on the server) (DECISION-032) | User 2026-11-18 | 27 | Complete |
+| REQ-74 | The live connection reconnects by itself, catches up missed events, shows a Live / Reconnecting badge, and falls back to polling when Redis or the socket is down | User 2026-11-18 | 27 | Complete |
+| REQ-75 | Requester and staff chat live inside a ticket (mobile over WebSocket); unread counts per ticket and in the sidebar badges | User 2026-11-18 | 27 | Complete |
+| REQ-76 | Mobile registers and removes FCM device tokens through the API; a user can have several devices | User 2026-11-18 | 28 | Complete |
+| REQ-77 | Requester notifications go through an outbox and an FCM sender (retry, invalid-token cleanup); skipped when the user is online; sender stays disabled and logs when no credentials exist (DECISION-033) | User 2026-11-18 | 28 | Complete |
+| REQ-78 | A member with `support.call.make` sees a `tel:` Call button; the call is logged with outcome (connected / not reachable / callback) and note | User 2026-11-18 | 29 | Complete |
+| REQ-79 | Every member has a "My Activity" dashboard (what they did and how much, by period); the Manager sees each member's and a team comparison | User 2026-11-18 | 29 | Complete |
+| REQ-80 | Manager and Super Admin can browse and filter the audit log | User 2026-11-18 | 29 | Complete |
+
 **Marketplace quality**
 
 | ID | Requirement | Category | Phase | Status |

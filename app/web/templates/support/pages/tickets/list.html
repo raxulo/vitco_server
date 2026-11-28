@@ -1,0 +1,73 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, chip, priority, avatar, empty_state, pager %}
+
+{% block content %}
+{% call page_header(scope_title, total ~ (' ticket' if total == 1 else ' tickets') ~ (' match your filters' if filtered else '')) %}{% endcall %}
+
+<div class="sp-card">
+    <form class="sp-filters" method="get" action="/support/tickets" role="search">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        <div class="sp-search"><i class="fa-solid fa-magnifying-glass"></i>
+            <input class="sp-input" type="search" name="q" value="{{ values.q }}" placeholder="Ticket number, subject, requester name or phone" aria-label="Search tickets">
+        </div>
+        <select class="sp-select" name="status" aria-label="Status">
+            <option value="">Any status</option>
+            {% for value, label in statuses %}<option value="{{ value }}"{% if values.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <select class="sp-select" name="priority" aria-label="Priority">
+            <option value="">Any priority</option>
+            {% for value, label in priorities %}<option value="{{ value }}"{% if values.priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <select class="sp-select" name="category" aria-label="Category">
+            <option value="">Any category</option>
+            {% for value, label in categories %}<option value="{{ value }}"{% if values.category == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% if assignees and scope != 'mine' %}
+        <select class="sp-select" name="assignee" aria-label="Assignee">
+            <option value="">Anyone</option>
+            {% for value, label in assignees %}<option value="{{ value }}"{% if values.assignee == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        <input class="sp-input" type="date" name="date_from" value="{{ values.date_from }}" aria-label="Raised from" title="Raised from">
+        <input class="sp-input" type="date" name="date_to" value="{{ values.date_to }}" aria-label="Raised until" title="Raised until">
+        <button class="sp-btn" type="submit">Apply</button>
+        {% if filtered %}<a class="sp-btn is-ghost" href="/support/tickets?scope={{ scope }}">Clear</a>{% endif %}
+    </form>
+
+    <div id="sp-list">
+    {% if rows %}
+    <div class="sp-table-wrap">
+        <table class="sp-table is-cards">
+            <thead><tr><th>Ticket</th><th>Requester</th><th>Category</th><th>Priority</th><th>Status</th><th>Assigned to</th><th class="is-right">Age</th></tr></thead>
+            <tbody>
+            {% for row in rows %}{% set ticket = row.ticket %}
+            <tr data-ticket-id="{{ ticket.id }}">
+                <td data-label="Ticket">
+                    <a class="sp-ticket-link" href="/support/tickets/{{ ticket.id }}?scope={{ scope }}">
+                        {% if ticket.staff_unread %}<span class="sp-unread" title="New activity" aria-label="New activity"></span>{% endif %}
+                        <strong>{{ ticket.subject }}</strong>
+                        <small>{{ ticket.ticket_no }}{% if is_super_admin and ticket.team_name %} · {{ ticket.team_name }}{% endif %}</small>
+                    </a>
+                </td>
+                <td data-label="Requester"><div class="sp-cell">{{ avatar(ticket.requester_name) }}<div><strong>{{ ticket.requester_name }}</strong><small>{{ row.role }}</small></div></div></td>
+                <td data-label="Category">{{ ticket.category_name }}</td>
+                <td data-label="Priority">{{ priority(ticket.priority.value) }}</td>
+                <td data-label="Status">{{ chip(ticket.status.label, row.tone) }}</td>
+                <td data-label="Assigned to">{% if ticket.assignee_name %}<div class="sp-cell">{{ avatar(ticket.assignee_name) }}<span>{{ ticket.assignee_name }}</span></div>{% else %}<span class="sp-muted">Unassigned</span>{% endif %}</td>
+                <td class="is-right" data-label="Age"><span class="sp-muted">{{ row.age }}</span></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ pager(page) }}
+    {% elif filtered %}
+        {% call empty_state("No ticket matches", "Change or clear the filters to see more tickets.", "fa-magnifying-glass") %}
+            <a class="sp-btn" href="/support/tickets?scope={{ scope }}">Clear filters</a>
+        {% endcall %}
+    {% else %}
+        {% call empty_state(empty_title, empty_text, "fa-inbox") %}{% endcall %}
+    {% endif %}
+    </div>
+</div>
+{% endblock %}

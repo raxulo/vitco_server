@@ -51,6 +51,12 @@ from app.modules.recyclebin.domain.dto import DeletedRecordDto, PurgeScope
 from app.modules.recyclebin.domain.enums import DeletedEntityType
 from app.modules.recyclebin.domain.irepository import IRecycleBinRepository
 from app.modules.vlcc.infrastructure.models import VlccModel
+from app.modules.support.infrastructure.models import (
+    SupportAttachmentModel,
+    SupportTicketEventModel,
+    SupportTicketMessageModel,
+    SupportTicketModel,
+)
 
 # Keeps every IN (...) well below SQLite's bound-parameter limit
 _CHUNK = 500
@@ -326,6 +332,13 @@ class RecycleBinRepository(IRecycleBinRepository):
         # Variants and images cascade; order lines and enquiries keep their snapshots with a NULL link
         await self._delete_in(MarketplaceProductModel, MarketplaceProductModel.seller_user_id, users)
         await self._delete_in(MarketplaceAnimalModel, MarketplaceAnimalModel.seller_user_id, users)
+
+        # 3b. Technical Support: tickets the tree's users raised (messages, events and attachments cascade);
+        #     on other tickets their name links are cleared. Push devices and notifications cascade with the user.
+        await self._delete_in(SupportTicketModel, SupportTicketModel.requester_user_id, users)
+        await self._null_in(SupportTicketMessageModel, SupportTicketMessageModel.sender_user_id, users)
+        await self._null_in(SupportTicketEventModel, SupportTicketEventModel.actor_user_id, users)
+        await self._null_in(SupportAttachmentModel, SupportAttachmentModel.uploaded_by, users)
 
         # 4. Rate charts made inside the tree that no survivor uses; survivors' charts stay
         await self._delete_in(RateChartModel, RateChartModel.id, await self._rate_chart_ids(users))

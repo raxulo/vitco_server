@@ -1,0 +1,87 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, stat_card, chip, empty_state, alert, avatar %}
+
+{% block content %}
+{% if not own %}<div class="sp-crumbs"><a href="/support/activity/team">Team activity</a> / {{ view.member.name }}</div>{% endif %}
+{% call page_header(sp.title, view.period.label ~ ' · ' ~ (view.member.role_name or ('Manager' if view.member.is_manager else 'Member'))) %}
+    {% if member_options %}
+    <form method="get" action="/support/activity" class="sp-inline">
+        <input type="hidden" name="period" value="{{ view.period.key }}">
+        {% if view.period.key == 'custom' %}<input type="hidden" name="from" value="{{ query.from }}"><input type="hidden" name="to" value="{{ query.to }}">{% endif %}
+        <label class="sp-sr" for="sp-member">Member</label>
+        <select class="sp-select" id="sp-member" name="member" data-autosubmit>
+            {% for value, label in member_options %}<option value="{{ value }}"{% if value == view.member.id|string %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+    </form>
+    {% endif %}
+{% endcall %}
+
+{% if error %}<div style="margin-bottom:16px">{{ alert(error, 'warning') }}</div>{% endif %}
+<div class="sp-card" style="margin-bottom:16px">
+    {% set action = '/support/activity' %}{% set extra = {'member': (view.member.id|string) if not own else ''} %}
+    {% include "support/pages/activity/_period.html" %}
+</div>
+
+{% if not view.cards %}
+<div class="sp-card">
+    {% call empty_state("Nothing to count for this role", "This role can read tickets but does not reply, assign, resolve or call, so there is no activity to show.", "fa-chart-simple") %}{% endcall %}
+</div>
+{% else %}
+<div class="sp-grid cols-4">
+    {% for card in view.cards %}{{ stat_card(card.label, card.value, card.note) }}{% endfor %}
+    {% if shows_first_reply %}{{ stat_card("Average first reply", first_reply, "From ticket raised to your first reply") }}{% endif %}
+</div>
+
+<div class="sp-grid cols-2" style="margin-top:16px">
+    <section class="sp-card">
+        <div class="sp-card-head"><h3 class="sp-card-title">Actions per day</h3><span class="sp-muted">{{ chart.total }} in {{ view.period.label|lower }}</span></div>
+        <div class="sp-card-body">
+            <svg class="sp-chart" viewBox="0 0 {{ chart.w }} {{ chart.h }}" role="img" aria-label="Actions per day, {{ chart.total }} in total, highest {{ chart.peak }}">
+                <line class="sp-chart-axis" x1="{{ chart.pad }}" y1="{{ chart.base }}" x2="{{ chart.w }}" y2="{{ chart.base }}"></line>
+                <text class="sp-chart-tick" x="{{ chart.pad - 6 }}" y="10" text-anchor="end">{{ chart.peak }}</text>
+                <text class="sp-chart-tick" x="{{ chart.pad - 6 }}" y="{{ chart.base }}" text-anchor="end">0</text>
+                {% for bar in chart.bars %}
+                <g class="sp-chart-bar">
+                    <rect class="sp-chart-hit" x="{{ bar.x - 1 }}" y="0" width="{{ bar.w + 2 }}" height="{{ chart.base }}"></rect>
+                    {% if bar.h %}<path class="sp-chart-mark" d="M{{ bar.x }},{{ chart.base }} V{{ bar.y + [3, bar.h]|min }} Q{{ bar.x }},{{ bar.y }} {{ bar.x + [3, bar.w / 2]|min }},{{ bar.y }} H{{ bar.x + bar.w - [3, bar.w / 2]|min }} Q{{ bar.x + bar.w }},{{ bar.y }} {{ bar.x + bar.w }},{{ bar.y + [3, bar.h]|min }} V{{ chart.base }} Z"></path>{% endif %}
+                    <title>{{ bar.label }}: {{ bar.value }} {{ 'action' if bar.value == 1 else 'actions' }}</title>
+                    {% if bar.show_label %}<text class="sp-chart-tick" x="{{ bar.cx }}" y="{{ chart.h - 6 }}" text-anchor="middle">{{ bar.label }}</text>{% endif %}
+                </g>
+                {% endfor %}
+            </svg>
+            <table class="sp-sr">
+                <caption>Actions per day</caption>
+                <thead><tr><th>Day</th><th>Actions</th></tr></thead>
+                <tbody>{% for bar in chart.bars %}<tr><td>{{ bar.label }}</td><td>{{ bar.value }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="sp-card">
+        <div class="sp-card-head"><h3 class="sp-card-title">Open now</h3></div>
+        <div class="sp-card-body sp-stack">
+            {% if open_by_status %}
+            <dl class="sp-kv">{% for label, value in open_by_status %}<dt>{{ label }}</dt><dd><strong>{{ value }}</strong></dd>{% endfor %}</dl>
+            {% else %}<p class="sp-muted">No open tickets assigned.</p>{% endif %}
+            {% if calls %}
+            <div class="sp-section-title">Calls by outcome</div>
+            <dl class="sp-kv">{% for label, value in calls %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endif %}
+
+<section class="sp-card" style="margin-top:16px">
+    <div class="sp-card-head"><h3 class="sp-card-title">Recent actions</h3></div>
+    <div class="sp-card-body">
+        {% if recent %}
+        <div class="sp-timeline">
+            {% for entry in recent %}
+            <div class="sp-timeline-item"><strong>{{ entry.text }}</strong> · <a href="/support/tickets/{{ entry.ticket_id }}">{{ entry.ticket_no }}</a><br><small>{{ entry.when }}</small></div>
+            {% endfor %}
+        </div>
+        {% else %}<p class="sp-muted">No actions yet.</p>{% endif %}
+    </div>
+</section>
+{% endblock %}

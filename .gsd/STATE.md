@@ -6,13 +6,49 @@ updated: 2026-11-08T00:00:00+05:30
 
 ## Current Position
 
-**Milestone:** v1.2.0 - Marketplace Revamp
-**Phase:** 24 - Collection Excel column order, deleted rows and new columns
-**Status:** ✅ Phase 24 committed by the user (946b061 on `feature/collection-export-column-order`)
-**Plan:** Quick task: sidebar section colours, waiting for the user's review and commit
-**Branch:** `feature/sidebar-group-colors`, from `feature/collection-export-column-order` (946b061)
+**Milestone:** v1.3.0 - Technical Support
+**Phase:** 29 - Calls, Audit Views and My Activity
+**Status:** ✅ Phases 26 to 29 executed and verified (uncommitted); visual sign-off and commits await the user
+**Plan:** Next: Phase 30 (hardening, `docs/SUPPORT_API.md`, end-to-end verification)
+**Branch:** `feature/support-foundation` (Phase 25 committed as 058cf5a; Phases 26 to 29 uncommitted on top of it)
 
 ## Last Action
+
+- 2026-11-22: **Phase 29 executed (uncommitted).** Migration 0008 (`support_call_logs`), click-to-call with outcome,
+  phone-number views audited once a day, My Activity / Team activity / Audit log screens from aggregate queries,
+  new support home. Related suites: SQLite 286 + 2 skipped, PostgreSQL 287 + 1 skipped.
+- 2026-11-22: The app sends its FCM token with `POST /api/v1/auth/login` (optional `fcm_token`, `platform`,
+  `app_version`; never fails the login).
+
+- 2026-11-22: **Phase 28 reshaped at the user's request:** push notifications are now the shared module
+  `app/modules/notification/` (DECISION-034) for every feature; support only keeps its texts. Tables
+  `notification_device_tokens` / `notification_outbox`, API `/api/v1/notifications/devices`. Also fixed: Recycle Bin
+  purge of users who raised tickets. SQLite 237 + 2 skipped, PostgreSQL 259 + 1 skipped on the related suites.
+
+- 2026-11-22: **Phase 28 executed (uncommitted).** Migration 0007, device-token API, push outbox written with the
+  ticket change, FCM HTTP v1 sender (no SDK), in-process push worker; disabled (nothing written, no worker) without
+  a Firebase credential. Support suites 227 passed + 1 skipped on SQLite, 228 on PostgreSQL. Found a pre-existing
+  SQLite savepoint problem (see Concerns). Open item: Firebase service-account JSON from the user.
+
+- 2026-11-22: **Phase 27 executed (uncommitted).** Redis wrapper (optional), commit-safe event bus with replay,
+  permission-based audience, `/ws/support` and `/ws/support/app`, live portal client. Support suites 200 passed on
+  SQLite, 202 on PostgreSQL; real uvicorn + headless Chrome run 13/13. Not checked against a real Redis server.
+
+- 2026-11-22: **Phase 26 executed (uncommitted).** Ticket engine (migration 0006, rules, handlers, routing), mobile
+  API `/api/v1/support` (tickets, messages, private attachments), portal queues, ticket detail with HTMX composer,
+  categories. Support suites 167 passed on SQLite, 171 (with the migration test) on PostgreSQL. Screens reviewed in
+  headless Chrome at 1440 and 390 px. Waiting for the user's visual review and commit approval.
+
+- 2026-11-18: **Phase 25 executed (uncommitted)** on `feature/technical-support` (branched from 8f542e5, not from
+  `develop`: develop is at b10c5b7 and lacks migrations 0001 to 0004). Support module, `Role.SUPPORT`, migration 0005,
+  portal shell + design system, teams / members / roles screens, isolation middleware. Support suites 60 passed on
+  SQLite, 64 on PostgreSQL (found and fixed a PostgreSQL-only migration bug). Waiting for the user's visual review
+  and commit approval. The plans were committed by the user as 17b3cb6 ("plans") on this branch.
+
+- 2026-11-18: **Technical Support planned (no code yet).** Design document `docs/TECHNICAL_SUPPORT_PLAN.md`
+  (decisions D-1 to D-14), DECISION-031 to 033, REQ-58 to REQ-80, ROADMAP "Technical Support (v1.3.0)" with Phases
+  25 to 30 and plans in `.gsd/phases/25..30/`. Next: user reviews the plans, then `/execute 25` on a new branch
+  `feature/technical-support` (from `develop`). Open item: Firebase service-account JSON (Phase 28, can come later).
 
 - 2026-11-15: Quick task on `feature/sidebar-group-colors` (uncommitted). Each sidebar section heading has its own
   bright colour (General blue, MCC Management orange, VLCC Management green, System Setup purple, Payments cyan,
@@ -98,6 +134,12 @@ updated: 2026-11-08T00:00:00+05:30
 - None. (Plan 20.3 ran on a portable PostgreSQL 16 from `pip install pgserver` in a Python 3.12 scratch venv, with `tzdata`'s zoneinfo copied to its `share/postgresql/timezone`.)
 
 ## Concerns
+
+- **SQLite savepoints (pre-existing, found in Phase 28):** nested `database.transaction()` uses `begin_nested()`, but
+  the SQLite engine has no pysqlite BEGIN / isolation_level recipe, so releasing a savepoint commits and an outer
+  rollback cannot undo it. A handler that wrote inside a nested transaction and the request then failing keeps
+  those rows on SQLite (PostgreSQL is correct). Fix = the SQLAlchemy "serializable isolation / savepoints" recipe
+  for pysqlite/aiosqlite on the engine; not done because it changes transaction behaviour app-wide.
 
 - MCC and VLCC collection edit (`/mcc-collections/edit/{id}`, `/vlcc-collections/edit/{id}`) fail: the controllers read `collection_number`, which the DTOs and models no longer have. No page links to them. Found in Phase 22, not fixed.
 

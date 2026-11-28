@@ -41,3 +41,4 @@ httpx==0.28.1
 
 # Frontend templates
 Jinja2==3.1.6
+redis==8.1.0

@@ -16,6 +16,12 @@ class LoginRequest(BaseModel):
         max_length=128,
     )
 
+    # Optional: the app's Firebase token, so the phone gets push notifications from this login on
+    # (DECISION-034). Leaving them out changes nothing; a bad token never fails the login.
+    fcm_token: str | None = Field(default=None, max_length=512)
+    platform: str | None = Field(default=None, max_length=20)
+    app_version: str | None = Field(default=None, max_length=30)
+
     @property
     def identifier(self) -> str:
         return (self.email or self.username or self.mobile or "").strip()
@@ -84,6 +90,9 @@ class LoginResponse(BaseModel):
     is_verified: bool
 
     role: Role
+
+    # True when the login also registered `fcm_token` for push notifications
+    push_registered: bool = False
 
     model_config = ConfigDict(
         frozen=True,

@@ -1,0 +1,30 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, chip %}
+
+{% block content %}
+{% if sp.ctx.is_super_admin %}<div class="sp-crumbs"><a href="/support/teams">Support teams</a> / <a href="/support/teams/{{ team.id }}">{{ team.name }}</a> / Roles</div>{% endif %}
+{% call page_header("Roles and permissions", "A role is a set of permissions. Every member has one role; the manager has all of them.") %}
+    <a class="sp-btn is-primary" href="/support/roles/new{{ suffix }}"><i class="fa-solid fa-plus"></i>New role</a>
+{% endcall %}
+{% set subject = 'Role' %}{% include "support/partials/notice.html" %}
+
+<div class="sp-card">
+    <div class="sp-table-wrap">
+        <table class="sp-table is-cards">
+            <thead><tr><th>Role</th><th>Permissions</th><th class="is-right">Members</th><th></th></tr></thead>
+            <tbody>
+            {% for role in roles %}
+            <tr>
+                <td data-label="Role"><div class="sp-cell"><div><strong>{{ role.name }}</strong><small>{{ 'Template' if role.is_system else 'Custom' }}</small></div></div></td>
+                <td data-label="Permissions">
+                    {% if role.permissions %}{{ role.permissions|length }} of {{ total_permissions }}{% else %}<span class="sp-muted">None (sign-in only)</span>{% endif %}
+                </td>
+                <td class="is-right" data-label="Members">{{ role.member_count }}</td>
+                <td class="is-right"><a class="sp-btn is-sm" href="/support/roles/{{ role.id }}/edit{{ suffix }}">Edit</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

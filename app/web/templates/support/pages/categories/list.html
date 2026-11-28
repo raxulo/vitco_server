@@ -1,0 +1,48 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, active_chip, priority, empty_state %}
+
+{% block content %}
+{% call page_header("Categories", "What requesters choose when they raise a ticket. A category can send its tickets to a team on its own.") %}
+    <a class="sp-btn is-primary" href="/support/categories/new"><i class="fa-solid fa-plus"></i>New category</a>
+{% endcall %}
+{% set subject = 'Category' %}{% include "support/partials/notice.html" %}
+
+<div class="sp-card">
+    {% if categories %}
+    <div class="sp-table-wrap">
+        <table class="sp-table is-cards">
+            <thead><tr><th>Category</th><th>Default team</th><th>Default priority</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+            {% for category in categories %}
+            <tr>
+                <td data-label="Category"><strong>{{ category.name }}</strong></td>
+                <td data-label="Default team">{% if category.default_team_name %}{{ category.default_team_name }}{% else %}<span class="sp-muted">Unassigned pool</span>{% endif %}</td>
+                <td data-label="Default priority">{{ priority(category.default_priority.value) }}</td>
+                <td data-label="Status">{{ active_chip(category.is_active) }}</td>
+                <td class="is-right">
+                    <div class="sp-actions" style="justify-content:flex-end">
+                        <a class="sp-btn is-sm" href="/support/categories/{{ category.id }}/edit">Edit</a>
+                        <form method="post" action="/support/categories/{{ category.id }}/status">
+                            <input type="hidden" name="active" value="{{ '0' if category.is_active else '1' }}">
+                            {% if category.is_active %}
+                            <button class="sp-btn is-sm is-danger" type="submit" data-danger data-confirm-title="Disable {{ category.name }}?"
+                                    data-confirm="The app no longer offers this category. Existing tickets are not changed."
+                                    data-confirm-ok="Disable">Disable</button>
+                            {% else %}
+                            <button class="sp-btn is-sm" type="submit">Enable</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        {% call empty_state("No categories yet", "Add the topics people ask about, such as Sync problems or Rate chart.", "fa-tags") %}
+            <a class="sp-btn is-primary" href="/support/categories/new"><i class="fa-solid fa-plus"></i>New category</a>
+        {% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -11,6 +11,9 @@ Brings the database to the newest Alembic revision when a process connects:
   practice): it gets the missing tables and columns once and is stamped at the
   baseline, keeping its data.
 - Up to date: nothing happens.
+- Database migrated by the support branch before it was merged with develop (support migrations
+  numbered 0005 to 0008, no Self Brand columns): it gets the Self Brand migration and is stamped one
+  number higher, the support migrations' numbers since the merge (0006 to 0009).
 
 On PostgreSQL an advisory lock makes processes that start together take turns.
 Errors are raised, never swallowed: a half-migrated database must stop the start.
@@ -42,6 +45,11 @@ UNMANAGED_INDEXES: frozenset[str] = frozenset({"ix_users_email_lower"})
 
 # Any fixed number; every Quickyee process locks the same one
 _ADVISORY_LOCK_KEY = 7_316_220_026
+
+# The support branch numbered its migrations 0005 to 0008 on top of 0004 while develop added Self
+# Brand as 0005. Since the merge the support ones are 0006 to 0009 (old number + 1), after Self Brand.
+SELF_BRAND_REVISION = "0005"
+_OLD_SUPPORT_REVISIONS: frozenset[str] = frozenset({"0005", "0006", "0007", "0008"})
 
 # Columns added to existing tables before migrations existed: (table, column, DDL type)
 _LEGACY_COLUMNS: tuple[tuple[str, str, str], ...] = (
@@ -98,7 +106,35 @@ class SchemaMigrator:
             _adopt_legacy(connection)
             command.stamp(config, BASELINE_REVISION)
 
+        old_support = _old_support_revision(connection, tables)
+        if old_support is not None:
+            renumbered = f"{int(old_support) + 1:04d}"
+            logger.info(
+                "database uses the support branch's old migration numbers (%s); adding Self Brand and stamping %s",
+                old_support, renumbered,
+            )
+            # Self Brand checks for its columns and enum value first, so it is safe on any database
+            command.stamp(config, "0004", purge=True)
+            command.upgrade(config, SELF_BRAND_REVISION)
+            command.stamp(config, renumbered, purge=True)
+
         command.upgrade(config, "head")
+
+
+def _old_support_revision(connection: Connection, tables: set[str]) -> str | None:
+    """The stored revision when it is one of the support branch's old numbers, else None.
+
+    Only such a database has the support tables without the Self Brand columns: since the merge the
+    support migrations (0006 and later) always run after Self Brand (0005).
+    """
+    if "alembic_version" not in tables or "support_teams" not in tables or "users" not in tables:
+        return None
+    if "self_brand" in {column["name"] for column in inspect(connection).get_columns("users")}:
+        return None
+    versions = [row[0] for row in connection.execute(text("SELECT version_num FROM alembic_version"))]
+    if len(versions) == 1 and versions[0] in _OLD_SUPPORT_REVISIONS:
+        return versions[0]
+    return None
 
 
 def _model_tables() -> set[str]:

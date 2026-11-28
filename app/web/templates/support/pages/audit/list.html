@@ -1,0 +1,57 @@
+{% extends "layouts/support.html" %}
+{% from "support/components/ui.html" import page_header, chip, empty_state, pager %}
+
+{% block content %}
+{% call page_header("Audit log", "Who did what and when. Read-only: nothing here can be changed or deleted.") %}{% endcall %}
+
+<div class="sp-card">
+    <form class="sp-filters" method="get" action="/support/audit" role="search">
+        {% if teams %}
+        <select class="sp-select" name="team" aria-label="Team">
+            <option value="">Every team</option>
+            {% for value, label in teams %}<option value="{{ value }}"{% if values.team == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        {% if members %}
+        <select class="sp-select" name="member" aria-label="Member">
+            <option value="">Anyone</option>
+            {% for value, label in members %}<option value="{{ value }}"{% if values.member == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        <select class="sp-select" name="action" aria-label="Action">
+            <option value="">Any action</option>
+            {% for value, label in actions %}<option value="{{ value }}"{% if values.action == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <input class="sp-input" type="date" name="from" value="{{ values.from }}" aria-label="From" title="From">
+        <input class="sp-input" type="date" name="to" value="{{ values.to }}" aria-label="To" title="To">
+        {% if values.ticket %}<input type="hidden" name="ticket" value="{{ values.ticket }}">{% endif %}
+        <button class="sp-btn" type="submit">Apply</button>
+        {% if filtered %}<a class="sp-btn is-ghost" href="/support/audit">Clear</a>{% endif %}
+    </form>
+
+    {% if rows %}
+    <div class="sp-table-wrap">
+        <table class="sp-table is-cards">
+            <thead><tr><th>When</th><th>What happened</th><th>Action</th><th>Ticket</th></tr></thead>
+            <tbody>
+            {% for row in rows %}
+            <tr>
+                <td data-label="When"><span class="sp-muted">{{ row.when }}</span></td>
+                <td data-label="What happened">{{ row.text }}</td>
+                <td data-label="Action">{{ chip(row.label, '', plain=True) }}</td>
+                <td data-label="Ticket">{% if row.ticket_id %}<a href="/support/tickets/{{ row.ticket_id }}">{{ row.ticket_no or 'Open' }}</a> · <a class="sp-muted" href="/support/audit?ticket={{ row.ticket_id }}">history</a>{% else %}<span class="sp-muted">—</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ pager(page) }}
+    {% elif filtered %}
+        {% call empty_state("Nothing matches", "Change or clear the filters.", "fa-magnifying-glass") %}
+            <a class="sp-btn" href="/support/audit">Clear filters</a>
+        {% endcall %}
+    {% else %}
+        {% call empty_state("No activity yet", "Changes to teams, members and tickets appear here.", "fa-clipboard-list") %}{% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

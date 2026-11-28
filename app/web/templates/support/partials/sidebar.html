@@ -1,0 +1,29 @@
+<aside class="sp-sidebar" aria-label="Technical Support navigation">
+    <div class="sp-brand">
+        <span class="sp-brand-mark"><i class="fa-solid fa-headset"></i></span>
+        <span class="sp-brand-name">Technical Support<span class="sp-brand-sub">{{ sp.team_name or 'Control room' }}</span></span>
+    </div>
+
+    <nav class="sp-nav">
+        {% for group in sp.nav %}
+        <div class="sp-nav-group">
+            {% if group.label %}<div class="sp-nav-title">{{ group.label }}</div>{% endif %}
+            {% for item in group.items %}
+            <a href="{{ item.href }}" class="sp-nav-item{% if item.key == sp.active %} is-active{% endif %}"
+               {% if item.key == sp.active %}aria-current="page"{% endif %}>
+                <i class="{{ item.icon }}"></i>
+                <span>{{ item.label }}</span>
+                {% if item.count_key %}<span class="sp-nav-count" data-sp-count="{{ item.count_key }}"{% if not item.count %} hidden{% endif %}>{{ item.count }}</span>{% endif %}
+            </a>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </nav>
+
+    <div class="sp-side-foot">
+        {% if sp.back_to_dairy %}
+        <a href="/dashboard" class="sp-nav-item"><i class="fa-solid fa-arrow-left"></i><span>Back to dairy panel</span></a>
+        {% endif %}
+        <a href="/logout" class="sp-nav-item"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Sign out</span></a>
+    </div>
+</aside>
