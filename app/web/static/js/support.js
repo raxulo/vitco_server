@@ -133,13 +133,105 @@
         }
     });
 
+    /* ------------------------------------------------------------ voice messages */
+
+    // Record: the recording becomes the composer's file, sent with Send like any attachment.
+    // Needs a secure page (https or localhost) and a browser with MediaRecorder; else the button stays hidden.
+    var RECORD_TYPES = [['audio/webm;codecs=opus', '.webm'], ['audio/ogg;codecs=opus', '.ogg'], ['audio/mp4', '.m4a'], ['audio/webm', '.webm']];
+    var MAX_RECORD_S = 300;
+    var recorder = null, recordTimer = null, recordStart = 0;
+
+    function canRecord() {
+        return !!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
+                  window.MediaRecorder && window.DataTransfer);
+    }
+
+    function showRecordButton() {
+        if (!canRecord()) { return; }
+        document.querySelectorAll('[data-record]').forEach(function (button) { button.hidden = false; });
+    }
+
+    function clock(seconds) {
+        return Math.floor(seconds / 60) + ':' + ('0' + (seconds % 60)).slice(-2);
+    }
+
+    function recordUi(button, on, seconds) {
+        button.classList.toggle('is-recording', on);
+        button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        var label = button.querySelector('[data-record-label]');
+        if (label) { label.textContent = on ? 'Stop ' + clock(seconds || 0) : 'Record'; }
+    }
+
+    function stopRecording() {
+        if (recorder && recorder.state !== 'inactive') { recorder.stop(); }
+    }
+
+    function startRecording(button) {
+        var composer = button.closest('.sp-composer');
+        var input = composer && composer.querySelector('[data-file-input]');
+        if (!input) { return; }
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+            var choice = RECORD_TYPES.filter(function (t) { return MediaRecorder.isTypeSupported(t[0]); })[0];
+            var chunks = [];
+            recorder = choice ? new MediaRecorder(stream, { mimeType: choice[0] }) : new MediaRecorder(stream);
+            recorder.ondataavailable = function (event) { if (event.data && event.data.size) { chunks.push(event.data); } };
+            recorder.onstop = function () {
+                window.clearInterval(recordTimer);
+                stream.getTracks().forEach(function (track) { track.stop(); });
+                var seconds = Math.round((Date.now() - recordStart) / 1000);
+                recorder = null;
+                recordUi(button, false);
+                if (!chunks.length || !document.body.contains(input)) { return; }
+                var type = (chunks[0].type || (choice && choice[0]) || 'audio/webm').split(';')[0];
+                var extension = (RECORD_TYPES.filter(function (t) { return t[0].split(';')[0] === type; })[0] || [0, '.webm'])[1];
+                var file = new File(chunks, 'voice-message-' + Date.now() + extension, { type: type });
+                var list = new DataTransfer();
+                list.items.add(file);
+                input.files = list.files;
+                var label = composer.querySelector('[data-file-label]');
+                if (label) { label.textContent = 'Voice message ' + clock(seconds) + ' · press Send'; }
+            };
+            recordStart = Date.now();
+            recorder.start();
+            recordUi(button, true, 0);
+            recordTimer = window.setInterval(function () {
+                var seconds = Math.round((Date.now() - recordStart) / 1000);
+                recordUi(button, true, seconds);
+                if (seconds >= MAX_RECORD_S) { stopRecording(); }
+            }, 500);
+        }).catch(function () {
+            SP.toast('Allow microphone access in the browser to record a voice message.', 'error');
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-record]');
+        if (!button) { return; }
+        if (recorder) { stopRecording(); } else { startRecording(button); }
+    });
+
+    // Sending while still recording: finish the recording first, then send
+    document.addEventListener('submit', function (event) {
+        if (!recorder || !event.target.classList || !event.target.classList.contains('sp-composer')) { return; }
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        var form = event.target;
+        var done = recorder.onstop;
+        recorder.onstop = function () { done(); window.setTimeout(function () { form.requestSubmit(); }, 0); };
+        stopRecording();
+    }, true);
+
     function scrollThread() {
         var thread = document.querySelector('#sp-thread .sp-thread');
         if (thread) { thread.scrollTop = thread.scrollHeight; }
     }
-    document.addEventListener('DOMContentLoaded', scrollThread);
+    document.addEventListener('DOMContentLoaded', function () { scrollThread(); showRecordButton(); });
+    document.body.addEventListener('htmx:beforeSwap', function (event) {
+        if (event.target && event.target.id === 'sp-thread') { stopRecording(); }
+    });
     document.body.addEventListener('htmx:afterSwap', function (event) {
         if (event.target && event.target.id === 'sp-thread') {
+            showRecordButton();
             scrollThread();
             var body = document.getElementById('sp-body');
             if (body && !event.target.querySelector('.sp-alert')) { body.focus(); }

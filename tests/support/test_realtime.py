@@ -96,7 +96,10 @@ def test_requester_payload_hides_staff_details():
     event = _event(assigned_to=str(uuid4()), data={"change": "status", "status": "RESOLVED", "secret": "x"})
     payload = event.for_requester()
     assert "assigned_to" not in payload and "team_id" not in payload and "secret" not in payload["data"]
-    assert payload["data"] == {"change": "status", "status": "RESOLVED"}
+    assert payload["data"] == {"change": "status", "status": "RESOLVED", "status_label": "Resolved"}
+    # An internal status reaches the app with the app's own words, as in the REST API
+    escalated = _event(data={"change": "status", "status": "ESCALATED"}).for_requester()
+    assert escalated["data"]["status_label"] == "In progress"
 
 
 # =========================================================
@@ -188,8 +191,14 @@ class FakeRedis(RedisClient):
         return True
 
     async def incr(self, key):
+        await asyncio.sleep(0)                  # a network round trip: other publishers may run meanwhile
         self.counter += 1
-        return self.counter + 10**15            # above any local id
+        return self.counter
+
+    async def incr_at_least(self, key, floor):
+        await asyncio.sleep(0)
+        self.counter = max(self.counter + 1, int(floor))
+        return self.counter
 
     async def set(self, key, value, *, ex=None):
         self.keys[key] = value
@@ -240,6 +249,47 @@ async def test_two_processes_sharing_redis_both_receive_every_event_once():
     finally:
         await first.stop()
         await second.stop()
+
+
+async def test_ids_stay_unique_and_rising_when_many_publish_at_once_through_redis():
+    """Like a real Redis, the counter starts at 0, far below the time-based local ids."""
+    redis = FakeRedis()
+    first, second = EventBus(redis), EventBus(redis)
+    await first.start()
+    await second.start()
+    try:
+        await asyncio.sleep(0.1)
+        start = max(first.latest_id, second.latest_id)
+        sent = await asyncio.gather(*[(first if i % 2 else second).publish(_event()) for i in range(40)])
+        ids = [event.id for event in sent]
+        assert len(set(ids)) == 40, "two events shared an id"
+        assert min(ids) > start
+        assert redis.counter == max(ids)        # the shared counter moved with them
+        later = await first.publish(_event())
+        assert later.id > max(ids)
+    finally:
+        await first.stop()
+        await second.stop()
+
+
+async def test_a_real_redis_counter_is_lifted_above_the_local_ids():
+    """The atomic script, against a Redis that has a small counter left from earlier runs."""
+    import os
+
+    url = os.environ.get("REDIS_URL", "")
+    if not url:
+        pytest.skip("needs TEST_REDIS_URL")
+    client = RedisClient(url)
+    key = f"support:test_counter:{uuid4().hex}"
+    try:
+        assert await client.set(key, "3")
+        floor = 1_795_000_000_000
+        assert await client.incr_at_least(key, floor) == floor
+        assert await client.incr_at_least(key, floor) == floor + 1   # never repeats
+        assert await client.incr_at_least(key, 10) == floor + 2      # a low floor still rises
+    finally:
+        await client.delete(key)
+        await client.close()
 
 
 async def test_presence_uses_sockets_here_and_redis_for_other_processes():
@@ -440,6 +490,9 @@ async def test_assignment_moves_the_ticket_between_audiences(live):
     )
     update = await tech.hear_type("event")
     assert update["event"]["data"]["change"] == "assigned" and update["event"]["assigned_to"] == str(live.tech.user_id)
+    # ...and the status move that comes with it (it names the new assignee)
+    moved = await tech.hear_type("event")
+    assert moved["event"]["data"] == {"change": "status", "status": "ASSIGNED"}
 
     # The requester learns of the status change but not of who got the ticket
     heard = [m["event"] for m in await app_socket.heard() if m["type"] == "event"]
@@ -578,6 +631,80 @@ async def test_a_disabled_member_cannot_open_a_socket(live):
     socket.say({"type": "auth", "token": _token(live.token_for(live.tech.user_id, Role.SUPPORT))})
     await asyncio.wait_for(socket.task, 3)
     assert socket.close_code in (support_ws.UNAUTHORIZED, support_ws.FORBIDDEN)
+
+
+async def test_an_open_socket_is_closed_once_its_member_is_disabled(live, monkeypatch):
+    from app.modules.support.application.command import SetMemberActiveCommand
+    from app.modules.support.application.handler import SupportMemberHandler
+
+    monkeypatch.setattr(support_ws, "ACCESS_RECHECK_S", 0.1)
+    socket, _hello = await live.open(live.tech_actor)
+    members = live.app.state.application.container.resolve(SupportMemberHandler)
+    await members.set_active(SetMemberActiveCommand(member_id=live.tech.id, is_active=False), live.manager)
+    await asyncio.wait_for(socket.task, 3)
+    assert socket.close_code == support_ws.FORBIDDEN
+
+
+async def test_an_open_socket_follows_a_role_change(live, monkeypatch):
+    """A Viewer (view_all) moved to Technical Support (assigned only) stops hearing new team tickets."""
+    from app.modules.support.application.command import UpdateMemberCommand
+    from app.modules.support.application.handler import SupportMemberHandler
+    from tests.support.test_foundation import _role_id
+
+    monkeypatch.setattr(support_ws, "ACCESS_RECHECK_S", 0.1)
+    viewer, viewer_actor = await _make_member(live.desk, live.manager, "Viewer")
+    socket, _hello = await live.open(viewer_actor)
+    category = await _category(live.desk, team_id=live.team.id)
+    before = await _raise(live.desk, live.requester, category)
+    assert any(item.get("event", {}).get("ticket_id") == str(before.id) for item in await socket.heard(0.4))
+
+    members = live.app.state.application.container.resolve(SupportMemberHandler)
+    await members.update_member(
+        UpdateMemberCommand(member_id=viewer.id, role_id=await _role_id(live.desk, live.manager, "Technical Support")),
+        live.manager,
+    )
+    await asyncio.sleep(0.4)                                  # the next access check picks it up
+    after = await _raise(live.desk, live.requester, category)
+    heard = await socket.heard(0.5)
+    assert not any(item.get("event", {}).get("ticket_id") == str(after.id) for item in heard)
+    assert socket.close_code is None                          # still signed in, only hears less
+
+
+async def test_the_new_assignee_hears_the_status_move_that_comes_with_the_assignment(live):
+    from app.modules.support.application.ticket_command import AssignTicketCommand
+
+    category = await _category(live.desk, team_id=live.team.id)
+    ticket = await _raise(live.desk, live.requester, category)
+    socket, _hello = await live.open(live.tech_actor)               # view_assigned only
+    await live.desk.tickets.assign(
+        AssignTicketCommand(ticket_id=ticket.id, assignee_user_id=live.tech.user_id), live.manager,
+    )
+    changes = [
+        item["event"]["data"] for item in await socket.heard(0.5)
+        if item["type"] == "event" and item["event"]["ticket_id"] == str(ticket.id)
+    ]
+    assert {"change": "assigned"} in changes
+    assert {"change": "status", "status": "ASSIGNED"} in changes
+
+
+async def test_a_socket_signed_in_by_header_resumes_from_its_last_event(live):
+    category = await _category(live.desk, team_id=live.team.id)
+    first = await _raise(live.desk, live.requester, category)
+    await asyncio.sleep(0.2)
+    bus = live.app.state.application.container.resolve(EventBus)
+    seen_id = bus.latest_id
+    missed = await _raise(live.desk, live.requester, category)
+    await asyncio.sleep(0.2)
+
+    socket = FakeSocket(live.app, headers={"authorization": f"Bearer {_token(live.token_for(live.manager.id, Role.SUPPORT))}"})
+    socket.query_params = {"last_event_id": str(seen_id)}
+    socket.start("staff")
+    live.sockets.append(socket)
+    hello = await socket.hear_type("hello")
+    replayed = [item for item in await socket.heard(0.4) if item["type"] == "event"]
+    assert hello["resync"] is False
+    ticket_ids = {item["event"]["ticket_id"] for item in replayed}
+    assert str(missed.id) in ticket_ids and str(first.id) not in ticket_ids
 
 
 async def test_events_of_a_failed_handler_are_dropped_even_when_the_outer_transaction_commits(desk):  # noqa: F811

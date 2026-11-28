@@ -30,6 +30,7 @@ LABELS = {
     "ticket.created": "Ticket raised", "ticket.routed": "Ticket sent to team", "ticket.assigned": "Ticket assigned",
     "ticket.status_changed": "Status changed", "ticket.priority_changed": "Priority changed",
     "ticket.category_changed": "Category changed", "ticket.note_added": "Internal note",
+    "ticket.message_deleted": "Message deleted",
     "ticket.phone_viewed": "Phone number seen", "call.started": "Call started", "call.logged": "Call outcome",
 }
 
@@ -69,6 +70,7 @@ def sentence(item: dict[str, Any]) -> str:
         "ticket.priority_changed": f"{who} changed the priority of {ticket} to {str(meta.get('priority', '')).title()}",
         "ticket.category_changed": f"{who} moved {ticket} to the category {meta.get('category', '')}".strip(),
         "ticket.note_added": f"{who} wrote an internal note on {ticket}",
+        "ticket.message_deleted": f"{who} deleted " + ("an internal note" if meta.get("internal") else "a reply") + f" on {ticket}",
         "ticket.phone_viewed": f"{who} saw the requester's phone number on {ticket}",
         "call.started": f"{who} called the requester of {ticket}",
         "call.logged": f"{who} recorded a call on {ticket}: " + (

@@ -146,11 +146,23 @@ class EventBus:
         return event
 
     async def _next_id(self) -> int:
+        """A unique id above every id seen here.
+
+        The local id is reserved before any await, so two publishes in this process never share one.
+        With Redis, the shared counter is lifted to at least that id in one atomic step, so every
+        process draws from the same rising sequence (a plain INCR starts at 1, far below the
+        time-based local ids, and was never used).
+        """
+        self._last_id += 1
+        local = self._last_id
         if self._listening:
-            shared = await self._redis.incr(COUNTER)
-            if shared is not None and shared > self._last_id:
+            shared = await self._redis.incr_at_least(COUNTER, local)
+            if shared is not None:
+                self._last_id = max(self._last_id, shared)
                 return shared
-        return self._last_id + 1
+            self._last_id += 1          # Redis failed during the call: a fresh id above anything handed out
+            return self._last_id
+        return local
 
     def receive(self, event: SupportEvent) -> None:
         """Deliver to this process: store for replay, then call every subscriber."""

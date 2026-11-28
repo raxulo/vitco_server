@@ -118,6 +118,8 @@ class PushWorker:
                     self._last_purge = loop.time()
                     async with self._database.transaction():
                         await self._repository.purge_finished(before=now_naive_ist() - KEEP_FOR)
+                        # Rows a failed round could not finish (database error after the send) are not left forever
+                        await self._repository.release_stuck(before=now_naive_ist() - STUCK_AFTER)
             except asyncio.CancelledError:
                 raise
             except Exception:
@@ -129,8 +131,30 @@ class PushWorker:
         async with self._database.transaction():
             batch = await self._repository.claim_due(now=now_naive_ist(), limit=BATCH)
         for notification in batch:
-            await self._deliver(notification)
+            try:
+                await self._deliver(notification)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                # One bad row (a broken credential, an odd answer from Firebase) must not strand the rest
+                # of the batch in SENDING. The class name only: messages can hold tokens or keys.
+                logger.error("Push %s failed unexpectedly (%s)", notification.id, type(exc).__name__)
+                await self._give_back(notification, type(exc).__name__)
         return len(batch)
+
+    async def _give_back(self, notification: Notification, error: str) -> None:
+        """Back to PENDING with the usual delay, or FAILED after the last attempt."""
+        attempts = notification.attempts + 1
+        try:
+            if attempts < MAX_ATTEMPTS:
+                await self._finish(
+                    notification.id, NotificationStatus.PENDING, attempts,
+                    next_attempt_at=now_naive_ist() + backoff(attempts), error=error,
+                )
+            else:
+                await self._finish(notification.id, NotificationStatus.FAILED, attempts, error=error)
+        except Exception:
+            logger.exception("Push %s could not be put back; released after %s", notification.id, STUCK_AFTER)
 
     async def _deliver(self, notification: Notification) -> None:
         attempts = notification.attempts + 1

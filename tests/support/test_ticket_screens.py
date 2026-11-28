@@ -5,6 +5,7 @@ queues per permission, ticket detail, composer, actions and categories.
 
 from __future__ import annotations
 
+import os
 import re
 from uuid import uuid4
 
@@ -364,7 +365,7 @@ async def test_a_file_sent_from_the_composer_shows_in_the_thread_and_downloads_f
         api, f"{path}/messages", portal.manager, data={"mode": "reply", "body": ""},
         files={"file": ("notes.txt", b"plain text", "text/plain")}, hx=True,
     )
-    assert "Only JPEG, PNG, WebP images and PDF files can be attached." in bad.text
+    assert "Only JPEG, PNG, WebP images, PDF files and audio recordings can be attached." in bad.text
 
 
 async def test_a_closed_ticket_shows_no_composer(api, portal):
@@ -426,7 +427,14 @@ async def test_live_counts_endpoint_serves_badges_and_the_latest_event_id(api, p
     assert response.status_code == 200 and response.headers["cache-control"] == "no-store"
     data = response.json()
     assert set(data["counts"]) == {"unassigned", "all", "mine"} and data["counts"]["all"] >= 1
-    assert data["latest_id"] > 0 and data["redis"] is False
+    # Redis is on only when the run was given TEST_REDIS_URL (tests/conftest.py) and the bus is listening
+    from app.main import app
+    from app.modules.support.application.event_bus import EventBus
+
+    bus = app.state.application.container.resolve(EventBus)
+    assert data["latest_id"] > 0 and data["redis"] is bus.redis_active
+    if not os.environ.get("REDIS_URL"):
+        assert data["redis"] is False
     # Counts follow permission: a Technical Support member gets zero for queues it cannot open
     tech = (await _get(api, "/support/_live/counts", portal.tech)).json()["counts"]
     assert tech["all"] == 0 and tech["unassigned"] == 0

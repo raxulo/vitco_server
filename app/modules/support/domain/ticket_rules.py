@@ -66,14 +66,15 @@ def is_open(status: S) -> bool:
 def ensure_staff_transition(current: S, target: S) -> None:
     if target not in STAFF_TRANSITIONS.get(current, frozenset()):
         raise InvalidTicketTransitionException(
-            f"A {current.label.lower()} ticket cannot be moved to {target.label.lower()}."
+            f"A ticket that is {current.label.lower()} cannot be moved to {target.label.lower()}."
         )
 
 
 def ensure_requester_transition(current: S, target: S) -> None:
+    """The message uses the app's own status words (e.g. "A ticket that is in review cannot be reopened.")."""
     if target not in REQUESTER_TRANSITIONS.get(current, frozenset()):
         raise InvalidTicketTransitionException(
-            f"A {current.label.lower()} ticket cannot be moved to {target.label.lower()}."
+            f"A ticket that is {REQUESTER_LABELS[current].lower()} cannot be {target.label.lower()}."
         )
 
 

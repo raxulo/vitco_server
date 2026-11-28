@@ -392,6 +392,58 @@ async def test_manager_edits_role_permissions_and_the_guard_follows(support):
     assert total == 2
 
 
+async def test_a_member_who_manages_roles_cannot_raise_their_own_access(support):
+    """`support.role.manage` without being the Manager: no editing one's own role, no granting more than held."""
+    _, manager = await _make_team(support)
+    lead_permissions = [SupportPermission.ROLE_MANAGE.value, SupportPermission.TICKET_VIEW_ALL.value]
+    await support.roles.create_role(CreateRoleCommand(name="Lead", permissions=lead_permissions), manager)
+    lead, lead_actor = await _make_member(support, manager, "Lead")
+
+    with pytest.raises(SupportPermissionDeniedException):
+        await support.roles.update_role(
+            UpdateRoleCommand(role_id=lead.role_id, permissions=[*lead_permissions, SupportPermission.MEMBER_MANAGE.value]),
+            lead_actor,
+        )
+    with pytest.raises(SupportPermissionDeniedException):
+        await support.roles.update_role(UpdateRoleCommand(role_id=lead.role_id, name="Renamed"), lead_actor)
+    with pytest.raises(SupportPermissionDeniedException):
+        await support.roles.create_role(
+            CreateRoleCommand(name="Backdoor", permissions=[SupportPermission.MEMBER_MANAGE.value]), lead_actor,
+        )
+
+    # Within what the Lead holds, managing roles still works
+    helper = await support.roles.create_role(
+        CreateRoleCommand(name="Helper", permissions=[SupportPermission.TICKET_VIEW_ALL.value]), lead_actor,
+    )
+    await support.roles.update_role(UpdateRoleCommand(role_id=helper.id, name="Helper 2"), lead_actor)
+    roles = {role.name: role for role in await support.roles.list_roles(None, manager)}
+    assert roles["Lead"].permissions == frozenset(SupportPermission(value) for value in lead_permissions)
+    assert "Helper 2" in roles and "Backdoor" not in roles
+
+
+async def test_a_member_who_manages_members_cannot_hand_out_a_stronger_role(support):
+    """`support.member.manage` without being the Manager: a new or moved member gets at most the actor's access."""
+    _, manager = await _make_team(support)
+    onboarder = [SupportPermission.MEMBER_MANAGE.value, SupportPermission.TICKET_VIEW_ASSIGNED.value]
+    await support.roles.create_role(CreateRoleCommand(name="Onboarder", permissions=onboarder), manager)
+    await support.roles.create_role(
+        CreateRoleCommand(name="Basic", permissions=[SupportPermission.TICKET_VIEW_ASSIGNED.value]), manager,
+    )
+    _lead, lead_actor = await _make_member(support, manager, "Onboarder")
+
+    with pytest.raises(SupportPermissionDeniedException):      # Viewer carries view_all, which the actor lacks
+        await _make_member(support, lead_actor, "Viewer")
+    basic, _basic_actor = await _make_member(support, lead_actor, "Basic")   # within the actor's own access
+    with pytest.raises(SupportPermissionDeniedException):
+        await support.members.update_member(
+            UpdateMemberCommand(member_id=basic.id, role_id=await _role_id(support, manager, "Viewer")), lead_actor,
+        )
+    # The Manager is not limited
+    await support.members.update_member(
+        UpdateMemberCommand(member_id=basic.id, role_id=await _role_id(support, manager, "Viewer")), manager,
+    )
+
+
 async def test_team_manage_and_unknown_permissions_can_never_be_given_to_a_role(support):
     _, manager = await _make_team(support)
     with pytest.raises(SupportValidationException):

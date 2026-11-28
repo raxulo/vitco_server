@@ -15,6 +15,7 @@ Python 3.13+
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -23,7 +24,7 @@ from app.core.clock import now_naive_ist
 from app.core.database.manager import DatabaseManager
 from app.middleware.authentication import CurrentUser
 from app.modules.administration.domain.enums import Role
-from app.modules.support.application.attachment_service import AttachmentService
+from app.modules.support.application.attachment_service import AttachmentService, is_audio
 from app.modules.support.application.event_bus import EventBus
 from app.modules.support.application.push_messages import SupportPush
 from app.modules.support.application import events as ev
@@ -66,8 +67,11 @@ from app.modules.support.domain.enums import (
 from app.modules.support.domain.exceptions import (
     CategoryNameAlreadyExistsException,
     CategoryNotFoundException,
+    DuplicateClientRequestException,
     InvalidAssigneeException,
     InvalidTicketTransitionException,
+    MessageNotDeletableException,
+    MessageNotFoundException,
     SupportAccessDeniedException,
     SupportPermissionDeniedException,
     SupportValidationException,
@@ -98,6 +102,11 @@ def _request_id(value: str | None) -> str | None:
     if len(text) > 64:
         raise SupportValidationException("Request id must be at most 64 characters.")
     return text
+
+
+def _file_kind(stored: TicketAttachment) -> MessageKind:
+    """An audio file is a voice message; anything else a plain attachment."""
+    return MessageKind.AUDIO if is_audio(stored.mime_type) else MessageKind.ATTACHMENT
 
 
 def _event(
@@ -181,14 +190,20 @@ class TicketHandler:
 
     @staticmethod
     def _staff_can_see(ctx: SupportContext, ticket: Ticket) -> bool:
-        """Super Admin sees all (including the unassigned pool); staff see their team's tickets."""
+        """Super Admin sees all (including the unassigned pool); staff see their team's tickets.
+
+        Same rule as `audience.can_receive` and the queue counts: whoever may assign works the
+        team's unassigned queue, so may open those tickets too.
+        """
         if ctx.is_super_admin:
             return True
         if ticket.team_id is None or ticket.team_id != ctx.team_id:
             return False
         if ctx.has(SupportPermission.TICKET_VIEW_ALL):
             return True
-        return ctx.has(SupportPermission.TICKET_VIEW_ASSIGNED) and ticket.assigned_to == ctx.user_id
+        if ctx.has(SupportPermission.TICKET_VIEW_ASSIGNED) and ticket.assigned_to == ctx.user_id:
+            return True
+        return ctx.has(SupportPermission.TICKET_ASSIGN) and ticket.assigned_to is None
 
     def _emit(
         self,
@@ -360,9 +375,21 @@ class TicketHandler:
         subject = clean_text(command.subject, label="Subject", minimum=3, maximum=200)
         description = clean_text(command.description, label="Description", minimum=5, maximum=4000)
         request_id = _request_id(command.client_request_id)
+        requester_id = self._require_requester(actor)
+        try:
+            return await self._create(command, requester_id, subject, description, request_id)
+        except DuplicateClientRequestException:
+            # A retry raced the original and lost: answer with the ticket the original saved
+            async with self._database.transaction():
+                existing = await self._repository.find_by_client_request(requester_id, request_id or "")
+            if existing is None:
+                raise
+            return existing, False
 
+    async def _create(
+        self, command: CreateTicketCommand, requester_id: UUID, subject: str, description: str, request_id: str | None,
+    ) -> tuple[Ticket, bool]:
         async with self._database.transaction():
-            requester_id = self._require_requester(actor)
             if request_id:
                 existing = await self._repository.find_by_client_request(requester_id, request_id)
                 if existing is not None:
@@ -451,14 +478,24 @@ class TicketHandler:
     async def post_requester_message(self, command: PostMessageCommand, actor: CurrentUser | None) -> TicketMessage:
         body = clean_text(command.body, label="Message", maximum=4000)
         request_id = _request_id(command.client_request_id)
-        async with self._database.transaction():
-            requester_id = self._require_requester(actor)
-            ticket = await self._requester_ticket(requester_id, command.ticket_id)
-            if request_id:
-                existing = await self._repository.find_message_by_client_request(ticket.id, requester_id, request_id)
-                if existing is not None:
-                    return existing
-            return await self._write_requester_message(ticket, requester_id, body, request_id=request_id)
+        requester_id = self._require_requester(actor)
+        try:
+            async with self._database.transaction():
+                ticket = await self._requester_ticket(requester_id, command.ticket_id)
+                if request_id:
+                    existing = await self._repository.find_message_by_client_request(ticket.id, requester_id, request_id)
+                    if existing is not None:
+                        return existing
+                return await self._write_requester_message(ticket, requester_id, body, request_id=request_id)
+        except DuplicateClientRequestException:
+            # A retry raced the original and lost: answer with the message the original saved
+            async with self._database.transaction():
+                existing = await self._repository.find_message_by_client_request(
+                    command.ticket_id, requester_id, request_id or "",
+                )
+            if existing is None:
+                raise
+            return existing
 
     async def _write_requester_message(
         self,
@@ -634,7 +671,9 @@ class TicketHandler:
             await self._repository.bump_unread(ticket.id, for_staff=False)
             self._emit(ev.MESSAGE_CREATED, ticket, message_id=message.id)
             if self._outbox is not None:
-                await self._outbox.staff_replied(ticket, body, is_file=kind is MessageKind.ATTACHMENT)
+                await self._outbox.staff_replied(
+                    ticket, body, is_file=kind is MessageKind.ATTACHMENT, is_audio=kind is MessageKind.AUDIO,
+                )
         return message
 
     # =========================================================
@@ -652,7 +691,7 @@ class TicketHandler:
             stored = await self._attachments.store(session, ticket.id, command)
             message = await self._write_requester_message(
                 ticket, requester_id, stored.file_name,
-                kind=MessageKind.ATTACHMENT, event_type=EventType.ATTACHMENT_ADDED,
+                kind=_file_kind(stored), event_type=EventType.ATTACHMENT_ADDED,
             )
             return message, await self._save_attachment(stored, message, requester_id)
 
@@ -669,9 +708,82 @@ class TicketHandler:
                 raise TicketClosedException()
             stored = await self._attachments.store(session, ticket.id, command)
             message = await self._write_staff_message(
-                ctx, ticket, stored.file_name, internal=command.internal, kind=MessageKind.ATTACHMENT,
+                ctx, ticket, stored.file_name, internal=command.internal, kind=_file_kind(stored),
             )
             return message, await self._save_attachment(stored, message, ctx.user_id)
+
+    # =========================================================
+    # DELETING A MESSAGE
+    # =========================================================
+    #
+    # Only the sender deletes, and only what they could still send: the requester while the ticket is
+    # open, staff a reply while it is open (with the reply permission) or a note at any time (with the
+    # note permission). The ticket's first message is its description and stays. The row remains as a
+    # "deleted" placeholder; its text is blanked and its files are removed once the deletion commits.
+    # Deleting a message that is already deleted changes nothing and answers with it.
+
+    async def delete_requester_message(
+        self, ticket_id: UUID, message_id: int, actor: CurrentUser | None,
+    ) -> TicketMessage:
+        async with self._database.transaction() as session:
+            requester_id = self._require_requester(actor)
+            ticket = await self._requester_ticket(requester_id, ticket_id)
+            message = await self._ticket_message(ticket, message_id, include_internal=False)
+            if message.is_deleted:
+                return message
+            if message.sender_user_id != requester_id or message.sender_is_staff:
+                raise MessageNotDeletableException("You can only delete your own messages.")
+            if ticket.status is TicketStatus.CLOSED:
+                raise TicketClosedException()
+            return await self._delete_message(session, ticket, message, requester_id)
+
+    async def delete_staff_message(
+        self, ticket_id: UUID, message_id: int, actor: CurrentUser | None,
+    ) -> TicketMessage:
+        async with self._database.transaction() as session:
+            ctx = await self._guard.resolve(actor)
+            ticket = await self._staff_ticket(ctx, ticket_id)
+            message = await self._ticket_message(ticket, message_id, include_internal=True)
+            if message.is_deleted:
+                return message
+            if message.sender_user_id != ctx.user_id or not message.sender_is_staff:
+                raise MessageNotDeletableException("You can only delete your own messages.")
+            ctx.require(
+                SupportPermission.TICKET_INTERNAL_NOTE if message.is_internal else SupportPermission.TICKET_REPLY
+            )
+            if ticket.status is TicketStatus.CLOSED and not message.is_internal:
+                raise TicketClosedException()
+            deleted = await self._delete_message(session, ticket, message, ctx.user_id)
+            await self._audit(
+                ctx, AuditAction.MESSAGE_DELETED, "ticket", ticket.id, ticket.team_id,
+                ticket_no=ticket.ticket_no, message_id=message.id, internal=message.is_internal,
+            )
+            return deleted
+
+    async def _ticket_message(self, ticket: Ticket, message_id: int, *, include_internal: bool) -> TicketMessage:
+        message = await self._repository.get_message(message_id)
+        # Another ticket's message, or a note asked for by the requester, looks like one that does not exist
+        if message is None or message.ticket_id != ticket.id or (message.is_internal and not include_internal):
+            raise MessageNotFoundException()
+        return message
+
+    async def _ensure_not_first(self, ticket: Ticket, message: TicketMessage) -> None:
+        first = await self._repository.list_messages(ticket.id, include_internal=True, after_id=None, limit=1)
+        if first and first[0].id == message.id:
+            raise MessageNotDeletableException("The first message is the ticket's description and cannot be deleted.")
+
+    async def _delete_message(self, session, ticket: Ticket, message: TicketMessage, actor_id: UUID) -> TicketMessage:
+        await self._ensure_not_first(ticket, message)
+        keys = await self._repository.delete_message(message.id, deleted_by=actor_id, deleted_at=now_naive_ist())
+        self._attachments.remove_after_commit(session, keys)
+        await self._repository.add_event(
+            _event(
+                ticket.id, actor_id, EventType.MESSAGE_DELETED, is_public=not message.is_internal,
+                message_id=message.id,
+            )
+        )
+        self._emit(ev.MESSAGE_DELETED, ticket, public=not message.is_internal, message_id=message.id)
+        return await self._repository.get_message(message.id) or message
 
     async def _save_attachment(
         self, stored: TicketAttachment, message: TicketMessage, uploaded_by: UUID,
@@ -783,7 +895,10 @@ class TicketHandler:
                 assigned_to=command.assignee_user_id, previous_assignee=ticket.assigned_to,
             )
             if ticket.status in (TicketStatus.NEW, TicketStatus.REOPENED):
-                await self._apply_status(ticket, TicketStatus.ASSIGNED, ctx.user_id)
+                # The status event must name the new assignee, or that member's screen never hears it
+                await self._apply_status(
+                    replace(ticket, assigned_to=command.assignee_user_id), TicketStatus.ASSIGNED, ctx.user_id,
+                )
             await self._audit(
                 ctx, AuditAction.TICKET_ASSIGNED, "ticket", ticket.id, ticket.team_id,
                 assignee=str(command.assignee_user_id),

@@ -19,6 +19,17 @@ logger = logging.getLogger(__name__)
 
 _RETRY_AFTER_S = 5.0
 
+# INCR that never goes below ARGV[1], in one atomic step (a counter shared by several processes)
+_INCR_AT_LEAST = """
+local value = redis.call('INCR', KEYS[1])
+local floor = tonumber(ARGV[1])
+if value < floor then
+  redis.call('SET', KEYS[1], floor)
+  value = floor
+end
+return value
+"""
+
 
 class RedisClient:
 
@@ -76,6 +87,11 @@ class RedisClient:
 
     async def incr(self, key: str) -> int | None:
         value = await self._run("incr", key)
+        return int(value) if value is not None else None
+
+    async def incr_at_least(self, key: str, floor: int) -> int | None:
+        """The next value of a counter, never below `floor`; unique across every process using it."""
+        value = await self._run("eval", _INCR_AT_LEAST, 1, key, int(floor))
         return int(value) if value is not None else None
 
     async def set(self, key: str, value: str, *, ex: int | None = None) -> bool:

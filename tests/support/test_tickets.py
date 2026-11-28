@@ -271,6 +271,44 @@ async def test_same_client_request_id_returns_the_same_ticket(desk):
     assert total == 1 and tickets[0].id == first.id
 
 
+def _blind_first_lookup(monkeypatch, repository, name: str) -> None:
+    """The retry's duplicate check runs before the original commits: its first lookup finds nothing."""
+    real = getattr(repository, name)
+    calls = {"count": 0}
+
+    async def lookup(*args, **kwargs):
+        calls["count"] += 1
+        return None if calls["count"] == 1 else await real(*args, **kwargs)
+
+    monkeypatch.setattr(repository, name, lookup)
+
+
+async def test_a_retry_racing_the_original_ticket_gets_it_instead_of_an_error(desk, monkeypatch):
+    category = await _category(desk)
+    farmer = await desk.requester()
+    command = CreateTicketCommand(
+        subject="Printer problem", description="Printer prints blank pages.",
+        category_id=category.id, client_request_id=f"race-{uuid4().hex[:8]}",
+    )
+    first, _created = await desk.tickets.create(command, farmer)
+    _blind_first_lookup(monkeypatch, desk.tickets._repository, "find_by_client_request")
+    second, created = await desk.tickets.create(command, farmer)
+    assert created is False and second.id == first.id
+    _tickets, total = await desk.tickets.list_for_requester(ListRequesterTicketsQuery(), farmer)
+    assert total == 1
+
+
+async def test_a_retry_racing_the_original_message_gets_it_instead_of_an_error(desk, monkeypatch):
+    _team, _manager, ticket, requester = await _team_ticket(desk)
+    command = PostMessageCommand(ticket_id=ticket.id, body="Any update?", client_request_id=f"race-{uuid4().hex[:8]}")
+    first = await desk.tickets.post_requester_message(command, requester)
+    _blind_first_lookup(monkeypatch, desk.tickets._repository, "find_message_by_client_request")
+    again = await desk.tickets.post_requester_message(command, requester)
+    assert again.id == first.id
+    messages = await desk.tickets.list_messages_for_requester(ListMessagesQuery(ticket_id=ticket.id), requester)
+    assert [m.body for m in messages].count("Any update?") == 1
+
+
 async def test_new_ticket_starts_with_the_description_as_first_message_and_a_created_event(desk):
     category = await _category(desk)
     farmer = await desk.requester()

@@ -31,7 +31,7 @@ from app.modules.notification.application.sender import (
     load_credentials,
 )
 from app.modules.notification.application.service import NotificationService
-from app.modules.notification.application.worker import MAX_ATTEMPTS, PushWorker, backoff
+from app.modules.notification.application.worker import MAX_ATTEMPTS, STUCK_AFTER, PushWorker, backoff
 from app.modules.notification.domain.enums import NotificationStatus
 from app.modules.notification.domain.exceptions import NotificationValidationException
 from app.modules.notification.infrastructure.models import NotificationOutboxModel
@@ -324,6 +324,39 @@ async def test_rows_left_half_sent_by_a_crash_are_released(notify):
         assert await notify.repository.claim_due(now=now_naive_ist(), limit=10) == []     # SENDING: not taken twice
         assert await notify.repository.release_stuck(before=now_naive_ist() + timedelta(minutes=1)) == 1
     assert (await _rows(notify))[0].status is NotificationStatus.PENDING
+
+
+async def test_a_row_another_worker_is_sending_now_is_not_released(notify):
+    """Long overdue rows count from when they were claimed, not from when they became due."""
+    await _queue(notify)
+    async with notify.database.transaction() as session:
+        await session.execute(update(NotificationOutboxModel).values(next_attempt_at=now_naive_ist() - timedelta(hours=1)))
+    async with notify.database.transaction():
+        assert len(await notify.repository.claim_due(now=now_naive_ist(), limit=10)) == 1
+        # A second process restarting now releases what was claimed over 5 minutes ago: not this one
+        assert await notify.repository.release_stuck(before=now_naive_ist() - STUCK_AFTER) == 0
+    assert (await _rows(notify))[0].status is NotificationStatus.SENDING
+
+
+async def test_one_row_that_breaks_the_sender_does_not_strand_the_rest(notify):
+    await _queue(notify, devices=1, type="FIRST")
+    await _queue(notify, devices=1, type="SECOND")
+    sender = FakeSender()
+    calls = {"count": 0}
+
+    async def send(token, *, title, body, data):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise ValueError("Could not deserialize key data")      # e.g. a broken private key
+        sender.sent.append((token, title, body, data))
+        return SendResult(ok=True)
+
+    sender.send = send
+    await _drain(_worker(notify, sender))
+    statuses = sorted((row.status, row.attempts, row.last_error) for row in await _rows(notify))
+    assert NotificationStatus.SENDING not in {status for status, *_ in statuses}
+    assert (NotificationStatus.PENDING, 1, "ValueError") in statuses       # tried again later
+    assert any(status is NotificationStatus.SENT for status, *_ in statuses)
 
 
 async def test_finished_rows_are_purged_after_their_time(notify):

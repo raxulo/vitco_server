@@ -47,11 +47,12 @@ class SupportPush:
             skip_if_online=skip_if_online,
         )
 
-    async def staff_replied(self, ticket: Ticket, text: str, *, is_file: bool = False) -> None:
-        await self._send(
-            ticket, REPLY, f"Reply on {ticket.ticket_no}",
-            "The support team sent you a file." if is_file else text, skip_if_online=True,
-        )
+    async def staff_replied(self, ticket: Ticket, text: str, *, is_file: bool = False, is_audio: bool = False) -> None:
+        if is_audio:
+            text = "The support team sent you a voice message."
+        elif is_file:
+            text = "The support team sent you a file."
+        await self._send(ticket, REPLY, f"Reply on {ticket.ticket_no}", text, skip_if_online=True)
 
     async def status_changed(self, ticket: Ticket, status: TicketStatus) -> None:
         if status is TicketStatus.RESOLVED:

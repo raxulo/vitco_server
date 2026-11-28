@@ -203,6 +203,10 @@ class ITicketRepository(ABC):
     async def get_message(self, message_id: int) -> TicketMessage | None: ...
 
     @abstractmethod
+    async def delete_message(self, message_id: int, *, deleted_by: UUID, deleted_at: datetime) -> list[str]:
+        """Blank a message and drop its attachments; returns the storage keys of the dropped files."""
+
+    @abstractmethod
     async def find_message_by_client_request(
         self, ticket_id: UUID, sender_user_id: UUID, client_request_id: str,
     ) -> TicketMessage | None: ...

@@ -4,6 +4,7 @@ Support ticket screens (Plan 26.3, REQ-62, REQ-65, REQ-72)
 /support/tickets?scope=unassigned|all|mine   one list, three queues, with filters
 /support/tickets/{id}                        conversation, requester card, meta and timeline
 /support/tickets/{id}/messages               reply or internal note (HTMX, no page reload)
+/support/tickets/{id}/messages/{mid}/delete   delete one of the member's own messages (HTMX)
 /support/tickets/{id}/assign|status|priority|category|route   one action each, then back to the ticket
 /support/attachments/{id}                    a file of a ticket the member may see
 
@@ -153,6 +154,8 @@ def _describe(event: TicketEvent) -> str:
         return "Requester replied"
     if kind is EventType.ATTACHMENT_ADDED:
         return "File attached"
+    if kind is EventType.MESSAGE_DELETED:
+        return "Message deleted"
     if kind is EventType.CALL_STARTED:
         return "Called the requester"
     if kind is EventType.CALL_LOGGED:
@@ -173,10 +176,23 @@ class ThreadItem:
     body: str = ""
     attachments: list = None  # type: ignore[assignment]
     at: datetime | None = None
+    id: int | None = None
+    deleted: bool = False
+    can_delete: bool = False
 
 
-def _thread(messages: list[TicketMessage], events: list[TicketEvent]) -> list[ThreadItem]:
+def _thread(
+    messages: list[TicketMessage],
+    events: list[TicketEvent],
+    *,
+    me: UUID | None = None,
+    can_reply: bool = False,
+    can_note: bool = False,
+) -> list[ThreadItem]:
+    """The conversation. `me` and the permissions decide which of the member's own messages show Delete
+    (the same rule the handler enforces; the first message is the ticket's description and stays)."""
     items: list[ThreadItem] = []
+    first_id = messages[0].id if messages else None
     for message in messages:
         if message.is_internal:
             kind = "note"
@@ -184,10 +200,15 @@ def _thread(messages: list[TicketMessage], events: list[TicketEvent]) -> list[Th
             kind = "staff"
         else:
             kind = "requester"
+        own = me is not None and message.sender_is_staff and message.sender_user_id == me
         items.append(
             ThreadItem(
                 kind=kind, when=_when(message.created_at), sender=message.sender_name or "",
-                body=message.body, attachments=message.attachments, at=message.created_at,
+                body="" if message.is_deleted else message.body,
+                attachments=[] if message.is_deleted else message.attachments, at=message.created_at,
+                id=message.id, deleted=message.is_deleted,
+                can_delete=own and not message.is_deleted and message.id != first_id
+                and (can_note if message.is_internal else can_reply),
             )
         )
     for event in events:
@@ -392,7 +413,7 @@ class SupportTicketsController:
             "role": _role(ticket.requester_role),
             "age": _age(ticket.created_at, now),
             "created": _when(ticket.created_at),
-            "thread": _thread(view.messages, view.events),
+            "thread": _thread(view.messages, view.events, me=ctx.user_id, can_reply=can_reply, can_note=can_note),
             "timeline": timeline,
             "last_message_id": view.messages[-1].id if view.messages else 0,
             "can_reply": can_reply,
@@ -484,6 +505,32 @@ class SupportTicketsController:
         except TicketNotFoundException:
             return Renderer.redirect("/support/tickets")
         model = await cls._detail_model(request, ctx, view, error=error, mode=mode)
+        return Renderer.page(request=request, template="support/partials/ticket_thread.html", model=model)
+
+    @classmethod
+    async def delete_message(cls, request: Request, ticket_id: UUID, message_id: int):
+        """Delete one of the member's own messages. HTMX swaps the conversation; without it we redirect."""
+        try:
+            ctx = await SupportPortal.context(request)
+        except SupportAccessDeniedException:
+            return SupportPortal.denied()
+        handler = GetHandler.ticket_handler(request)
+        user = request.state.user
+        error = None
+        try:
+            await handler.delete_staff_message(ticket_id, message_id, user)
+        except TicketNotFoundException:
+            return Renderer.redirect("/support/tickets")
+        except FORM_ERRORS as exc:
+            error = error_message(exc)
+
+        if request.headers.get("HX-Request") != "true":
+            return Renderer.redirect(f"/support/tickets/{ticket_id}")
+        try:
+            view = await handler.get_for_staff(ticket_id, user)
+        except TicketNotFoundException:
+            return Renderer.redirect("/support/tickets")
+        model = await cls._detail_model(request, ctx, view, error=error)
         return Renderer.page(request=request, template="support/partials/ticket_thread.html", model=model)
 
     # ------------------------------------------------------------ actions

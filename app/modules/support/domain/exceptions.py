@@ -107,6 +107,20 @@ class TicketClosedException(ApplicationException):
     status_code = 409
 
 
+class MessageNotFoundException(ApplicationException):
+
+    code = "SUPPORT_MESSAGE_NOT_FOUND"
+    message = "Message not found."
+    status_code = 404
+
+
+class MessageNotDeletableException(ApplicationException):
+
+    code = "SUPPORT_MESSAGE_NOT_DELETABLE"
+    message = "This message cannot be deleted."
+    status_code = 409
+
+
 class InvalidAssigneeException(ApplicationException):
 
     code = "SUPPORT_INVALID_ASSIGNEE"
@@ -132,4 +146,16 @@ class CallAlreadyOpenException(ApplicationException):
 
     code = "SUPPORT_CALL_OPEN"
     message = "Record the outcome of your last call first."
+    status_code = 409
+
+
+class DuplicateClientRequestException(ApplicationException):
+    """Another request with the same `client_request_id` saved first (a retry racing the original).
+
+    The handlers catch it and answer with the record that was saved; it reaches a client only if that
+    record cannot be read back.
+    """
+
+    code = "SUPPORT_DUPLICATE_REQUEST"
+    message = "This request was already received."
     status_code = 409

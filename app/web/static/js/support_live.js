@@ -5,7 +5,7 @@
  * member may hear; this file only shows it:
  *   - sidebar badges and the tab title count
  *   - the ticket list refreshes (new rows are highlighted)
- *   - the open ticket's conversation appends new messages, shows typing, the side panel refreshes
+ *   - the open ticket's conversation appends new messages, marks deleted ones, shows typing, the side panel refreshes
  *   - a toast, and optionally a soft sound and a desktop notification (off until the member turns it on)
  * Markup always comes from the server's own pages (fetched and picked apart), never built here.
  * The socket reconnects with backoff and asks for what it missed; if the server says that is too much
@@ -23,6 +23,9 @@
     var baseTitle = document.title;
     var lastId = 0, socket = null, attempts = 0, reconnectTimer = null, pollTimer = null, pollLatest = null;
     var heartbeat = null, debounce = {}, typingSentAt = 0, typingHide = null, audio = null;
+    // "Reconnecting" only after the line has been down this long: moving between pages closes and reopens the
+    // socket in well under a second, which is not worth a warning
+    var GRACE_MS = 3000, graceTimer = null, leaving = false;
 
     /* ------------------------------------------------------------ small helpers */
 
@@ -40,12 +43,32 @@
     }
 
     function status(state) {
+        window.clearTimeout(graceTimer);
+        graceTimer = null;
         if (!badge) { return; }
         var map = { live: ['Live', 'is-live'], retry: ['Reconnecting', 'is-retry'], off: ['Offline', ''] };
         var entry = map[state] || map.off;
         badge.hidden = false;
         badge.textContent = entry[0];
         badge.className = 'sp-live ' + entry[1];
+    }
+
+    // The line is down: say so only if it is still down after the grace time (a `hello` cancels it)
+    function dropped() {
+        if (graceTimer) { return; }                     // counting from the first drop: failed retries do not restart it
+        graceTimer = window.setTimeout(function () { graceTimer = null; status('retry'); }, GRACE_MS);
+    }
+
+    // The previous page was live a moment ago: start as Live instead of flashing a warning
+    function wasLive() {
+        try {
+            var saved = (window.sessionStorage.getItem('sp-live') || '').split(':');
+            return saved[0] === 'live' && Date.now() - Number(saved[1]) < 15000;
+        } catch (ignore) { return false; }
+    }
+
+    function rememberLive() {
+        try { window.sessionStorage.setItem('sp-live', 'live:' + Date.now()); } catch (ignore) { /* private mode */ }
     }
 
     function fetchPage(url) {
@@ -140,6 +163,17 @@
         });
     }
 
+    // A message was deleted: swap just that bubble for the server's "deleted" version (others keep playing audio)
+    function replaceMessage(messageId) {
+        var thread = document.getElementById('sp-thread');
+        if (!thread || !messageId) { return; }
+        fetchPage(window.location.href).then(function (doc) {
+            var selector = '[data-message-id="' + String(messageId).replace(/[^0-9]/g, '') + '"]';
+            var mine = thread.querySelector(selector), fresh = doc && doc.querySelector('#sp-thread ' + selector);
+            if (mine && fresh) { mine.replaceWith(document.importNode(fresh, true)); }
+        });
+    }
+
     function refreshSide() {
         var side = document.getElementById('sp-side');
         if (!side) { return; }
@@ -202,17 +236,43 @@
         if (state) { state.textContent = alertsOn() ? 'On' : 'Off'; }
     }
 
+    // Every page load starts without sound: the browser lets a page play only after the member has used it
+    // (or, in Chrome, used the previous page of the site). So with alerts on, the sound is set up when the page
+    // opens and woken by the member's first click or key press here; until then a beep is simply skipped.
+    function ensureAudio() {
+        if (!audio) {
+            try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (ignore) { audio = null; }
+        }
+        if (audio && audio.state === 'suspended') { audio.resume().catch(function () { /* still waiting for a click */ }); }
+        return audio;
+    }
+
+    function wakeAudio() {
+        if (!alertsOn()) { return; }
+        var context = ensureAudio();
+        if (context && context.state === 'running') {
+            document.removeEventListener('pointerdown', wakeAudio, true);
+            document.removeEventListener('keydown', wakeAudio, true);
+        }
+    }
+
+    function tone(context) {
+        var osc = context.createOscillator(), gain = context.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.value = 0.04;
+        osc.connect(gain);
+        gain.connect(context.destination);
+        osc.start();
+        osc.stop(context.currentTime + 0.12);
+    }
+
     function beep() {
         try {
-            if (!audio) { return; }
-            var osc = audio.createOscillator(), gain = audio.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = 880;
-            gain.gain.value = 0.04;
-            osc.connect(gain);
-            gain.connect(audio.destination);
-            osc.start();
-            osc.stop(audio.currentTime + 0.12);
+            var context = ensureAudio();
+            if (!context) { return; }
+            if (context.state === 'running') { tone(context); return; }
+            context.resume().then(function () { tone(context); }, function () { /* not allowed yet */ });
         } catch (ignore) { /* no sound is fine */ }
     }
 
@@ -223,7 +283,6 @@
         store('sp-alerts', turnOn ? '1' : '0');
         if (turnOn) {
             // Both need a click from the member first, which is this one
-            try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); } catch (ignore) { audio = null; }
             if (window.Notification && Notification.permission === 'default') { Notification.requestPermission(); }
             beep();
         }
@@ -249,6 +308,7 @@
         if (document.getElementById('sp-list')) { later('list', 300, refreshList); }
         if (mine) {
             if (event.type === 'message.created' || event.type === 'note.created') { later('thread', 250, refreshThread); }
+            if (event.type === 'message.deleted') { replaceMessage(event.data && event.data.message_id); }
             if (event.type === 'ticket.updated') { later('side', 300, function () { refreshSide(); refreshThread(); }); }
             return;
         }
@@ -274,6 +334,7 @@
         try { message = JSON.parse(raw); } catch (ignore) { return; }
         if (message.type === 'hello') {
             status('live');
+            rememberLive();
             stopPolling();
             if (message.resync || !lastId) {
                 lastId = message.latest_id;
@@ -316,15 +377,16 @@
     function connect() {
         var scheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
         var url = scheme + window.location.host + body.getAttribute('data-sp-live') + (lastId ? '?last_event_id=' + lastId : '');
-        try { socket = new WebSocket(url); } catch (ignore) { status('retry'); scheduleReconnect(); startPolling(); return; }
+        try { socket = new WebSocket(url); } catch (ignore) { dropped(); scheduleReconnect(); startPolling(); return; }
 
         socket.onopen = function () { attempts = 0; };
         socket.onmessage = function (message) { onMessage(message.data); };
         socket.onclose = function (event) {
             window.clearInterval(heartbeat);
             socket = null;
+            if (leaving) { return; }                       // the browser is opening another page: not a drop
             if (event.code === 4401 || event.code === 4403) { status('off'); return; }   // signed out or no access: do not hammer
-            status('retry');
+            dropped();
             startPolling();
             scheduleReconnect();
         };
@@ -341,7 +403,25 @@
         if (!document.hidden && !socket) { window.clearTimeout(reconnectTimer); connect(); }
     });
 
+    // Leaving for another page closes the socket; keep the Live state for the next page to start from
+    window.addEventListener('pagehide', function () {
+        leaving = true;
+        if (socket && socket.readyState === 1) { rememberLive(); }
+    });
+    // Coming back through the browser's back button (page restored from memory): carry on
+    window.addEventListener('pageshow', function (event) {
+        if (!event.persisted) { return; }
+        leaving = false;
+        if (!socket) { window.clearTimeout(reconnectTimer); connect(); }
+    });
+
     syncAlertsMenu();
-    status('retry');
+    if (alertsOn()) {
+        ensureAudio();
+        document.addEventListener('pointerdown', wakeAudio, true);
+        document.addEventListener('keydown', wakeAudio, true);
+    }
+    if (wasLive()) { status('live'); }                     // else the badge stays hidden until the first hello
+    dropped();
     connect();
 })();

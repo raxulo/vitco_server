@@ -32,6 +32,7 @@ class AuditAction(StrEnum):
     TICKET_PRIORITY_CHANGED = "ticket.priority_changed"
     TICKET_CATEGORY_CHANGED = "ticket.category_changed"
     TICKET_NOTE_ADDED = "ticket.note_added"
+    MESSAGE_DELETED = "ticket.message_deleted"
     PHONE_VIEWED = "ticket.phone_viewed"
     CALL_STARTED = "call.started"
     CALL_LOGGED = "call.logged"
@@ -70,6 +71,7 @@ class MessageKind(StrEnum):
 
     TEXT = "TEXT"
     ATTACHMENT = "ATTACHMENT"
+    AUDIO = "AUDIO"            # a voice message: one audio file, played in the conversation
     SYSTEM = "SYSTEM"
 
 
@@ -86,6 +88,7 @@ class EventType(StrEnum):
     REPLIED = "REPLIED"
     REQUESTER_REPLIED = "REQUESTER_REPLIED"
     ATTACHMENT_ADDED = "ATTACHMENT_ADDED"
+    MESSAGE_DELETED = "MESSAGE_DELETED"
     CALL_STARTED = "CALL_STARTED"
     CALL_LOGGED = "CALL_LOGGED"
 
