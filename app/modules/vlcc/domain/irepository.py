@@ -85,10 +85,11 @@ class IVlccRepository(ABC):
         ...
 
     @abstractmethod
-    async def list_user_ids_by_route(
+    async def set_chart_rank_by_route(
         self,
         route_code: int,
+        chart_rank: int,
         owner: CurrentUser,
     ) -> list[UUID]:
-        """User ids of the VLCCs on a route that the owner can see."""
+        """Set assigned_chart_rank on every VLCC on a route the owner can see; returns their user ids."""
         ...

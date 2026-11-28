@@ -455,18 +455,30 @@ class VlccRepository(IVlccRepository):
         )
         return await self._session.scalar(stmt) or 0
 
-    async def list_user_ids_by_route(
+    async def set_chart_rank_by_route(
         self,
         route_code: int,
+        chart_rank: int,
         owner: CurrentUser,
     ) -> list[UUID]:
-        stmt = select(VlccModel.user_id).where(
-            VlccModel.is_deleted.is_(False),
-            VlccModel.route_code == route_code,
-            VlccAccessScope.condition(owner),
+        rows = (
+            await self._session.execute(
+                select(VlccModel.id, VlccModel.user_id).where(
+                    VlccModel.is_deleted.is_(False),
+                    VlccModel.route_code == route_code,
+                    VlccAccessScope.condition(owner),
+                )
+            )
+        ).all()
+        if not rows:
+            return []
+
+        await self._session.execute(
+            update(VlccModel)
+            .where(VlccModel.id.in_([row.id for row in rows]))
+            .values(assigned_chart_rank=chart_rank)
         )
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+        return [row.user_id for row in rows]
 
     @staticmethod
     def _manager_conditions(manager: CurrentUser | None) -> list:

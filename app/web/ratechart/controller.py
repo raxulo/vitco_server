@@ -24,6 +24,7 @@ from app.modules.ratechart.domain.exceptions import RateChartNotFoundException, 
 from app.modules.vlcc.application.command import ListVlccQuery, GetVlccQuery
 from app.modules.mcc.application.command import ListMccQuery, GetMccQuery
 from app.modules.administration.domain.enums import Role
+from app.modules.vlcc.domain.enums import MAX_CHART_RANK, MIN_CHART_RANK
 from app.web.framework.renderer import Renderer
 from app.web.framework.helpers import WebHelper
 from app.web.ratechart.assembler import RateChartAssembler
@@ -454,7 +455,6 @@ class RateChartController:
         charts = await rate_handler.list(ListRateChartsQuery(size=500, owner=request.state.user))
 
         master_charts = [{"id": str(c.id), "chart_name": c.chart_name} for c in charts]
-        routes = await GetHandler.route_master_handler(request).selectable(request.state.user)
 
         return Renderer.page(
             request=request,
@@ -462,7 +462,6 @@ class RateChartController:
             model={
                 "mccs": mccs,
                 "master_charts": master_charts,
-                "routes": routes,
                 "groups": [],
             },
         )
@@ -588,19 +587,29 @@ class RateChartController:
 
     @staticmethod
     async def post_assign_by_route_api(request: Request):
-        """Append one rate chart to every MCC / VLCC on a route (within the caller's visibility)."""
+        """Set the chart rank (and optionally append one rate chart) on every VLCC on a route.
+
+        Limited to the VLCCs the caller can see; MCCs have no route so they are not affected.
+        """
         WebHelper.deny_farmer_vlcc(request)
         user: CurrentUser = request.state.user
         body = await request.json()
 
-        target = str(body.get("target", "both")).lower()
-        if target not in ("both", "mcc", "vlcc"):
-            return JSONResponse({"detail": "Invalid target"}, status_code=400)
         try:
             route_id = UUID(body.get("route_id"))
-            chart_id = UUID(body.get("chart_id"))
+            chart_rank = int(body.get("chart_rank"))
         except (TypeError, ValueError):
-            return JSONResponse({"detail": "Route and rate chart are required"}, status_code=400)
+            return JSONResponse({"detail": "Route and chart rank are required"}, status_code=400)
+        if not MIN_CHART_RANK <= chart_rank <= MAX_CHART_RANK:
+            return JSONResponse({"detail": "Invalid chart rank"}, status_code=400)
+
+        # Rate chart is optional
+        chart_id: UUID | None = None
+        if body.get("chart_id"):
+            try:
+                chart_id = UUID(body["chart_id"])
+            except (TypeError, ValueError):
+                return JSONResponse({"detail": "Invalid rate chart"}, status_code=400)
 
         # Route must be one the caller can access in Route Master
         routes = await GetHandler.route_master_handler(request).selectable(user)
@@ -610,24 +619,27 @@ class RateChartController:
 
         # Chart must be one the caller can see (same scope as the rate chart page)
         handler = GetHandler.ratechart_handler(request)
-        if not await RateChartController._charts_visible(handler, [str(chart_id)], user):
+        if chart_id and not await RateChartController._charts_visible(handler, [str(chart_id)], user):
             return JSONResponse({"detail": "You can only map rate charts you have access to"}, status_code=403)
 
-        result: dict[str, dict[str, int]] = {}
-        if target in ("both", "mcc"):
-            owner_ids = await GetHandler.mcc_handler(request).user_ids_by_route(route.route_code, user)
-            outcome = await handler.assign_chart_to_owners(AssignChartToOwnersCommand(
-                owner_type=Role.MCC, owner_ids=owner_ids, rate_chart_id=chart_id, created_by=user.id,
-            ))
-            result["mcc"] = {"found": len(owner_ids), "assigned": outcome.assigned, "skipped": outcome.skipped}
-        if target in ("both", "vlcc"):
-            owner_ids = await GetHandler.vlcc_handler(request).user_ids_by_route(route.route_code, user)
+        owner_ids = await GetHandler.vlcc_handler(request).apply_chart_rank_by_route(
+            route.route_code, chart_rank, user,
+        )
+
+        chart_result = None
+        if chart_id and owner_ids:
             outcome = await handler.assign_chart_to_owners(AssignChartToOwnersCommand(
                 owner_type=Role.VLCC, owner_ids=owner_ids, rate_chart_id=chart_id, created_by=user.id,
             ))
-            result["vlcc"] = {"found": len(owner_ids), "assigned": outcome.assigned, "skipped": outcome.skipped}
+            chart_result = {"assigned": outcome.assigned, "skipped": outcome.skipped}
 
-        return JSONResponse({"status": "success", "route": route.route_name, "result": result})
+        return JSONResponse({
+            "status": "success",
+            "route": route.route_name,
+            "found": len(owner_ids),
+            "chart_rank": chart_rank,
+            "chart": chart_result,
+        })
 
     @staticmethod
     async def load_mcc_boxes(request: Request, mcc_id: UUID | None = None):

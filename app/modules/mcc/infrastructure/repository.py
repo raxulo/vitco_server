@@ -556,20 +556,6 @@ class MccRepository(IMccRepository):
             for row in result.all()
         ]
 
-    async def list_user_ids_by_route(
-        self,
-        route_code: int,
-        owner: CurrentUser,
-    ) -> list[UUID]:
-        stmt = select(MccModel.user_id).where(
-            MccModel.is_deleted.is_(False),
-            MccModel.mcc_type != MccType.WEIGHT,
-            MccModel.route_code == route_code,
-            MccAccessScope.condition(owner),
-        )
-        result = await self._database.session.execute(stmt)
-        return list(result.scalars().all())
-
     async def get_relations(self, mcc_id: UUID) -> MccRelations | None:
         result = await self._database.session.execute(
             select(
