@@ -46,7 +46,9 @@ from app.modules.administration.domain.exceptions import (
 )
 from app.modules.administration.infrastructure.repository import UserRepository
 from app.modules.vlcc.domain.entities import Vlcc
+from app.modules.vlcc.domain.enums import MAX_CHART_RANK, MIN_CHART_RANK
 from app.modules.vlcc.domain.exceptions import (
+    InvalidVlccException,
     VlccNotFoundException,
     VlccCodeAlreadyExistsException,
 )
@@ -253,13 +255,20 @@ class VlccHandler:
             for entity in entities
         ]
 
-    async def user_ids_by_route(
+    async def apply_chart_rank_by_route(
         self,
         route_code: int,
+        chart_rank: int,
         owner: CurrentUser,
     ) -> list[UUID]:
-        """User ids of every VLCC on `route_code` that `owner` can see."""
-        return await self._vlcc_repository.list_user_ids_by_route(route_code, owner)
+        """Set the chart rank (R1..R15) on every VLCC on `route_code` that `owner` can see.
+
+        Returns the user ids of the VLCCs updated (used to map a rate chart to them).
+        """
+        if not MIN_CHART_RANK <= chart_rank <= MAX_CHART_RANK:
+            raise InvalidVlccException(f"Chart rank must be between R{MIN_CHART_RANK} and R{MAX_CHART_RANK}")
+        async with self._database.transaction():
+            return await self._vlcc_repository.set_chart_rank_by_route(route_code, chart_rank, owner)
 
     async def count(
         self,
