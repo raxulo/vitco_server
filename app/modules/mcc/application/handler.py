@@ -719,6 +719,14 @@ class MccHandler:
         )
         return entities
 
+    async def user_ids_by_route(
+        self,
+        route_code: int,
+        owner: CurrentUser,
+    ) -> list[UUID]:
+        """User ids of every MCC on `route_code` that `owner` can see."""
+        return await self._mcc_repository.list_user_ids_by_route(route_code, owner)
+
     async def for_assigned_list(
         self,
         query: ListMccQuery, 

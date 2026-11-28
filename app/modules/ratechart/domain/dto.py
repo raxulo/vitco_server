@@ -24,6 +24,14 @@ class RateChartAssignmentDto:
 
 
 @dataclass(slots=True, frozen=True)
+class BulkAssignmentResultDto:
+    """Outcome of mapping one rate chart onto many owners."""
+
+    assigned: int
+    skipped: int
+
+
+@dataclass(slots=True, frozen=True)
 class RateChartAssignmentListDto:
 
     id: UUID

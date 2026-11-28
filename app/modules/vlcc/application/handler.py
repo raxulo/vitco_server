@@ -253,6 +253,14 @@ class VlccHandler:
             for entity in entities
         ]
 
+    async def user_ids_by_route(
+        self,
+        route_code: int,
+        owner: CurrentUser,
+    ) -> list[UUID]:
+        """User ids of every VLCC on `route_code` that `owner` can see."""
+        return await self._vlcc_repository.list_user_ids_by_route(route_code, owner)
+
     async def count(
         self,
         keyword: str | None = None,

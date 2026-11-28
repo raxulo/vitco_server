@@ -29,6 +29,7 @@ from app.modules.ratechart.domain.dto import (
     RateChartListDto,
     RateChartAssignmentDto,
     RateChartAssignmentListDto,
+    BulkAssignmentResultDto,
 )
 from app.modules.ratechart.application.command import (
     CreateRateChartCommand,
@@ -40,6 +41,7 @@ from app.modules.ratechart.application.command import (
     GetRateChartQuery,
     ListRateChartsQuery,
     CreateRateChartAssignmentCommand,
+    AssignChartToOwnersCommand,
     UpdateRateChartAssignmentCommand,
     DeleteRateChartAssignmentCommand,
     GetRateChartAssignmentQuery,
@@ -379,6 +381,47 @@ class RateChartHandler:
             await self._repository.create_assignment(assignment)
 
         return self._to_assignment_dto(assignment)
+
+    async def assign_chart_to_owners(
+        self,
+        command: AssignChartToOwnersCommand,
+    ) -> BulkAssignmentResultDto:
+        """Append the chart to every owner's list in one transaction (skip owners that already have it)."""
+        owner_ids = list(dict.fromkeys(command.owner_ids))
+        if not owner_ids:
+            return BulkAssignmentResultDto(assigned=0, skipped=0)
+
+        assigned = 0
+        skipped = 0
+        async with self._database.transaction():
+            existing = await self._repository.get_assignments_by_owners(owner_ids)
+            by_owner: dict[UUID, list[RateChartAssignment]] = {}
+            for row in existing:
+                by_owner.setdefault(row.owner_id, []).append(row)
+
+            now = now_naive_ist()
+            for owner_id in owner_ids:
+                rows = by_owner.get(owner_id, [])
+                if any(r.rate_chart_id == command.rate_chart_id for r in rows):
+                    skipped += 1
+                    continue
+                await self._repository.create_assignment(
+                    RateChartAssignment(
+                        id=uuid4(),
+                        owner_type=command.owner_type,
+                        owner_id=owner_id,
+                        rate_chart_id=command.rate_chart_id,
+                        priority=max((r.priority for r in rows), default=-1) + 1,
+                        is_default=not rows,
+                        is_active=True,
+                        created_by=command.created_by,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                )
+                assigned += 1
+
+        return BulkAssignmentResultDto(assigned=assigned, skipped=skipped)
 
     async def update_assignment(
         self,
