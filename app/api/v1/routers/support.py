@@ -202,9 +202,22 @@ async def post_message(request: Request, ticket_id: UUID, body: PostMessageReque
     return _record(MessageOut.of(message, user.id), "Message sent successfully", code=201)
 
 
-@router.post("/tickets/{ticket_id}/attachments", summary="Attach a photo or PDF (up to 10 MB)", status_code=201)
+@router.delete("/tickets/{ticket_id}/messages/{message_id}", summary="Delete one of my messages")
+async def delete_message(request: Request, ticket_id: UUID, message_id: int) -> JSONResponse:
+    """Only your own messages, while the ticket is not closed; the first message (the description) stays.
+
+    The message keeps its place in the conversation with `is_deleted: true`, no text and no files.
+    Deleting it again answers the same way.
+    """
+    user = _user(request)
+    message = await GetHandler.ticket_handler(request).delete_requester_message(ticket_id, message_id, user)
+    return _record(MessageOut.of(message, user.id), "Message deleted")
+
+
+@router.post("/tickets/{ticket_id}/attachments", summary="Attach a photo, PDF or voice message (up to 10 MB)", status_code=201)
 async def attach(request: Request, ticket_id: UUID, file: Annotated[UploadFile, File()]) -> JSONResponse:
-    """JPEG, PNG, WebP or PDF. The file becomes a message of kind `ATTACHMENT` in the conversation."""
+    """JPEG, PNG, WebP or PDF becomes a message of kind `ATTACHMENT`; an audio recording (M4A/AAC,
+    MP3, Ogg, WebM or WAV) becomes a message of kind `AUDIO` (a voice message)."""
     user = _user(request)
     data = await file.read(MAX_ATTACHMENT_BYTES + 1)
     if len(data) > MAX_ATTACHMENT_BYTES:

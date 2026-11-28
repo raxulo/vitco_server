@@ -64,6 +64,23 @@ def _page(limit: int, offset: int) -> tuple[int, int]:
     return max(1, min(int(limit), MAX_PAGE)), max(0, int(offset))
 
 
+def _check_grant(ctx: SupportContext, permissions: list[str] | None, *, role_id: UUID | None = None) -> None:
+    """A member who manages roles or members (not the Manager) cannot raise anyone's access above their own.
+
+    They may not edit the role they hold, and may only give permissions they hold themselves: in a
+    role they write, or through the role they give a member. Otherwise `support.role.manage` or
+    `support.member.manage` alone would be a way to every other permission (for example by giving a
+    login they created a stronger role).
+    """
+    if ctx.is_super_admin or ctx.is_manager:
+        return
+    if role_id is not None and ctx.member is not None and ctx.member.role_id == role_id:
+        raise SupportPermissionDeniedException("You cannot change the role you hold. Ask your manager.")
+    held = {str(permission) for permission in ctx.permissions}
+    if permissions and not set(permissions) <= held:
+        raise SupportPermissionDeniedException("You can only give permissions that you have yourself.")
+
+
 class _SupportHandlerBase:
 
     __slots__ = ("_database", "_repository", "_guard")
@@ -249,6 +266,7 @@ class SupportMemberHandler(_SupportHandlerBase):
             if team is None:
                 raise TeamNotFoundException()
             role = await self._role_in_team(team_id, command.role_id)
+            _check_grant(ctx, [str(permission) for permission in role.permissions])
 
             user = await self._users.create(
                 CreateUserCommand(
@@ -294,6 +312,7 @@ class SupportMemberHandler(_SupportHandlerBase):
                 if member.user_id == ctx.user_id:
                     raise SupportPermissionDeniedException("You cannot change your own role.")
                 role = await self._role_in_team(member.team_id, command.role_id)
+                _check_grant(ctx, [str(permission) for permission in role.permissions])
                 await self._repository.update_member(
                     member.id, role_id=role.id, set_role=True, is_active=None, actor_id=ctx.user_id,
                 )
@@ -373,6 +392,7 @@ class SupportRoleHandler(_SupportHandlerBase):
         async with self._database.transaction():
             ctx = await self._guard.resolve(actor)
             ctx.require(SupportPermission.ROLE_MANAGE)
+            _check_grant(ctx, permissions)
             team_id = ctx.team_scope(command.team_id)
             if await self._repository.role_name_exists(team_id, name):
                 raise RoleNameAlreadyExistsException()
@@ -393,6 +413,7 @@ class SupportRoleHandler(_SupportHandlerBase):
             role = await self._repository.get_role(command.role_id)
             if role is None or not ctx.can_access_team(role.team_id):
                 raise RoleNotFoundException()
+            _check_grant(ctx, permissions, role_id=role.id)
             if name is not None and await self._repository.role_name_exists(
                 role.team_id, name, exclude_role_id=role.id,
             ):

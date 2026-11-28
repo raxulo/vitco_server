@@ -131,8 +131,14 @@ class TicketMessage:
     is_internal: bool = False
     client_request_id: str | None = None
     created_at: datetime | None = None
+    # A deleted message stays in the conversation as "deleted", without its text or files
+    deleted_at: datetime | None = None
     sender_name: str | None = None
     attachments: list["TicketAttachment"] = field(default_factory=list)
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
 
 
 @dataclass(slots=True, kw_only=True)

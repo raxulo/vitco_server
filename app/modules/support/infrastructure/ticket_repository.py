@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import case, func, or_, select, update
+from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
@@ -29,6 +29,7 @@ from app.modules.support.domain.entities import (
     TicketMessage,
 )
 from app.modules.support.domain.enums import Scope, TicketPriority, TicketStatus
+from app.modules.support.domain.exceptions import DuplicateClientRequestException
 from app.modules.support.domain.irepository import ITicketRepository
 from app.modules.support.infrastructure.models import (
     SupportAttachmentModel,
@@ -189,7 +190,16 @@ class TicketRepository(ITicketRepository):
                 updated_by=ticket.requester_user_id,
             )
         )
-        await self._session.flush()
+        await self._flush_unique_request(ticket.client_request_id)
+
+    async def _flush_unique_request(self, client_request_id: str | None) -> None:
+        """Flush; a clash on the `client_request_id` unique index becomes a domain exception."""
+        try:
+            await self._session.flush()
+        except IntegrityError as exc:
+            if client_request_id and "client_request" in str(exc.orig).lower():
+                raise DuplicateClientRequestException() from exc
+            raise
 
     def _ticket_query(self):
         return (
@@ -418,6 +428,7 @@ class TicketRepository(ITicketRepository):
             is_internal=model.is_internal,
             client_request_id=model.client_request_id,
             created_at=model.created_at,
+            deleted_at=model.deleted_at,
             sender_name=sender_name,
         )
 
@@ -433,7 +444,7 @@ class TicketRepository(ITicketRepository):
             created_at=message.created_at or now_naive_ist(),
         )
         self._session.add(model)
-        await self._session.flush()
+        await self._flush_unique_request(message.client_request_id)
         message.id = model.id
         message.created_at = model.created_at
         return message
@@ -447,6 +458,22 @@ class TicketRepository(ITicketRepository):
             )
         ).first()
         return self._to_message(row[0], row.sender_name) if row else None
+
+    async def delete_message(self, message_id: int, *, deleted_by: UUID, deleted_at: datetime) -> list[str]:
+        """Blank the message, drop its attachment rows and return their storage keys (removed after commit)."""
+        attachments = (
+            await self._session.scalars(
+                select(SupportAttachmentModel).where(SupportAttachmentModel.message_id == message_id)
+            )
+        ).all()
+        keys = [attachment.storage_key for attachment in attachments]
+        await self._session.execute(delete(SupportAttachmentModel).where(SupportAttachmentModel.message_id == message_id))
+        await self._session.execute(
+            update(SupportTicketMessageModel)
+            .where(SupportTicketMessageModel.id == message_id)
+            .values(body="", deleted_at=deleted_at, deleted_by=deleted_by)
+        )
+        return keys
 
     async def find_message_by_client_request(
         self, ticket_id: UUID, sender_user_id: UUID, client_request_id: str,

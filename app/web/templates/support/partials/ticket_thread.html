@@ -12,16 +12,33 @@
             {% if item.kind == 'system' %}
             <div class="sp-bubble is-system">{{ item.body }} · {{ item.when }}</div>
             {% else %}
-            <div class="sp-bubble{% if item.kind == 'staff' %} is-staff{% elif item.kind == 'note' %} is-note{% endif %}">
+            <div class="sp-bubble{% if item.kind == 'staff' %} is-staff{% elif item.kind == 'note' %} is-note{% endif %}{% if item.deleted %} is-deleted{% endif %}" data-message-id="{{ item.id }}">
                 {% if item.kind == 'note' %}<strong class="sp-note-tag"><i class="fa-solid fa-lock"></i> Internal note · not shown to the requester</strong><br>{% endif %}
+                {% if item.deleted %}
+                <span class="sp-deleted"><i class="fa-solid fa-ban"></i> This message was deleted</span>
+                {% else %}
                 {% if item.body and not (item.attachments and item.body == item.attachments[0].file_name) %}<span class="sp-pre">{{ item.body }}</span>{% endif %}
                 {% for file in item.attachments or [] %}
+                    {% if file.mime_type.startswith('audio/') %}
+                    <div class="sp-voice"><i class="fa-solid fa-microphone"></i><audio controls preload="metadata" src="/support/attachments/{{ file.id }}"></audio></div>
+                    {% else %}
                     {% if file.mime_type.startswith('image/') %}
                     <a class="sp-file-thumb" href="/support/attachments/{{ file.id }}" target="_blank" rel="noopener"><img src="/support/attachments/{{ file.id }}" alt="{{ file.file_name }}" loading="lazy"></a>
                     {% endif %}
                     <a class="sp-file" href="/support/attachments/{{ file.id }}" target="_blank" rel="noopener"><i class="fa-solid {{ 'fa-file-pdf' if file.mime_type == 'application/pdf' else 'fa-image' }}"></i>{{ file.file_name }} <small>{{ [(file.size_bytes / 1024)|round|int, 1]|max }} KB</small></a>
+                    {% endif %}
                 {% endfor %}
-                <div class="sp-bubble-meta">{{ item.sender }} · {{ item.when }}</div>
+                {% endif %}
+                <div class="sp-bubble-meta">{{ item.sender }} · {{ item.when }}
+                    {% if item.can_delete %}
+                    <form class="sp-bubble-delete" method="post" action="/support/tickets/{{ ticket.id }}/messages/{{ item.id }}/delete"
+                          hx-post="/support/tickets/{{ ticket.id }}/messages/{{ item.id }}/delete" hx-target="#sp-thread" hx-swap="outerHTML">
+                        <button type="submit" class="sp-link-btn" aria-label="Delete this message"
+                                data-confirm="It will show as deleted for everyone in this conversation." data-confirm-title="Delete this message?"
+                                data-confirm-ok="Delete" data-danger><i class="fa-regular fa-trash-can"></i>Delete</button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
             {% endif %}
         {% endfor %}
@@ -48,8 +65,11 @@
                   placeholder="Write a reply or a note"></textarea>
         <div class="sp-composer-foot">
             <label class="sp-btn is-sm sp-attach"><i class="fa-solid fa-paperclip"></i>Attach
-                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" data-file-input>
+                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf,audio/*" data-file-input>
             </label>
+            <button type="button" class="sp-btn is-sm sp-record" data-record hidden aria-pressed="false">
+                <i class="fa-solid fa-microphone"></i><span data-record-label>Record</span>
+            </button>
             <span class="sp-muted sp-file-chosen" data-file-label></span>
             <span class="sp-spacer"></span>
             <button class="sp-btn is-primary" type="submit"><i class="fa-solid fa-paper-plane"></i>Send</button>

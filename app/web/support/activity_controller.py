@@ -141,7 +141,8 @@ class SupportActivityController:
         if not _sees_team(ctx):
             return SupportPortal.denied()
         user = request.state.user
-        team_id = optional_uuid(request.query_params.get("team"))
+        # Like members, roles and audit: only Super Admin picks the team, a manager always sees its own
+        team_id = optional_uuid(request.query_params.get("team")) if ctx.is_super_admin else None
         teams: list = []
         if ctx.is_super_admin:
             teams = (await GetHandler.support_team_handler(request).list_teams(ListTeamsQuery(limit=100), user))[0]

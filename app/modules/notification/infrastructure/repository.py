@@ -105,7 +105,11 @@ class NotificationRepository(INotificationRepository):
         await self._session.flush()
 
     async def claim_due(self, *, now: datetime, limit: int) -> list[Notification]:
-        """Due PENDING rows, each switched to SENDING by a guarded update so two workers never take the same one."""
+        """Due PENDING rows, each switched to SENDING by a guarded update so two workers never take the same one.
+
+        A SENDING row's `next_attempt_at` is the moment it was claimed, so `release_stuck` only frees rows
+        whose worker stopped long ago, never one another process is sending right now.
+        """
         ids = list(
             await self._session.scalars(
                 select(NotificationOutboxModel.id)
@@ -125,7 +129,7 @@ class NotificationRepository(INotificationRepository):
                     NotificationOutboxModel.id == notification_id,
                     NotificationOutboxModel.status == NotificationStatus.PENDING.value,
                 )
-                .values(status=NotificationStatus.SENDING.value)
+                .values(status=NotificationStatus.SENDING.value, next_attempt_at=now)
                 .execution_options(synchronize_session=False)
             )
             if result.rowcount:
@@ -158,7 +162,7 @@ class NotificationRepository(INotificationRepository):
         )
 
     async def release_stuck(self, *, before: datetime) -> int:
-        """SENDING rows left by a crash go back to PENDING."""
+        """SENDING rows claimed before `before` (their worker crashed or stopped) go back to PENDING."""
         result = await self._session.execute(
             update(NotificationOutboxModel)
             .where(

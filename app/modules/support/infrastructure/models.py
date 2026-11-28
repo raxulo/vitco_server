@@ -199,6 +199,9 @@ class SupportTicketMessageModel(Base):
     is_internal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     client_request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(NaiveDateTime(), nullable=False, default=now_naive_ist)
+    # Deleted by its sender (migration 0010): the row stays as a placeholder, text and files are removed
+    deleted_at: Mapped[datetime | None] = mapped_column(NaiveDateTime(), nullable=True)
+    deleted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 
 class SupportTicketEventModel(Base):

@@ -14,9 +14,13 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from app.modules.support.domain.enums import TicketStatus
+from app.modules.support.domain.ticket_rules import REQUESTER_LABELS
+
 TICKET_CREATED = "ticket.created"
 TICKET_UPDATED = "ticket.updated"        # data.change: assigned | status | priority | category | routed
 MESSAGE_CREATED = "message.created"
+MESSAGE_DELETED = "message.deleted"      # public unless the message was an internal note
 NOTE_CREATED = "note.created"            # internal, staff only
 TYPING = "typing"                        # ephemeral: never stored or replayed
 
@@ -55,6 +59,15 @@ class SupportEvent:
         }
 
     def for_requester(self) -> dict[str, Any]:
-        """What the app sees: no team, no assignee, no staff detail."""
+        """What the app sees: no team, no assignee, no staff detail; a status comes with the app's label."""
         data = {key: value for key, value in self.data.items() if key in {"change", "status", "message_id", "typing"}}
+        if "status" in data:
+            data["status_label"] = _requester_label(data["status"])
         return {"id": self.id, "type": self.type, "ticket_id": self.ticket_id, "ticket_no": self.ticket_no, "data": data}
+
+
+def _requester_label(status: Any) -> str:
+    try:
+        return REQUESTER_LABELS[TicketStatus(status)]
+    except (ValueError, KeyError):
+        return str(status)

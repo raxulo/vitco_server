@@ -5,6 +5,8 @@ Test harness — runs every test against a real, throw-away database.
 - `TEST_DATABASE_URL` set to a PostgreSQL server URL (any existing database on it,
   e.g. `postgresql+asyncpg://postgres:secret@localhost:5432/postgres`): the run
   creates `quickyee_test_<hex>` there and drops it at the end.
+- Redis is off unless `TEST_REDIS_URL` names one (use a database of its own, e.g.
+  `redis://localhost:6379/15`): the developer's `REDIS_URL` in `.env` is never used.
 
 The environment is set before anything from `app` is imported, because the
 settings object is read once at import time.
@@ -33,6 +35,8 @@ if _SERVER_URL:
     )
 else:
     os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_TEST_ROOT / 'test.db').as_posix()}"
+# An empty value wins over `.env`, so tests never publish into the developer's Redis
+os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "").strip()
 os.environ["EXCHANGE_PATH"] = str(_TEST_ROOT / "exchange")
 os.environ["EXCHANGE_WORKER_ENABLED"] = "false"
 os.environ["LOG_PATH"] = str(_TEST_ROOT / "logs")

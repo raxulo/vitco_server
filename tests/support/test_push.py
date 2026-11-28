@@ -83,6 +83,14 @@ async def test_a_staff_file_says_a_file_was_sent(push):
     assert [r.body for r in await _outbox(push)] == ["The support team sent you a file."]
 
 
+async def test_a_staff_voice_message_says_a_voice_message_was_sent(push):
+    ogg = b"OggS\x00\x02" + b"\x00" * 64
+    await push.desk.tickets.attach_for_staff(
+        AddAttachmentCommand(ticket_id=push.ticket.id, file_name="reply.ogg", content_type="audio/ogg", data=ogg), push.manager,
+    )
+    assert [r.body for r in await _outbox(push)] == ["The support team sent you a voice message."]
+
+
 async def test_staff_status_moves_queue_pushes_the_requesters_own_moves_do_not(push):
     worker, _ = await _make_member(push.desk, push.manager, "Technical Support")
     await push.desk.tickets.assign(AssignTicketCommand(ticket_id=push.ticket.id, assignee_user_id=worker.user_id), push.manager)

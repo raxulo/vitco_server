@@ -6,6 +6,19 @@
     <div class="sp-topbar-spacer"></div>
 
     <span class="sp-live" id="sp-live" role="status" aria-live="polite" hidden>Connecting</span>
+    {# Before the page is painted: start as Live when the previous page was live a moment ago (support_live.js
+       keeps that in sessionStorage), so moving between pages does not make the badge blink #}
+    <script>
+        (function () {
+            try {
+                var saved = (window.sessionStorage.getItem('sp-live') || '').split(':');
+                var badge = document.getElementById('sp-live');
+                if (badge && saved[0] === 'live' && Date.now() - Number(saved[1]) < 15000) {
+                    badge.hidden = false; badge.textContent = 'Live'; badge.className = 'sp-live is-live';
+                }
+            } catch (ignore) { /* private mode: the badge appears with the first hello instead */ }
+        })();
+    </script>
 
     <div class="sp-menu">
         <button type="button" class="sp-menu-trigger" aria-haspopup="menu" aria-expanded="false">

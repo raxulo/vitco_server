@@ -48,6 +48,18 @@ UNAUTHORIZED = 4401
 FORBIDDEN = 4403
 BUSY = 1013
 
+# How often an open socket checks that its user still has access (disabled member, new role, team off)
+ACCESS_RECHECK_S = 30.0
+
+
+async def _is_active(websocket: WebSocket, user_id: UUID) -> bool:
+    database = websocket.app.state.application.container.database
+    async with database.transaction() as session:
+        row = (
+            await session.execute(select(UserModel.is_active, UserModel.is_deleted).where(UserModel.id == user_id))
+        ).first()
+    return row is not None and bool(row.is_active) and not row.is_deleted
+
 
 async def _decode(websocket: WebSocket, token: str) -> CurrentUser | None:
     raw = urllib.parse.unquote(token or "").strip("\"' \t\r\n")
@@ -60,14 +72,21 @@ async def _decode(websocket: WebSocket, token: str) -> CurrentUser | None:
         subject = UUID(str(payload["sub"]))
     except Exception:
         return None
-    database = websocket.app.state.application.container.database
-    async with database.transaction() as session:
-        row = (
-            await session.execute(select(UserModel.is_active, UserModel.is_deleted).where(UserModel.id == subject))
-        ).first()
-    if row is None or not row.is_active or row.is_deleted:
+    if not await _is_active(websocket, subject):
         return None
     return CurrentUser(id=subject, role=str(payload.get("role", "")), name=payload.get("name"))
+
+
+async def _subscriber(user: CurrentUser, kind: str, handler: TicketHandler) -> Subscriber | None:
+    """Who this socket listens as right now, or None when the user may not use it."""
+    if kind == "app":
+        return Subscriber.requester(user.id) if user.role_type in REQUESTER_ROLES else None
+    if user.role_type not in (Role.SUPPORT, Role.SUPER_ADMIN):
+        return None
+    try:
+        return Subscriber.staff(await handler.context(user))
+    except SupportAccessDeniedException:
+        return None
 
 
 def _same_origin(websocket: WebSocket) -> bool:
@@ -76,13 +95,17 @@ def _same_origin(websocket: WebSocket) -> bool:
 
 
 async def _authenticate(websocket: WebSocket) -> tuple[CurrentUser | None, int]:
-    """(user, last_event_id). The cookie or Authorization header counts at once, else the first message."""
+    """(user, last_event_id). The cookie or Authorization header counts at once, else the first message.
+
+    With a header or cookie there is no first message, so the last id comes from `?last_event_id=`.
+    """
     last_id = 0
     token = websocket.headers.get("authorization") or ""
     if not token and websocket.cookies.get("access_token") and _same_origin(websocket):
         token = websocket.cookies["access_token"]
+    if token:
         try:
-            last_id = int(websocket.query_params.get("last_event_id") or 0)
+            last_id = max(0, int(websocket.query_params.get("last_event_id") or 0))
         except (TypeError, ValueError):
             last_id = 0
     if not token:
@@ -112,20 +135,10 @@ async def _serve(websocket: WebSocket, kind: str) -> None:
         await websocket.close(code=UNAUTHORIZED)
         return
 
-    if kind == "app":
-        if user.role_type not in REQUESTER_ROLES:
-            await websocket.close(code=FORBIDDEN)
-            return
-        subscriber = Subscriber.requester(user.id)
-    else:
-        if user.role_type not in (Role.SUPPORT, Role.SUPER_ADMIN):
-            await websocket.close(code=FORBIDDEN)
-            return
-        try:
-            subscriber = Subscriber.staff(await handler.context(user))
-        except SupportAccessDeniedException:
-            await websocket.close(code=FORBIDDEN)
-            return
+    subscriber = await _subscriber(user, kind, handler)
+    if subscriber is None:
+        await websocket.close(code=FORBIDDEN)
+        return
 
     connection = Connection(subscriber=subscriber, kind=kind)
     if not hub.add(connection):
@@ -142,7 +155,8 @@ async def _serve(websocket: WebSocket, kind: str) -> None:
 
         sender = asyncio.create_task(_send_loop(websocket, connection))
         receiver = asyncio.create_task(_receive_loop(websocket, connection, user, handler, hub, bus))
-        done, pending = await asyncio.wait({sender, receiver}, return_when=asyncio.FIRST_COMPLETED)
+        watcher = asyncio.create_task(_watch_access(websocket, connection, user, handler))
+        done, pending = await asyncio.wait({sender, receiver, watcher}, return_when=asyncio.FIRST_COMPLETED)
         for task in pending:
             task.cancel()
         for task in done:
@@ -158,6 +172,25 @@ async def _serve(websocket: WebSocket, kind: str) -> None:
             await websocket.close()
         except Exception:
             pass
+
+
+async def _watch_access(websocket: WebSocket, connection: Connection, user: CurrentUser, handler: TicketHandler) -> None:
+    """Keeps the audience in step with the user's current access; closes the socket once it is gone.
+
+    The audience is decided per event from `connection.subscriber`, so a member who is disabled, moved
+    to another team or loses `view_all` stops hearing the team within `ACCESS_RECHECK_S`.
+    """
+    while True:
+        await asyncio.sleep(ACCESS_RECHECK_S)
+        try:
+            subscriber = await _subscriber(user, connection.kind, handler) if await _is_active(websocket, user.id) else None
+        except Exception:
+            logger.warning("Support socket access check failed; trying again later")
+            continue                     # a database hiccup is not a reason to drop the user
+        if subscriber is None:
+            await websocket.close(code=FORBIDDEN)
+            return
+        connection.subscriber = subscriber
 
 
 async def _send_loop(websocket: WebSocket, connection: Connection) -> None:

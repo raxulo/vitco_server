@@ -1,5 +1,5 @@
 ---
-updated: 2026-11-08T00:00:00+05:30
+updated: 2026-11-28T00:00:00+05:30
 ---
 
 # Project State
@@ -7,12 +7,23 @@ updated: 2026-11-08T00:00:00+05:30
 ## Current Position
 
 **Milestone:** v1.3.0 - Technical Support
-**Phase:** 29 - Calls, Audit Views and My Activity
-**Status:** ✅ Phases 26 to 29 executed and verified (uncommitted); visual sign-off and commits await the user
-**Plan:** Next: Phase 30 (hardening, `docs/SUPPORT_API.md`, end-to-end verification)
-**Branch:** `feature/support-foundation` (Phase 25 committed as 058cf5a; Phases 26 to 29 uncommitted on top of it)
+**Phase:** 30 - Hardening, API Document and Verification
+**Status:** ✅ Phase 30 executed and verified (uncommitted); UI sign-off and the milestone commit await the user
+**Plan:** Next: user looks over the portal at desktop and phone widths, approves the commit message
+**Branch:** `develop` (local only, not pushed). `feature/support-foundation` (Phases 25 to 29) merged as 7b3b3de on
+2026-11-28; before the merge develop was at db73bf3. Phase 30 work is uncommitted on top of the merge.
+**Migrations after the merge:** 0005 Self Brand (#41), 0006 support foundation, 0007 tickets, 0008 notifications,
+0009 calls (the support ones were 0005 to 0008 on the feature branch; `SchemaMigrator` adopts databases with the old
+numbers).
 
 ## Last Action
+
+- 2026-11-28: **Phase 30 executed (uncommitted).** Permission matrix (831 cases, `tests/support/test_permissions_matrix.py`),
+  `/code-review` (10 findings) and `/security-review` (1 candidate, below the reporting bar, fixed anyway), 14 fixes
+  listed in `phases/30/VERIFICATION.md`, `docs/SUPPORT_API.md` from real responses. End-to-end on PostgreSQL 18.7 +
+  Redis with a real uvicorn: 43/43, load check 200 sockets × 100 tickets with no loss. Tests no longer use the
+  developer's Redis (`TEST_REDIS_URL` opt-in). Local dev stack now Docker: `vitco-pg18` (PostgreSQL 18.7) and
+  `vitco-redis` (Redis 7).
 
 - 2026-11-22: **Phase 29 executed (uncommitted).** Migration 0008 (`support_call_logs`), click-to-call with outcome,
   phone-number views audited once a day, My Activity / Team activity / Audit log screens from aggregate queries,
@@ -134,6 +145,17 @@ updated: 2026-11-08T00:00:00+05:30
 - None. (Plan 20.3 ran on a portable PostgreSQL 16 from `pip install pgserver` in a Python 3.12 scratch venv, with `tzdata`'s zoneinfo copied to its `share/postgresql/timezone`.)
 
 ## Concerns
+
+- **Intermittent SQLite `database is locked` in the support suite (Phase 30):** a portal POST in the permission
+  matrix sometimes fails at once (13–15 ms, not the 5 s busy timeout), which is SQLite WAL refusing to upgrade a read
+  snapshot after another connection committed. Seen in 3 of 25 full support runs on SQLite (each time a different
+  case; two of the three while another full suite ran at the same time), then 0 in the last 12; never with the matrix
+  file alone, never on PostgreSQL (3 runs). Ruled out: open sockets (none before the matrix), the new foundation tests
+  (5/5 clean with them), the review fixes (the failing cases run unchanged code; 7/7 clean on HEAD + the matrix is not
+  enough runs to tell). Same family as the savepoint concern below (no pysqlite BEGIN recipe on the engine). Not fixed:
+  the recipe changes transaction behaviour app-wide. What would settle it: an SQLite trace of both connections on a
+  failing run.
+- **Rate limits** on support ticket and message creation: Version 3 in `docs/TECHNICAL_SUPPORT_PLAN.md` §11A, not built.
 
 - **SQLite savepoints (pre-existing, found in Phase 28):** nested `database.transaction()` uses `begin_nested()`, but
   the SQLite engine has no pysqlite BEGIN / isolation_level recipe, so releasing a savepoint commits and an outer

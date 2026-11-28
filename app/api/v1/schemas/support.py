@@ -112,6 +112,9 @@ class MessageOut(_Out):
     from_you: bool
     sender_label: str
     created_at: datetime | None
+    # A deleted message keeps its place: `body` is empty and `attachments` is empty
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
     attachments: list[AttachmentOut] = []
 
     @classmethod
@@ -120,11 +123,13 @@ class MessageOut(_Out):
         return cls(
             id=message.id,
             kind=message.kind,
-            body=message.body,
+            body="" if message.is_deleted else message.body,
             from_you=from_you,
             sender_label="You" if from_you else "Support team",
             created_at=message.created_at,
-            attachments=[AttachmentOut.of(item) for item in message.attachments],
+            is_deleted=message.is_deleted,
+            deleted_at=message.deleted_at,
+            attachments=[] if message.is_deleted else [AttachmentOut.of(item) for item in message.attachments],
         )
 
 

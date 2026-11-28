@@ -301,13 +301,15 @@ the manager's team view (REQ-78 to REQ-80).
 **Verification:** [VERIFICATION.md](phases/29/VERIFICATION.md)
 
 ### Phase 30: Hardening, API Document and Verification
-**Status:** ⬜ Not started
+**Status:** ✅ Executed and verified 2026-11-28 (uncommitted); UI sign-off awaits the user
 **Objective:** Security and permission review, load check of realtime, `docs/SUPPORT_API.md` for app developers,
 end-to-end `/verify` on PostgreSQL with Redis, UI sign-off.
 **Depends on:** Phases 25 to 29
 
 **Plans:**
-- [ ] Plan 30.1: Review, API document and end-to-end verification — [1-PLAN.md](phases/30/1-PLAN.md)
+- [x] Plan 30.1: Review, API document and end-to-end verification — [1-PLAN.md](phases/30/1-PLAN.md)
+
+**Verification:** [VERIFICATION.md](phases/30/VERIFICATION.md)
 
 ---
 
@@ -336,7 +338,7 @@ end-to-end `/verify` on PostgreSQL with Redis, UI sign-off.
 | 27 | ✅ | 2/2 | 100% |
 | 28 | ✅ | 1/1 | 100% |
 | 29 | ✅ | 2/2 | 100% |
-| 30 | ⬜ | 0/1 | 0% |
+| 30 | ✅ | 1/1 | 100% (UI sign-off open) |
 
 ---
 *Phases 9–15 are planned one at a time with `/plan N`. Last updated: 2026-11-08*
